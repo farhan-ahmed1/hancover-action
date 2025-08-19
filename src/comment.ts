@@ -30,14 +30,14 @@ export async function renderComment(data: CommentData): Promise<string> {
         const prefix = delta >= 0 ? '+' : '';
         const value = `${prefix}${delta.toFixed(1)}%`;
         const color = delta >= 0 ? 'brightgreen' : 'red';
-        changesBadge = `\n[![Changes](${shield('changes', value, color)})](#)`;
+        changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
     }
     
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
         // Calculate overall delta from summary
         const totalDelta = calculateOverallDelta(deltaCoverage);
-        deltaBadge = `\n[![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
+        deltaBadge = ` [![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
     }
     
     // Badge section
@@ -52,7 +52,7 @@ export async function renderComment(data: CommentData): Promise<string> {
 ${badgeSection}
 
 <details>
-<summary><b>Code Coverage</b> — click to expand</summary>
+<summary><b>Code Coverage Report</b></summary>
 
 <br/>
 
