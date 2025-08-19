@@ -10,14 +10,13 @@ const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 export interface CommentData {
     prProject: ProjectCov;
     prPackages: PkgCov[];
-    changesCoverage: ChangesCoverage;
     deltaCoverage?: DeltaCoverage;
     mainBranchCoverage?: number | null;
     minThreshold?: number;
 }
 
 export async function renderComment(data: CommentData): Promise<string> {
-    const { prProject, prPackages, changesCoverage, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
     
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
@@ -45,28 +44,46 @@ export async function renderComment(data: CommentData): Promise<string> {
     
     // Generate table sections
     const projectTable = renderProjectTable(prPackages, minThreshold);
-    const changesTable = renderChangesTable(changesCoverage, minThreshold);
     const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
     
+    // Calculate overall coverage for display
+    const overallCoverage = `**Overall Coverage:** ${projectLinesPct.toFixed(1)}%`;
+    const totalLines = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+    const totalLinesCovered = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+    const coverageStats = `**Lines Covered:** ${totalLinesCovered}/${totalLines}`;
+    
+    // Generate coverage change sentence if main branch coverage is available
+    let coverageChangeSentence = '';
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        if (delta > 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR increased coverage by ${delta.toFixed(1)} percentage points._`;
+        } else if (delta < 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR decreased coverage by ${Math.abs(delta).toFixed(1)} percentage points._`;
+        } else {
+            coverageChangeSentence = '\n\n_Changes made in this PR did not affect overall coverage._';
+        }
+    }
+    
     return `${COVERAGE_COMMENT_MARKER}
+## Coverage Report
+
 ${badgeSection}
 
+${overallCoverage} | ${coverageStats}${coverageChangeSentence}
+
 <details>
-<summary><b>Code Coverage Report</b></summary>
+<summary><b>Detailed Coverage by Package</b></summary>
 
 <br/>
 
-### Project Coverage (PR)
 ${projectTable}
 
----
-
-### Code Changes Coverage
-${changesTable}
-
-${deltaTable ? `---\n\n${deltaTable}` : ''}
-
 </details>
+
+${deltaTable ? `\n${deltaTable}` : ''}
+
+_Minimum pass threshold is ${minThreshold.toFixed(1)}%_
 `;
 }
 
