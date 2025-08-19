@@ -1,4 +1,4 @@
-import { FileCov, PkgCov, GroupsConfig } from './schema.js';
+import { FileCov, PkgCov } from './schema.js';
 import * as path from 'path';
 
 export type GroupSummary = {
@@ -159,7 +159,7 @@ export function rollup(files: FileCov[]): { lines: { covered: number; total: num
 }
 
 // Legacy function for backwards compatibility
-export function groupCoverage(bundle: { files: FileCov[] }, groups?: GroupsConfig): Map<string, FileCov[]> {
+export function groupCoverage(bundle: { files: FileCov[] }): Map<string, FileCov[]> {
     const packages = groupPackages(bundle.files);
     const result = new Map<string, FileCov[]>();
     
@@ -168,15 +168,4 @@ export function groupCoverage(bundle: { files: FileCov[] }, groups?: GroupsConfi
     }
     
     return result;
-}
-
-function matchesGroup(filePath: string, group: { name: string; include: string | string[]; exclude?: string | string[] }): boolean {
-    // Simplified implementation for backwards compatibility
-    const includes = Array.isArray(group.include) ? group.include : [group.include];
-    const excludes = group.exclude ? (Array.isArray(group.exclude) ? group.exclude : [group.exclude]) : [];
-    
-    const matchesInclude = includes.some(pattern => filePath.includes(pattern));
-    const matchesExclude = excludes.some(pattern => filePath.includes(pattern));
-    
-    return matchesInclude && !matchesExclude;
 }
