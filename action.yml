@@ -15,6 +15,9 @@ inputs:
   files:
     description: "Glob patterns for coverage files (e.g., coverage/**/lcov.info, **/cobertura.xml)"
     required: true
+  github-token:
+    description: "GitHub token for API access (defaults to GITHUB_TOKEN)"
+    required: false
   base-ref:
     description: "Base commit SHA (defaults to PR base)"
     required: false
