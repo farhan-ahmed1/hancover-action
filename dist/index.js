@@ -48408,7 +48408,6 @@ function renderProjectTable(packages, minThreshold) {
     const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
     const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
     return table;
 }
 function renderDeltaTable(deltaCoverage, minThreshold) {
