@@ -53,45 +53,6 @@ jobs:
           warn-only: false
 ```
 
-## 🔒 Security & Trust
-
-HanCover is designed with security as a top priority:
-
-### Minimal Permissions
-Only requires the minimum permissions needed:
-```yaml
-permissions:
-  pull-requests: write  # To post/update comments
-  contents: read        # To read coverage files
-```
-
-### Safe XML Parsing
-- DTD processing disabled to prevent XXE attacks
-- External entity loading blocked
-- Input validation for all XML content
-- Protection against XML bombs
-
-### File Size Limits
-- Default 50MB per file, 200MB total
-- Configurable via inputs
-- Prevents resource exhaustion attacks
-
-### Supply Chain Security
-- Signed releases with SLSA Level 3 provenance
-- Regular security audits with CodeQL
-- OpenSSF Scorecard monitoring
-- Dependency vulnerability scanning
-
-### Pin to Specific Versions
-Always pin to specific versions for security:
-```yaml
-uses: farhan-ahmed1/hancover-action@v0.1.0  # ✅ Good
-uses: farhan-ahmed1/hancover-action@main     # ❌ Avoid
-```
-
-### Reporting Security Issues
-See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
-
 ## Features
 
 - **Multi-format support**: LCOV, Cobertura (Clover & JaCoCo coming soon)
@@ -123,6 +84,23 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 | `total_coverage` | Total line coverage percentage |
 | `diff_coverage` | Diff (changed lines) coverage percentage |
 | `branch_coverage` | Branch coverage percentage (if available) |
+
+## Security
+
+HanCover is designed with security as a top priority:
+
+- **Minimal permissions**: Only requires `pull-requests: write` and `contents: read`
+- **Safe XML parsing**: XXE protection, no external entities, input validation
+- **File size limits**: Configurable limits (50MB/file, 200MB total) prevent resource exhaustion
+- **Supply chain security**: Signed releases, regular audits, dependency scanning
+
+Always pin to specific versions for security:
+```yaml
+uses: farhan-ahmed1/hancover-action@v0.1.0  # ✅ Good
+uses: farhan-ahmed1/hancover-action@main     # ❌ Avoid
+```
+
+Report security issues via [SECURITY.md](SECURITY.md).
 
 ## License
 
