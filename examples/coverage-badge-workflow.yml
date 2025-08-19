@@ -1,3 +1,6 @@
+# Example Coverage Badge Workflow
+# Copy this file to your repository as .github/workflows/coverage-badge.yml
+
 name: Coverage Badge
 
 on:

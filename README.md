@@ -30,7 +30,9 @@ The new enhanced coverage system provides comprehensive coverage analysis with:
 - **Health Indicators**: Visual status based on configurable thresholds
 
 [📖 Read the Enhanced Coverage Guide](./docs/ENHANCED-COVERAGE.md)
-[📊 Set up Changes Badge](./docs/CHANGES-BADGE.md)
+[🏷️ Coverage Badge Setup](./docs/COVERAGE-BADGE.md)
+
+> **Note**: For coverage badges on your main branch, you'll need to add a separate workflow to your repository. See the [Coverage Badge Setup Guide](./docs/COVERAGE-BADGE.md) for complete instructions.
 
 ## Quick Start
 
@@ -84,7 +86,6 @@ jobs:
 | `max-total-bytes` | Max total size in bytes | No | `209715200` (200MB) |
 | `timeout-seconds` | Execution timeout | No | `120` |
 | `strict` | Fail on oversize/invalid files | No | `false` |
-| `coverage-data-path` | Path to JSON file for storing main branch coverage data | No | `.github/coverage-data.json` |
 
 ## Outputs
 

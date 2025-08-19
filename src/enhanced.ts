@@ -4,7 +4,6 @@ import { parseAnyCoverage } from './parsers/index.js';
 import { groupPackages } from './group.js';
 import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
-import { readMainBranchCoverage, writeCoverageData } from './shields.js';
 import { execSync } from 'child_process';
 
 export async function runEnhancedCoverage() {
@@ -44,11 +43,8 @@ export async function runEnhancedCoverage() {
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
         
-        // Step 5: Read main branch coverage from local JSON file
+        // Step 5: Parse baseline coverage if available (auto-detect format)
         let mainBranchCoverage: number | null = null;
-        mainBranchCoverage = readMainBranchCoverage(inputs.coverageDataPath);
-
-        // Step 6: Parse baseline coverage if available (auto-detect format)
         let deltaCoverage;
         if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
@@ -88,14 +84,6 @@ export async function runEnhancedCoverage() {
         if (mainBranchCoverage !== null) {
             const coverageDelta = projectLinesPct - mainBranchCoverage;
             core.setOutput('coverage-delta', coverageDelta.toFixed(1));
-        }
-        
-        // Step 10: Update coverage data file if this is the main branch
-        const currentBranch = process.env.GITHUB_REF_NAME || 'unknown';
-        const currentCommit = process.env.GITHUB_SHA;
-        if (currentBranch === 'main' || currentBranch === 'master') {
-            writeCoverageData(inputs.coverageDataPath, projectLinesPct, currentBranch, currentCommit);
-            core.info('Updated coverage data file for main branch');
         }
         
         // Check thresholds
