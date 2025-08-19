@@ -1,21 +1,21 @@
 # HanCover - Coverage Reports for PRs
 
-> 📊 Merge LCOV/Cobertura, compute total & diff coverage, group by package, and post a sticky PR comment with badges.
-
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-85%25-green)
 
-## ✨ Features
+> A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
 
-- 🔍 **Multi-format support**: LCOV and Cobertura XML
-- 📈 **Diff coverage**: Track coverage on changed lines only
-- 📦 **Smart grouping**: Auto-group by package or define custom groups
-- 🎯 **Threshold checking**: Fail builds when coverage drops
-- 💬 **Sticky PR comments**: Updates existing comments instead of spamming
-- 🛡️ **Size limits**: Configurable file size limits for security
-- ⚡ **Fast**: Efficient parsing and computation
+## Features
 
-## 🚀 Quick Start
+- **Multi-format support**: LCOV and Cobertura XML
+- **Diff coverage**: Track coverage on changed lines only
+- **Smart grouping**: Auto-group by package or define custom groups
+- **Threshold checking**: Fail builds when coverage drops
+- **Sticky PR comments**: Updates existing comments instead of spamming
+- **Size limits**: Configurable file size limits for security
+- **Fast**: Efficient parsing and computation
+
+## Quick Start
 
 ```yaml
 name: coverage
@@ -41,7 +41,7 @@ jobs:
       - run: npm test -- --coverage   # produces coverage/lcov.info
 
       - name: HanCover
-        uses: farhan-ahmed/hancover-action@v0
+        uses: farhan-ahmed1/hancover-action@v0
         with:
           files: |
             coverage/**/lcov.info
@@ -55,12 +55,12 @@ jobs:
 
 ## Features
 
-- 📊 **Multi-format support**: LCOV, Cobertura (Clover & JaCoCo coming soon)
-- 🎯 **Diff coverage**: Focus on changed lines in PRs
-- 📦 **Smart grouping**: Auto-detect packages or define custom groups
-- 💬 **Sticky comments**: Update existing PR comments instead of spam
-- 🛡️ **Security-first**: Size limits, safe XML parsing, minimal permissions
-- ⚡ **Fast**: Streaming parsers for large coverage files
+- **Multi-format support**: LCOV, Cobertura (Clover & JaCoCo coming soon)
+- **Diff coverage**: Focus on changed lines in PRs
+- **Smart grouping**: Auto-detect packages or define custom groups
+- **Sticky comments**: Update existing PR comments instead of spam
+- **Security-first**: Size limits, safe XML parsing, minimal permissions
+- **Fast**: Streaming parsers for large coverage files
 
 ## Inputs
 

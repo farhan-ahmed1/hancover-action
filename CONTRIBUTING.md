@@ -67,10 +67,6 @@ When reporting issues, please include:
 - Sample coverage files (if relevant)
 - Environment details (OS, Node version, etc.)
 
-## Code of Conduct
-
-Please note that this project follows our [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you agree to abide by its terms.
-
 ## License
 
 By contributing, you agree that your contributions will be licensed under the Apache-2.0 License.
