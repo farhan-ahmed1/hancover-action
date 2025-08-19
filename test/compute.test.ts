@@ -1,68 +1,58 @@
 import { describe, it, expect } from 'vitest';
-import { CoverageBundle } from '../src/schema.js';
+import { ProjectCov } from '../src/schema.js';
 import { computeTotals } from '../src/compute.js';
 
 describe('computeTotals', () => {
     it('should compute totals correctly for a single file', () => {
-        const bundle: CoverageBundle = {
+        const project: ProjectCov = {
             files: [
                 {
                     path: 'src/example.ts',
-                    lines: [
-                        { line: 1, hits: 1 },
-                        { line: 2, hits: 0 },
-                        { line: 3, hits: 1 },
-                    ],
-                    summary: {
-                        linesCovered: 2,
-                        linesTotal: 3,
-                        branchesCovered: 0,
-                        branchesTotal: 0,
-                    },
+                    lines: { covered: 2, total: 3 },
+                    branches: { covered: 0, total: 0 },
+                    functions: { covered: 1, total: 2 },
+                    coveredLineNumbers: new Set([1, 3])
                 },
             ],
+            totals: {
+                lines: { covered: 2, total: 3 },
+                branches: { covered: 0, total: 0 },
+                functions: { covered: 1, total: 2 }
+            }
         };
 
-        const totals = computeTotals(bundle, {});
+        const totals = computeTotals(project, {});
 
         expect(totals.totalPct).toBe(66.67);
         expect(totals.diffPct).toBe(0); // Assuming no diff coverage for this test
     });
 
-    it('should handle multiple files', () => {
-        const bundle: CoverageBundle = {
+    it('should handle multiple files correctly', () => {
+        const project: ProjectCov = {
             files: [
                 {
                     path: 'src/example1.ts',
-                    lines: [
-                        { line: 1, hits: 1 },
-                        { line: 2, hits: 0 },
-                    ],
-                    summary: {
-                        linesCovered: 1,
-                        linesTotal: 2,
-                        branchesCovered: 0,
-                        branchesTotal: 0,
-                    },
+                    lines: { covered: 1, total: 2 },
+                    branches: { covered: 0, total: 0 },
+                    functions: { covered: 0, total: 1 },
+                    coveredLineNumbers: new Set([1])
                 },
                 {
                     path: 'src/example2.ts',
-                    lines: [
-                        { line: 1, hits: 1 },
-                        { line: 2, hits: 1 },
-                        { line: 3, hits: 0 },
-                    ],
-                    summary: {
-                        linesCovered: 2,
-                        linesTotal: 3,
-                        branchesCovered: 0,
-                        branchesTotal: 0,
-                    },
+                    lines: { covered: 2, total: 3 },
+                    branches: { covered: 0, total: 0 },
+                    functions: { covered: 1, total: 1 },
+                    coveredLineNumbers: new Set([1, 2])
                 },
             ],
+            totals: {
+                lines: { covered: 3, total: 5 },
+                branches: { covered: 0, total: 0 },
+                functions: { covered: 1, total: 2 }
+            }
         };
 
-        const totals = computeTotals(bundle, {});
+        const totals = computeTotals(project, {});
 
         expect(totals.totalPct).toBe(60); // (3/5)*100 = 60%
         expect(totals.diffPct).toBe(0); // Assuming no diff coverage for this test

@@ -1,117 +1,96 @@
 import { describe, it, expect } from 'vitest';
 import { computeTotals, parseThresholds } from '../src/compute.js';
-import { CoverageBundle } from '../src/schema.js';
+import { ProjectCov } from '../src/schema.js';
 
 describe('Compute Coverage', () => {
-    const sampleBundle: CoverageBundle = {
+    const sampleProject: ProjectCov = {
         files: [
             {
                 path: 'src/file1.ts',
-                lines: [
-                    { line: 1, hits: 1 },
-                    { line: 2, hits: 0 },
-                    { line: 3, hits: 1 },
-                    { line: 4, hits: 1 }
-                ],
-                summary: { linesCovered: 3, linesTotal: 4 }
+                lines: { covered: 3, total: 4 },
+                branches: { covered: 0, total: 0 },
+                functions: { covered: 2, total: 3 },
+                coveredLineNumbers: new Set([1, 3, 4])
             },
             {
                 path: 'src/file2.ts',
-                lines: [
-                    { line: 1, hits: 1 },
-                    { line: 2, hits: 1 },
-                    { line: 3, hits: 0 }
-                ],
-                summary: { linesCovered: 2, linesTotal: 3 }
+                lines: { covered: 2, total: 3 },
+                branches: { covered: 0, total: 0 },
+                functions: { covered: 1, total: 2 },
+                coveredLineNumbers: new Set([1, 2])
             }
-        ]
+        ],
+        totals: {
+            lines: { covered: 5, total: 7 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 3, total: 5 }
+        }
     };
 
     it('should compute total coverage correctly', () => {
-        const diffMap = {};
-        const totals = computeTotals(sampleBundle, diffMap);
-
-        expect(totals.totalPct).toBe(71.43); // 5/7 * 100 rounded to 2 decimals
-        expect(totals.diffPct).toBe(0); // No diff lines
+        const totals = computeTotals(sampleProject, {});
+        
+        expect(totals.totalPct).toBe(71.43); // 5/7 * 100 = 71.43%
         expect(totals.linesCovered).toBe(5);
         expect(totals.linesTotal).toBe(7);
-        expect(totals.didBreachThresholds).toBe(false);
     });
 
     it('should compute diff coverage correctly', () => {
         const diffMap = {
-            'src/file1.ts': new Set([2, 3]), // lines 2 (not covered) and 3 (covered)
-            'src/file2.ts': new Set([1, 3])  // lines 1 (covered) and 3 (not covered)
+            'src/file1.ts': new Set([1, 2]), // line 1 is covered, line 2 is not
+            'src/file2.ts': new Set([3])     // line 3 is not covered
         };
         
-        const totals = computeTotals(sampleBundle, diffMap);
-
-        expect(totals.diffPct).toBe(50); // 2/4 * 100 = 50%
-        expect(totals.diffLinesCovered).toBe(2);
-        expect(totals.diffLinesTotal).toBe(4);
-    });
-
-    it('should check thresholds correctly', () => {
-        const diffMap = {};
-        const thresholds = { total: 80, diff: 60 };
+        const totals = computeTotals(sampleProject, diffMap);
         
-        const totals = computeTotals(sampleBundle, diffMap, thresholds);
-
-        expect(totals.didBreachThresholds).toBe(true); // 71.43% < 80%
+        expect(totals.diffPct).toBe(33.33); // 1/3 * 100 = 33.33%
+        expect(totals.diffLinesCovered).toBe(1);
+        expect(totals.diffLinesTotal).toBe(3);
     });
 
-    it('should handle branch coverage', () => {
-        const bundleWithBranches: CoverageBundle = {
-            files: [{
-                path: 'src/branches.ts',
-                lines: [
-                    { line: 1, hits: 1, isBranch: true, branchesHit: 2, branchesTotal: 4 }
-                ],
-                summary: { 
-                    linesCovered: 1, 
-                    linesTotal: 1,
-                    branchesCovered: 2,
-                    branchesTotal: 4
-                }
-            }]
-        };
-
-        const totals = computeTotals(bundleWithBranches, {});
-        expect(totals.branchPct).toBe(50); // 2/4 * 100 = 50%
-    });
-});
-
-describe('Parse Thresholds', () => {
-    it('should parse threshold string correctly', () => {
-        const thresholdString = `total:80
-diff:75
-branches:60`;
-        
-        const thresholds = parseThresholds(thresholdString);
+    it('should parse thresholds correctly', () => {
+        const thresholds = parseThresholds('total:50\ndiff:80\nbranches:60');
         
         expect(thresholds).toEqual({
-            total: 80,
-            diff: 75,
+            total: 50,
+            diff: 80,
             branches: 60
         });
     });
 
-    it('should handle empty string', () => {
+    it('should handle empty thresholds', () => {
         const thresholds = parseThresholds('');
         expect(thresholds).toBeUndefined();
     });
 
-    it('should ignore invalid lines', () => {
-        const thresholdString = `total:80
-invalid-line
-diff:75
-not-a-number:abc`;
-        
-        const thresholds = parseThresholds(thresholdString);
-        
-        expect(thresholds).toEqual({
+    it('should handle malformed thresholds', () => {
+        const thresholds = parseThresholds('invalid:format\ntotal:not-a-number');
+        expect(thresholds).toBeUndefined();
+    });
+
+    it('should check thresholds correctly', () => {
+        const thresholds = {
             total: 80,
-            diff: 75
-        });
+            diff: 50
+        };
+        
+        const totals = computeTotals(sampleProject, {}, thresholds);
+        
+        expect(totals.didBreachThresholds).toBe(true); // 71.43% < 80%
+    });
+
+    it('should calculate delta coverage', () => {
+        const baseline = {
+            totalPct: 60,
+            branchPct: 50,
+            linesCovered: 3,
+            linesTotal: 5,
+            branchesCovered: 1,
+            branchesTotal: 2
+        };
+        
+        const totals = computeTotals(sampleProject, {}, undefined, baseline);
+        
+        expect(totals.deltaPct).toBeCloseTo(11.43, 2); // 71.43 - 60 = 11.43
     });
 });

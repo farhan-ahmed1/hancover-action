@@ -1,0 +1,48 @@
+# Workflow to update coverage data file on main branch
+# This should run on main branch pushes to keep the baseline coverage updated
+
+name: Update Coverage Data
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write  # Required to commit the updated coverage data file
+
+jobs:
+  update-coverage-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+
+      - name: Update Coverage Data File
+        uses: ./
+        with:
+          files: coverage/lcov.info
+          coverage-data-path: .github/coverage-data.json
+
+      - name: Commit updated coverage data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if ! git diff --quiet .github/coverage-data.json; then
+            git add .github/coverage-data.json
+            COVERAGE=$(jq -r '.coverage' .github/coverage-data.json)
+            git commit -m "Update coverage data to ${COVERAGE}% [skip ci]"
+            git push
+          else
+            echo "No changes to coverage data file"
+          fi

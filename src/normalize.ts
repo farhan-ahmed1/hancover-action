@@ -1,9 +1,8 @@
 import { globby } from 'globby';
 import { statSync, readFileSync } from 'fs';
 import * as core from '@actions/core';
-import { CoverageBundle } from './schema.js';
-import { parseLcov } from './parsers/lcov.js';
-import { parseCobertura } from './parsers/cobertura.js';
+import { FileCov, ProjectCov } from './schema.js';
+import { parseAnyCoverageContent } from './parsers/index.js';
 import { enforceFileSizeLimits, enforceTotalSizeLimits } from './fs-limits.js';
 
 export async function collectCoverage(
@@ -11,10 +10,10 @@ export async function collectCoverage(
     maxBytesPerFile: number = 52428800, // 50 MB
     maxTotalBytes: number = 209715200,  // 200 MB
     strict: boolean = false
-): Promise<CoverageBundle> {
+): Promise<ProjectCov> {
     const matches = await globby(patterns);
     const files = matches.slice(0, 1000); // Limit to 1000 files for safety
-    const bundle: CoverageBundle = { files: [] };
+    const allFiles: FileCov[] = [];
     let totalSize = 0;
 
     for (const filePath of files) {
@@ -38,25 +37,24 @@ export async function collectCoverage(
 
             const raw = readFileSync(filePath, 'utf8');
             
-            if (filePath.endsWith('.info') || filePath.includes('lcov')) {
-                const parsedFile = parseLcov(raw, filePath);
-                bundle.files.push(parsedFile);
-            } else if (filePath.endsWith('.xml') && raw.includes('coverage')) {
-                try {
-                    const parsedFiles = parseCobertura(raw);
-                    bundle.files.push(...parsedFiles.files);
-                } catch (error) {
-                    if (strict) {
-                        throw new Error(`Failed to parse Cobertura file ${filePath}: ${error}`);
-                    } else {
-                        core.warning(`Failed to parse Cobertura file ${filePath}: ${error}`);
-                    }
+            // Auto-detect format and parse
+            try {
+                let hint: 'lcov' | 'cobertura' | undefined;
+                
+                if (filePath.endsWith('.info') || filePath.includes('lcov')) {
+                    hint = 'lcov';
+                } else if (filePath.endsWith('.xml') && raw.includes('coverage')) {
+                    hint = 'cobertura';
                 }
-            } else {
+                
+                const project = parseAnyCoverageContent(raw, hint);
+                allFiles.push(...project.files);
+                
+            } catch (error) {
                 if (strict) {
-                    throw new Error(`Unsupported file format: ${filePath}`);
+                    throw new Error(`Failed to parse coverage file ${filePath}: ${error}`);
                 } else {
-                    core.warning(`Skipping unsupported file format: ${filePath}`);
+                    core.warning(`Failed to parse coverage file ${filePath}: ${error}`);
                 }
             }
         } catch (error) {
@@ -68,5 +66,21 @@ export async function collectCoverage(
         }
     }
 
-    return bundle;
+    // Compute project totals
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
+
+    for (const file of allFiles) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+        totals.branches.covered += file.branches.covered;
+        totals.branches.total += file.branches.total;
+        totals.functions.covered += file.functions.covered;
+        totals.functions.total += file.functions.total;
+    }
+
+    return { files: allFiles, totals };
 }

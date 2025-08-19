@@ -12,11 +12,19 @@ const InputsSchema = z.object({
     maxBytesPerFile: z.coerce.number().optional().default(52428800),
     maxTotalBytes: z.coerce.number().optional().default(209715200),
     timeoutSeconds: z.coerce.number().optional().default(120),
-    strict: z.boolean().optional().default(false)
+    strict: z.boolean().optional().default(false),
+    baselineFiles: z.string().optional(),
+    minThreshold: z.coerce.number().optional().default(50),
+    coverageDataPath: z.string().optional().default('.github/coverage-data.json')
 });
 
 // ActionInputs exposes `groups` as a parsed GroupsConfig (not raw string)
-export type ActionInputs = Omit<z.infer<typeof InputsSchema>, 'groups'> & { files: string[]; groups?: GroupsConfig };
+export type ActionInputs = Omit<z.infer<typeof InputsSchema>, 'groups' | 'baselineFiles'> & { 
+    files: string[]; 
+    groups?: GroupsConfig;
+    baselineFiles?: string[];
+    coverageDataPath: string;
+};
 
 export function readInputs(): ActionInputs {
     const raw = {
@@ -29,7 +37,10 @@ export function readInputs(): ActionInputs {
         maxBytesPerFile: Number(process.env['INPUT_MAX-BYTES-PER-FILE'] ?? 52428800),
         maxTotalBytes: Number(process.env['INPUT_MAX-TOTAL-BYTES'] ?? 209715200),
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
-        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true'
+        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
+        baselineFiles: process.env['INPUT_BASELINE-FILES'],
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
+        coverageDataPath: process.env['INPUT_COVERAGE-DATA-PATH'] ?? '.github/coverage-data.json'
     };
 
     const parsed = InputsSchema.parse({
@@ -42,10 +53,16 @@ export function readInputs(): ActionInputs {
         maxBytesPerFile: raw.maxBytesPerFile,
         maxTotalBytes: raw.maxTotalBytes,
         timeoutSeconds: raw.timeoutSeconds,
-        strict: raw.strict
+        strict: raw.strict,
+        baselineFiles: raw.baselineFiles,
+        minThreshold: raw.minThreshold,
+        coverageDataPath: raw.coverageDataPath
     });
 
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const baselineFiles = raw.baselineFiles 
+        ? raw.baselineFiles.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+        : undefined;
 
     // parse YAML groups if provided
     let groupsParsed: GroupsConfig | undefined = undefined;
@@ -58,5 +75,5 @@ export function readInputs(): ActionInputs {
         }
     }
 
-    return { ...parsed, files, groups: groupsParsed } as unknown as ActionInputs;
+    return { ...parsed, files, baselineFiles, groups: groupsParsed, coverageDataPath: raw.coverageDataPath } as unknown as ActionInputs;
 }

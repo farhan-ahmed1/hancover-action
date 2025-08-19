@@ -1,29 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import { parseLcov, parseLCOV } from '../src/parsers/lcov.js';
+import { parseLcovFile, parseLCOV } from '../src/parsers/lcov.js';
 import { parseCobertura } from '../src/parsers/cobertura.js';
 
 describe('LCOV Parser', () => {
     it('should parse a small LCOV file correctly', async () => {
-        const result = parseLcov('test/fixtures/lcov.small.info');
+        const result = parseLcovFile('test/fixtures/lcov.small.info');
         
-        expect(result).toEqual({
+        expect(result.files).toHaveLength(1);
+        expect(result.files[0]).toEqual({
             path: 'sample/file/path',
-            lines: [
-                { line: 1, hits: 1 },
-                { line: 2, hits: 0 },
-                { line: 3, hits: 1 },
-                { line: 4, hits: 1 },
-                { line: 5, hits: 0 },
-                { line: 6, hits: 1 },
-                { line: 7, hits: 1 },
-                { line: 8, hits: 1 },
-                { line: 9, hits: 0 },
-                { line: 10, hits: 1 }
-            ],
-            summary: {
-                linesCovered: 7,
-                linesTotal: 10
-            }
+            lines: { covered: 7, total: 10 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 },
+            coveredLineNumbers: new Set([1, 3, 4, 6, 7, 8, 10])
+        });
+        expect(result.totals).toEqual({
+            lines: { covered: 7, total: 10 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
         });
     });
 
@@ -35,18 +29,18 @@ DA:3,2
 end_of_record`;
         
         const result = parseLCOV(lcovData);
-        expect(result).toHaveLength(1);
-        expect(result[0]).toEqual({
+        expect(result.files).toHaveLength(1);
+        expect(result.files[0]).toEqual({
             path: 'src/test.js',
-            lines: [
-                { line: 1, hits: 5 },
-                { line: 2, hits: 0 },
-                { line: 3, hits: 2 }
-            ],
-            summary: {
-                linesCovered: 2,
-                linesTotal: 3
-            }
+            lines: { covered: 2, total: 3 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 },
+            coveredLineNumbers: new Set([1, 3])
+        });
+        expect(result.totals).toEqual({
+            lines: { covered: 2, total: 3 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
         });
     });
 });
@@ -75,15 +69,15 @@ describe('Cobertura Parser', () => {
         expect(result.files).toHaveLength(1);
         expect(result.files[0]).toEqual({
             path: 'src/example1.js',
-            lines: [
-                { line: 1, hits: 1 },
-                { line: 2, hits: 0 },
-                { line: 3, hits: 1 }
-            ],
-            summary: {
-                linesCovered: 2,
-                linesTotal: 3
-            }
+            lines: { covered: 2, total: 3 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 },
+            coveredLineNumbers: new Set([1, 3])
+        });
+        expect(result.totals).toEqual({
+            lines: { covered: 2, total: 3 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
         });
     });
 
@@ -91,5 +85,10 @@ describe('Cobertura Parser', () => {
         const emptyXml = '<?xml version="1.0" encoding="UTF-8"?><coverage></coverage>';
         const result = parseCobertura(emptyXml);
         expect(result.files).toHaveLength(0);
+        expect(result.totals).toEqual({
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        });
     });
 });

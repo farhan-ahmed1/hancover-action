@@ -1,4 +1,5 @@
-import { CoverageBundle, FileCov, GroupsConfig } from './schema.js';
+import { FileCov, PkgCov } from './schema.js';
+import * as path from 'path';
 
 export type GroupSummary = {
     name: string;
@@ -8,104 +9,163 @@ export type GroupSummary = {
     linesTotal: number;
 };
 
-export function groupCoverage(bundle: CoverageBundle, groups?: GroupsConfig): Map<string, FileCov[]> {
-    const groupedCoverage = new Map<string, FileCov[]>();
+/**
+ * Smart package grouping with heuristics:
+ * 1. Compute top-level groups = first path segment under repo root
+ * 2. If one top-level group holds ≥80% of files, promote one level deeper for that group
+ * 3. For monorepo layouts (packages/*, apps/*), treat each workspace directory as its own package
+ */
+export function groupPackages(files: FileCov[]): PkgCov[] {
+    if (files.length === 0) return [];
+    
+    // Step 1: Compute top-level groups
+    const topLevelGroups = new Map<string, FileCov[]>();
+    const rootFiles: FileCov[] = [];
+    
+    for (const file of files) {
+        const normalizedPath = path.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        
+        if (segments.length === 0) {
+            rootFiles.push(file);
+            continue;
+        }
+        
+        const topLevel = segments[0];
+        if (!topLevelGroups.has(topLevel)) {
+            topLevelGroups.set(topLevel, []);
+        }
+        topLevelGroups.get(topLevel)!.push(file);
+    }
+    
+    // Add root files if any
+    if (rootFiles.length > 0) {
+        topLevelGroups.set('root', rootFiles);
+    }
+    
+    // Step 2: Check if one group dominates (≥80% of files)
+    const totalFiles = files.length;
+    let dominantGroup: string | null = null;
+    
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        if (groupFiles.length / totalFiles >= 0.8) {
+            dominantGroup = groupName;
+            break;
+        }
+    }
+    
+    // Step 3: Build final package structure
+    const packages: PkgCov[] = [];
+    
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        if (groupName === dominantGroup && shouldPromoteDeeper(groupFiles)) {
+            // Promote one level deeper for the dominant group
+            const subGroups = new Map<string, FileCov[]>();
+            
+            for (const file of groupFiles) {
+                const normalizedPath = path.posix.normalize(file.path);
+                const segments = normalizedPath.split('/').filter(s => s.length > 0);
+                
+                let subGroupName = groupName; // fallback
+                if (segments.length >= 2) {
+                    subGroupName = `${segments[0]}/${segments[1]}`;
+                }
+                
+                if (!subGroups.has(subGroupName)) {
+                    subGroups.set(subGroupName, []);
+                }
+                subGroups.get(subGroupName)!.push(file);
+            }
+            
+            // Add sub-packages
+            for (const [subGroupName, subGroupFiles] of subGroups) {
+                packages.push(createPackage(subGroupName, subGroupFiles));
+            }
+        } else {
+            // Keep as top-level package
+            packages.push(createPackage(groupName, groupFiles));
+        }
+    }
+    
+    // Sort packages by name
+    packages.sort((a, b) => a.name.localeCompare(b.name));
+    
+    return packages;
+}
 
-    // Auto-grouping logic: derive package from first path segment
-    for (const file of bundle.files) {
-        let packageName = 'root';
+function shouldPromoteDeeper(files: FileCov[]): boolean {
+    // Check if there are meaningful subdirectories to promote
+    const subDirs = new Set<string>();
+    
+    for (const file of files) {
+        const normalizedPath = path.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
         
-        // Extract package name from path (e.g., "apps/web/src/file.ts" → "apps")
-        const pathSegments = file.path.split('/').filter(segment => segment.length > 0);
-        if (pathSegments.length > 0) {
-            packageName = pathSegments[0];
+        if (segments.length >= 2) {
+            subDirs.add(segments[1]);
         }
-        
-        if (!groupedCoverage.has(packageName)) {
-            groupedCoverage.set(packageName, []);
-        }
-        groupedCoverage.get(packageName)?.push(file);
+    }
+    
+    // Only promote if there are at least 2 subdirectories
+    return subDirs.size >= 2;
+}
+
+function createPackage(name: string, files: FileCov[]): PkgCov {
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
+    
+    for (const file of files) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+        totals.branches.covered += file.branches.covered;
+        totals.branches.total += file.branches.total;
+        totals.functions.covered += file.functions.covered;
+        totals.functions.total += file.functions.total;
         
         // Set package info on the file for reference
-        file.package = packageName;
+        file.package = name;
     }
-
-    // User-defined grouping logic (overrides auto-grouping)
-    if (groups && groups.length > 0) {
-        // Clear auto groups and rebuild with user-defined groups
-        groupedCoverage.clear();
-        
-        for (const group of groups) {
-            const filesInGroup: FileCov[] = [];
-            for (const file of bundle.files) {
-                if (matchesGroup(file.path, group)) {
-                    filesInGroup.push(file);
-                    file.package = group.name;
-                }
-            }
-            if (filesInGroup.length > 0) {
-                groupedCoverage.set(group.name, filesInGroup);
-            }
-        }
-        
-        // Add ungrouped files to a "other" group
-        const ungroupedFiles = bundle.files.filter(file => !file.package || file.package === 'root');
-        if (ungroupedFiles.length > 0) {
-            groupedCoverage.set('other', ungroupedFiles);
-        }
-    }
-
-    return groupedCoverage;
+    
+    return { name, files, totals };
 }
 
-export function computeGroupSummaries(groupedCoverage: Map<string, FileCov[]>): GroupSummary[] {
-    const summaries: GroupSummary[] = [];
-    
-    for (const [name, files] of groupedCoverage.entries()) {
-        let totalLinesCovered = 0;
-        let totalLines = 0;
-        
-        for (const file of files) {
-            totalLinesCovered += file.summary.linesCovered;
-            totalLines += file.summary.linesTotal;
-        }
-        
-        const coveragePct = totalLines > 0 ? Math.round((totalLinesCovered / totalLines) * 10000) / 100 : 0;
-        
-        summaries.push({
-            name,
-            files,
-            coveragePct,
-            linesCovered: totalLinesCovered,
-            linesTotal: totalLines
-        });
-    }
-    
-    // Sort by coverage percentage (descending)
-    return summaries.sort((a, b) => b.coveragePct - a.coveragePct);
+/**
+ * Utility functions for percentage calculations
+ */
+export function pct(covered: number, total: number): number {
+    return total === 0 ? 100 : (covered / total) * 100;
 }
 
-function matchesGroup(filePath: string, group: { name: string; include: string | string[]; exclude?: string | string[] }): boolean {
-    const includes = Array.isArray(group.include) ? group.include : [group.include];
-    const excludes = group.exclude ? (Array.isArray(group.exclude) ? group.exclude : [group.exclude]) : [];
-
-    // Use glob-like matching for better pattern support
-    const isIncluded = includes.some(includePattern => {
-        // Convert simple glob patterns to regex
-        const regexPattern = includePattern
-            .replace(/\*/g, '.*')
-            .replace(/\?/g, '.');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(filePath) || filePath.includes(includePattern);
-    });
+export function rollup(files: FileCov[]): { lines: { covered: number; total: number }; branches: { covered: number; total: number }; functions: { covered: number; total: number } } {
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
     
-    const isExcluded = excludes.some(excludePattern => {
-        const regexPattern = excludePattern
-            .replace(/\*/g, '.*')
-            .replace(/\?/g, '.');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(filePath) || filePath.includes(excludePattern);
-    });
+    for (const file of files) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+        totals.branches.covered += file.branches.covered;
+        totals.branches.total += file.branches.total;
+        totals.functions.covered += file.functions.covered;
+        totals.functions.total += file.functions.total;
+    }
+    
+    return totals;
+}
 
-    return isIncluded && !isExcluded;
+// Legacy function for backwards compatibility
+export function groupCoverage(bundle: { files: FileCov[] }): Map<string, FileCov[]> {
+    const packages = groupPackages(bundle.files);
+    const result = new Map<string, FileCov[]>();
+    
+    for (const pkg of packages) {
+        result.set(pkg.name, pkg.files);
+    }
+    
+    return result;
 }
