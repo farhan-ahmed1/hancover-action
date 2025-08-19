@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderComment, upsertStickyComment } from '../src/comment.js';
 import { Totals } from '../src/compute.js';
-import { GroupSummary } from '../src/group.js';
 
 describe('Comment Rendering', () => {
     it('should render a markdown comment correctly', async () => {
@@ -17,25 +16,18 @@ describe('Comment Rendering', () => {
             branchesCovered: 60,
             branchesTotal: 100
         };
-        const grouped: GroupSummary[] = [
-            { 
-                name: 'api', 
-                coveragePct: 85,
-                files: [],
-                linesCovered: 85,
-                linesTotal: 100
-            }
-        ];
-        const thresholds = {
-            total: 80,
-            diff: 75,
-        };
 
-        const comment = await renderComment({ totals, grouped, thresholds });
+        const comment = await renderComment({ 
+            totals, 
+            baseRef: 'main',
+            minThreshold: 50
+        });
 
-        // Test for new collapsible format
+        // Test for new format
         expect(comment).toContain('<!-- coverage-comment:anchor -->');
         expect(comment).toContain('[![Coverage](');
+        expect(comment).toContain('📊 Coverage Report vs main');
+        expect(comment).toContain('**Overall Coverage**: 85.0%');
         expect(comment).toContain('<details>');
         expect(comment).toContain('### Project Coverage (PR)');
         expect(comment).toContain('### Code Changes Coverage');

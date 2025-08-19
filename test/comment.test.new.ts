@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderComment } from '../src/comment.js';
 import { Totals } from '../src/compute.js';
-import { GroupSummary } from '../src/group.js';
 
 describe('Comment Rendering', () => {
     const sampleTotals: Totals = {
@@ -15,37 +14,18 @@ describe('Comment Rendering', () => {
         diffLinesTotal: 20
     };
 
-    const sampleGroups: GroupSummary[] = [
-        {
-            name: 'apps',
-            files: [],
-            coveragePct: 90.0,
-            linesCovered: 90,
-            linesTotal: 100
-        },
-        {
-            name: 'packages',
-            files: [],
-            coveragePct: 80.0,
-            linesCovered: 80,
-            linesTotal: 100
-        }
-    ];
-
     it('should render a markdown comment correctly', async () => {
         const comment = await renderComment({ 
             totals: sampleTotals, 
-            grouped: sampleGroups,
-            thresholds: { total: 80, diff: 70 }
+            baseRef: 'main',
+            minThreshold: 50
         });
 
-        expect(comment).toContain('<!-- hancover:sticky -->');
-        expect(comment).toContain('## 📊 Coverage Report');
-        expect(comment).toContain('**Total Coverage** | 85.5%');
-        expect(comment).toContain('**Diff Coverage** | 75.3%');
-        expect(comment).toContain('**Branch Coverage** | 60.0%');
-        expect(comment).toContain('- **apps**: 90.0%');
-        expect(comment).toContain('- **packages**: 80.0%');
+        expect(comment).toContain('<!-- coverage-comment:anchor -->');
+        expect(comment).toContain('📊 Coverage Report vs main');
+        expect(comment).toContain('**Overall Coverage**: 85.5%');
+        expect(comment).toContain('### Project Coverage (PR)');
+        expect(comment).toContain('### Code Changes Coverage');
         expect(comment).toContain('✅ **All coverage thresholds met**');
     });
 
@@ -54,7 +34,8 @@ describe('Comment Rendering', () => {
         
         const comment = await renderComment({ 
             totals: failingTotals,
-            thresholds: { total: 90, diff: 80 }
+            baseRef: 'main',
+            minThreshold: 50
         });
 
         expect(comment).toContain('⚠️ **Coverage thresholds not met**');

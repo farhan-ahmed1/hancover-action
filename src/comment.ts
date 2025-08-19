@@ -17,12 +17,9 @@ export interface CommentData {
 
 export async function renderComment({ 
     totals, 
-    baseline,
-    grouped, 
-    thresholds,
     baseRef,
     minThreshold = 50
-}: CommentData): Promise<string> {
+}: Pick<CommentData, 'totals' | 'baseRef' | 'minThreshold'>): Promise<string> {
     // Generate badges
     const coverageBadge = generateCoverageBadge(totals.totalPct);
     const deltaBadge = totals.deltaPct !== undefined ? generateDeltaBadge(totals.deltaPct) : null;
@@ -33,7 +30,17 @@ export async function renderComment({
         badgeSection += `\n[![Δ vs main](${deltaBadge})](#)`;
     }
 
-    // Project Coverage table
+    const comparisonText = baseRef ? ` vs ${baseRef}` : '';
+
+    // Summary section
+    const thresholdStatus = totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**';
+    const summarySection = `## 📊 Coverage Report${comparisonText}
+
+**Overall Coverage**: ${totals.totalPct.toFixed(1)}% (${totals.linesCovered}/${totals.linesTotal} lines)${totals.deltaPct !== undefined ? ` • **Change**: ${totals.deltaPct >= 0 ? '+' : ''}${totals.deltaPct.toFixed(1)}%` : ''}
+
+${thresholdStatus}`;
+
+    // Project Coverage table (collapsible)
     const projectTable = renderCoverageTable({
         title: 'Project Coverage (PR)',
         lineRate: totals.totalPct,
@@ -45,11 +52,11 @@ export async function renderComment({
         minThreshold
     });
 
-    // Code Changes Coverage table  
+    // Code Changes Coverage table (not collapsible)
     const changesTable = renderCoverageTable({
         title: 'Code Changes Coverage',
         lineRate: totals.diffPct,
-        branchRate: undefined, // Branch coverage for changes not typically available
+        branchRate: undefined,
         linesHit: totals.diffLinesCovered,
         linesTotal: totals.diffLinesTotal,
         branchesHit: undefined,
@@ -57,39 +64,21 @@ export async function renderComment({
         minThreshold
     });
 
-    // Groups section (if available)
-    const groupsSection = grouped && grouped.length > 0 
-        ? `\n### 📈 Coverage by Group\n\n${grouped.map(g => 
-            `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`
-        ).join('\n')}\n`
-        : '';
-
-    const comparisonText = baseRef ? ` vs ${baseRef}` : '';
-
     return `${COVERAGE_COMMENT_MARKER}
 ${badgeSection}
 
+${summarySection}
+
 <details>
-<summary><b>Code Coverage${comparisonText}</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
+<summary><b>Project Coverage</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
 
 <br/>
 
 ${projectTable}
 
----
+</details>
 
 ${changesTable}
-${groupsSection}
-### 📋 Summary
-
-- **Lines Covered**: ${totals.linesCovered}/${totals.linesTotal}
-- **Changed Lines Covered**: ${totals.diffLinesCovered}/${totals.diffLinesTotal}
-${baseline ? `- **Coverage Delta**: ${totals.deltaPct?.toFixed(1)}%` : ''}
-- **Thresholds**: ${thresholds ? JSON.stringify(thresholds, null, 2) : 'Not configured'}
-
-${totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**'}
-
-</details>
 `;
 }
 

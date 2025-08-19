@@ -56630,91 +56630,6 @@ async function computeDiff(baseRef) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/group.ts
-function groupCoverage(bundle, groups) {
-    const groupedCoverage = new Map();
-    // Auto-grouping logic: derive package from first path segment
-    for (const file of bundle.files) {
-        let packageName = 'root';
-        // Extract package name from path (e.g., "apps/web/src/file.ts" → "apps")
-        const pathSegments = file.path.split('/').filter(segment => segment.length > 0);
-        if (pathSegments.length > 0) {
-            packageName = pathSegments[0];
-        }
-        if (!groupedCoverage.has(packageName)) {
-            groupedCoverage.set(packageName, []);
-        }
-        groupedCoverage.get(packageName)?.push(file);
-        // Set package info on the file for reference
-        file.package = packageName;
-    }
-    // User-defined grouping logic (overrides auto-grouping)
-    if (groups && groups.length > 0) {
-        // Clear auto groups and rebuild with user-defined groups
-        groupedCoverage.clear();
-        for (const group of groups) {
-            const filesInGroup = [];
-            for (const file of bundle.files) {
-                if (matchesGroup(file.path, group)) {
-                    filesInGroup.push(file);
-                    file.package = group.name;
-                }
-            }
-            if (filesInGroup.length > 0) {
-                groupedCoverage.set(group.name, filesInGroup);
-            }
-        }
-        // Add ungrouped files to a "other" group
-        const ungroupedFiles = bundle.files.filter(file => !file.package || file.package === 'root');
-        if (ungroupedFiles.length > 0) {
-            groupedCoverage.set('other', ungroupedFiles);
-        }
-    }
-    return groupedCoverage;
-}
-function computeGroupSummaries(groupedCoverage) {
-    const summaries = [];
-    for (const [name, files] of groupedCoverage.entries()) {
-        let totalLinesCovered = 0;
-        let totalLines = 0;
-        for (const file of files) {
-            totalLinesCovered += file.summary.linesCovered;
-            totalLines += file.summary.linesTotal;
-        }
-        const coveragePct = totalLines > 0 ? Math.round((totalLinesCovered / totalLines) * 10000) / 100 : 0;
-        summaries.push({
-            name,
-            files,
-            coveragePct,
-            linesCovered: totalLinesCovered,
-            linesTotal: totalLines
-        });
-    }
-    // Sort by coverage percentage (descending)
-    return summaries.sort((a, b) => b.coveragePct - a.coveragePct);
-}
-function matchesGroup(filePath, group) {
-    const includes = Array.isArray(group.include) ? group.include : [group.include];
-    const excludes = group.exclude ? (Array.isArray(group.exclude) ? group.exclude : [group.exclude]) : [];
-    // Use glob-like matching for better pattern support
-    const isIncluded = includes.some(includePattern => {
-        // Convert simple glob patterns to regex
-        const regexPattern = includePattern
-            .replace(/\*/g, '.*')
-            .replace(/\?/g, '.');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(filePath) || filePath.includes(includePattern);
-    });
-    const isExcluded = excludes.some(excludePattern => {
-        const regexPattern = excludePattern
-            .replace(/\*/g, '.*')
-            .replace(/\?/g, '.');
-        const regex = new RegExp(`^${regexPattern}$`);
-        return regex.test(filePath) || filePath.includes(excludePattern);
-    });
-    return isIncluded && !isExcluded;
-}
-
 ;// CONCATENATED MODULE: ./src/compute.ts
 /**
  * Compute coverage totals for a bundle and diff map
@@ -56857,7 +56772,7 @@ function getHealthIcon(percentage, threshold = 50) {
 
 
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
-async function renderComment({ totals, baseline, grouped, thresholds, baseRef, minThreshold = 50 }) {
+async function renderComment({ totals, baseRef, minThreshold = 50 }) {
     // Generate badges
     const coverageBadge = generateCoverageBadge(totals.totalPct);
     const deltaBadge = totals.deltaPct !== undefined ? generateDeltaBadge(totals.deltaPct) : null;
@@ -56866,7 +56781,15 @@ async function renderComment({ totals, baseline, grouped, thresholds, baseRef, m
     if (deltaBadge) {
         badgeSection += `\n[![Δ vs main](${deltaBadge})](#)`;
     }
-    // Project Coverage table
+    const comparisonText = baseRef ? ` vs ${baseRef}` : '';
+    // Summary section
+    const thresholdStatus = totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**';
+    const summarySection = `## 📊 Coverage Report${comparisonText}
+
+**Overall Coverage**: ${totals.totalPct.toFixed(1)}% (${totals.linesCovered}/${totals.linesTotal} lines)${totals.deltaPct !== undefined ? ` • **Change**: ${totals.deltaPct >= 0 ? '+' : ''}${totals.deltaPct.toFixed(1)}%` : ''}
+
+${thresholdStatus}`;
+    // Project Coverage table (collapsible)
     const projectTable = renderCoverageTable({
         title: 'Project Coverage (PR)',
         lineRate: totals.totalPct,
@@ -56877,46 +56800,32 @@ async function renderComment({ totals, baseline, grouped, thresholds, baseRef, m
         branchesTotal: totals.branchesTotal,
         minThreshold
     });
-    // Code Changes Coverage table  
+    // Code Changes Coverage table (not collapsible)
     const changesTable = renderCoverageTable({
         title: 'Code Changes Coverage',
         lineRate: totals.diffPct,
-        branchRate: undefined, // Branch coverage for changes not typically available
+        branchRate: undefined,
         linesHit: totals.diffLinesCovered,
         linesTotal: totals.diffLinesTotal,
         branchesHit: undefined,
         branchesTotal: undefined,
         minThreshold
     });
-    // Groups section (if available)
-    const groupsSection = grouped && grouped.length > 0
-        ? `\n### 📈 Coverage by Group\n\n${grouped.map(g => `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`).join('\n')}\n`
-        : '';
-    const comparisonText = baseRef ? ` vs ${baseRef}` : '';
     return `${COVERAGE_COMMENT_MARKER}
 ${badgeSection}
 
+${summarySection}
+
 <details>
-<summary><b>Code Coverage${comparisonText}</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
+<summary><b>Project Coverage</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
 
 <br/>
 
 ${projectTable}
 
----
+</details>
 
 ${changesTable}
-${groupsSection}
-### 📋 Summary
-
-- **Lines Covered**: ${totals.linesCovered}/${totals.linesTotal}
-- **Changed Lines Covered**: ${totals.diffLinesCovered}/${totals.diffLinesTotal}
-${baseline ? `- **Coverage Delta**: ${totals.deltaPct?.toFixed(1)}%` : ''}
-- **Thresholds**: ${thresholds ? JSON.stringify(thresholds, null, 2) : 'Not configured'}
-
-${totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**'}
-
-</details>
 `;
 }
 function renderCoverageTable(config) {
@@ -56993,7 +56902,6 @@ async function upsertStickyComment(md, mode = 'update') {
 
 
 
-
 async function run() {
     try {
         const i = readInputs();
@@ -57021,13 +56929,8 @@ async function run() {
             }
         }
         const totals = computeTotals(bundle, diff, thresholds, baseline);
-        const grouped = groupCoverage(bundle, i.groups);
-        const groupSummaries = computeGroupSummaries(grouped);
         const md = await renderComment({
             totals,
-            baseline,
-            grouped: groupSummaries,
-            thresholds,
             baseRef: i.baseRef,
             minThreshold: i.minThreshold
         });

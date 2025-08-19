@@ -2,7 +2,6 @@ import * as core from '@actions/core';
 import { readInputs } from './inputs.js';
 import { collectCoverage } from './normalize.js';
 import { computeDiff } from './diff.js';
-import { groupCoverage, computeGroupSummaries } from './group.js';
 import { computeTotals, parseThresholds, BaselineTotals } from './compute.js';
 import { renderComment, upsertStickyComment } from './comment.js';
 
@@ -48,14 +47,8 @@ async function run() {
         
         const totals = computeTotals(bundle, diff, thresholds, baseline);
         
-        const grouped = groupCoverage(bundle, i.groups);
-        const groupSummaries = computeGroupSummaries(grouped);
-
         const md = await renderComment({ 
             totals, 
-            baseline,
-            grouped: groupSummaries, 
-            thresholds,
             baseRef: i.baseRef,
             minThreshold: i.minThreshold
         });
