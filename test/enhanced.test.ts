@@ -43,13 +43,11 @@ end_of_record
         const comment = await renderComment({
             prProject: project,
             prPackages: packages,
-            changesCoverage,
             minThreshold: 50
         });
 
-        expect(comment).toContain('Code Coverage');
-        expect(comment).toContain('Project Coverage (PR)');
-        expect(comment).toContain('Code Changes Coverage');
+        expect(comment).toContain('Coverage Report');
+        expect(comment).toContain('Detailed Coverage by Package');
     });
 
     test('can parse git diff', () => {

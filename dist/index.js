@@ -48317,7 +48317,7 @@ function getHealthIcon(percentage, threshold = 50) {
 
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 async function renderComment(data) {
-    const { prProject, prPackages, changesCoverage, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
     const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
@@ -48328,39 +48328,57 @@ async function renderComment(data) {
         const prefix = delta >= 0 ? '+' : '';
         const value = `${prefix}${delta.toFixed(1)}%`;
         const color = delta >= 0 ? 'brightgreen' : 'red';
-        changesBadge = `\n[![Changes](${shield('changes', value, color)})](#)`;
+        changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
     }
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
         // Calculate overall delta from summary
         const totalDelta = calculateOverallDelta(deltaCoverage);
-        deltaBadge = `\n[![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
+        deltaBadge = ` [![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
     }
     // Badge section
     const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
     // Generate table sections
     const projectTable = renderProjectTable(prPackages, minThreshold);
-    const changesTable = renderChangesTable(changesCoverage, minThreshold);
     const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
+    // Calculate overall coverage for display
+    const overallCoverage = `**Overall Coverage:** ${projectLinesPct.toFixed(1)}%`;
+    const totalLines = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+    const totalLinesCovered = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+    const coverageStats = `**Lines Covered:** ${totalLinesCovered}/${totalLines}`;
+    // Generate coverage change sentence if main branch coverage is available
+    let coverageChangeSentence = '';
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        if (delta > 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR increased coverage by ${delta.toFixed(1)} percentage points._`;
+        }
+        else if (delta < 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR decreased coverage by ${Math.abs(delta).toFixed(1)} percentage points._`;
+        }
+        else {
+            coverageChangeSentence = '\n\n_Changes made in this PR did not affect overall coverage._';
+        }
+    }
     return `${COVERAGE_COMMENT_MARKER}
+## Coverage Report
+
 ${badgeSection}
 
+${overallCoverage} | ${coverageStats}${coverageChangeSentence}
+
 <details>
-<summary><b>Code Coverage</b> — click to expand</summary>
+<summary><b>Detailed Coverage by Package</b></summary>
 
 <br/>
 
-### Project Coverage (PR)
 ${projectTable}
 
----
-
-### Code Changes Coverage
-${changesTable}
-
-${deltaTable ? `---\n\n${deltaTable}` : ''}
-
 </details>
+
+${deltaTable ? `\n${deltaTable}` : ''}
+
+_Minimum pass threshold is ${minThreshold.toFixed(1)}%_
 `;
 }
 function renderProjectTable(packages, minThreshold) {
@@ -48390,26 +48408,6 @@ function renderProjectTable(packages, minThreshold) {
     const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
     const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
-    return table;
-}
-function renderChangesTable(changesCoverage, minThreshold) {
-    if (changesCoverage.packages.length === 0) {
-        return '_No code changes detected_';
-    }
-    let table = `| Package | Statements | Health |
-|---|---:|:---:|
-`;
-    // Package rows
-    for (const pkg of changesCoverage.packages) {
-        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
-        const health = getHealthIcon(linesPct, minThreshold);
-        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${health} |\n`;
-    }
-    // Summary row
-    const summaryLinesPct = pct(changesCoverage.totals.lines.covered, changesCoverage.totals.lines.total);
-    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
-    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${changesCoverage.totals.lines.covered}/${changesCoverage.totals.lines.total})** | **${summaryHealth}** |\n`;
     table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
     return table;
 }
@@ -48674,7 +48672,6 @@ async function runEnhancedCoverage() {
         const comment = await renderComment({
             prProject,
             prPackages,
-            changesCoverage,
             deltaCoverage,
             mainBranchCoverage,
             minThreshold: inputs.minThreshold

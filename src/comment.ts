@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import { ProjectCov, PkgCov } from './schema.js';
-import { ChangesCoverage, DeltaCoverage } from './changes.js';
+import { DeltaCoverage } from './changes.js';
 import { pct } from './group.js';
 import { getHealthIcon } from './badges.js';
 
@@ -120,34 +120,6 @@ function renderProjectTable(packages: PkgCov[], minThreshold: number): string {
     const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
     
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    
-    table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
-    
-    return table;
-}
-
-function renderChangesTable(changesCoverage: ChangesCoverage, minThreshold: number): string {
-    if (changesCoverage.packages.length === 0) {
-        return '_No code changes detected_';
-    }
-    
-    let table = `| Package | Statements | Health |
-|---|---:|:---:|
-`;
-    
-    // Package rows
-    for (const pkg of changesCoverage.packages) {
-        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
-        const health = getHealthIcon(linesPct, minThreshold);
-        
-        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${health} |\n`;
-    }
-    
-    // Summary row
-    const summaryLinesPct = pct(changesCoverage.totals.lines.covered, changesCoverage.totals.lines.total);
-    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
-    
-    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${changesCoverage.totals.lines.covered}/${changesCoverage.totals.lines.total})** | **${summaryHealth}** |\n`;
     
     table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
     

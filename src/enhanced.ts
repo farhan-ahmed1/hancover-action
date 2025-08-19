@@ -67,7 +67,6 @@ export async function runEnhancedCoverage() {
         const comment = await renderComment({
             prProject,
             prPackages,
-            changesCoverage,
             deltaCoverage,
             mainBranchCoverage,
             minThreshold: inputs.minThreshold

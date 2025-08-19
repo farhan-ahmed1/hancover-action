@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderComment, upsertStickyComment } from '../src/comment.js';
 import { ProjectCov, PkgCov, FileCov } from '../src/schema.js';
-import { ChangesCoverage } from '../src/changes.js';
 
 describe('Comment Rendering', () => {
     it('should render a markdown comment correctly', async () => {
@@ -32,28 +31,9 @@ describe('Comment Rendering', () => {
             }
         }];
 
-        const changesCoverage: ChangesCoverage = {
-            files: [sampleFile],
-            packages: [{
-                name: 'src',
-                files: [sampleFile],
-                totals: {
-                    lines: { covered: 15, total: 20 },
-                    branches: { covered: 0, total: 0 },
-                    functions: { covered: 0, total: 0 }
-                }
-            }],
-            totals: {
-                lines: { covered: 15, total: 20 },
-                branches: { covered: 0, total: 0 },
-                functions: { covered: 0, total: 0 }
-            }
-        };
-
         const comment = await renderComment({ 
             prProject,
             prPackages,
-            changesCoverage,
             minThreshold: 50
         });
 
