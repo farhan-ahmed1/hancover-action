@@ -9,12 +9,25 @@ A GitHub Action that processes LCOV and Cobertura coverage files, calculates tot
 ## Features
 
 - **Multi-format support**: LCOV and Cobertura XML
+- **Enhanced coverage system**: Smart package grouping, code changes analysis, and delta comparison
 - **Diff coverage**: Track coverage on changed lines only
 - **Smart grouping**: Auto-group by package or define custom groups
 - **Threshold checking**: Fail builds when coverage drops
 - **Sticky PR comments**: Updates existing comments instead of spamming
 - **Size limits**: Configurable file size limits for security
 - **Fast**: Efficient parsing and computation
+
+## Enhanced Coverage System
+
+The new enhanced coverage system provides comprehensive coverage analysis with:
+
+- **Smart Package Grouping**: Automatically organizes files by directory structure
+- **Code Changes Coverage**: Shows coverage only for lines modified in the PR
+- **Delta Analysis**: Compares PR coverage against main branch baseline
+- **Collapsible Tables**: Clean, organized presentation with badges
+- **Health Indicators**: Visual status based on configurable thresholds
+
+[📖 Read the Enhanced Coverage Guide](./docs/ENHANCED-COVERAGE.md)
 
 ## Quick Start
 

@@ -58,6 +58,10 @@ inputs:
     description: "Minimum coverage threshold for health indicators (default: 50)"
     required: false
     default: "50"
+  enhanced:
+    description: "Enable enhanced coverage reporting with smart grouping and delta tables"
+    required: false
+    default: "false"
 
 outputs:
   total_coverage:

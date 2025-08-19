@@ -1,13 +1,44 @@
-# Enhanced Coverage Reporting Guide
+# Enhanced Coverage System
 
-This guide explains how to use the enhanced coverage reporting features with badges, collapsible comments, and baseline comparison.
+This document describes the new enhanced coverage reporting system that provides comprehensive, smart package grouping, and delta analysis.
+
+## Overview
+
+The enhanced coverage system processes LCOV files and provides:
+
+1. **Smart Package Grouping** - Automatically groups files by directory structure with intelligent heuristics
+2. **Code Changes Coverage** - Shows coverage only for lines changed in the PR
+3. **Delta Coverage** - Compares PR coverage against main branch
+4. **Comprehensive Tables** - Project, Changes, and Delta tables with collapsible sections
+5. **Enhanced Badges** - Coverage and delta badges with color-coded health indicators
 
 ## Features
 
-✅ **Dynamic Badges**: Coverage and delta badges generated automatically  
-✅ **Collapsible Comments**: Clean, organized PR comments with expandable details  
-✅ **Baseline Comparison**: Compare PR coverage against main branch  
-✅ **Health Indicators**: Visual health status based on configurable thresholds  
+### Smart Package Grouping
+
+The system automatically groups files by their directory structure:
+
+1. **Top-level grouping**: Files are initially grouped by their first path segment (`src`, `test`, `packages`, etc.)
+2. **Promotion heuristics**: If one group contains ≥80% of files, it promotes one level deeper (`src/components`, `src/utils`, etc.)
+3. **Monorepo support**: Automatically handles `packages/*` and `apps/*` structures
+
+### Code Changes Coverage
+
+Analyzes only the lines that were changed in the PR:
+
+- Uses `git diff` to identify added/modified lines
+- Calculates coverage percentage for changed lines only
+- Ignores deleted lines and unchanged code
+- Provides package-level breakdown of changes coverage
+
+### Delta Coverage
+
+Compares PR coverage against main branch baseline:
+
+- Shows percentage point changes (+/-) per package
+- Sorts packages by largest absolute delta
+- Shows top 10 packages with remaining in collapsible section
+- Includes overall project delta in badges  
 ✅ **Project & Changes Coverage**: Separate tables for overall and diff coverage  
 ✅ **Single Comment**: Updates existing comment to avoid spam  
 
