@@ -70,6 +70,9 @@ jobs:
           end_of_record
           EOF
 
+      - name: Build action
+        run: npm run build
+
       - name: Test action (self-test)
         uses: ./
         with:
@@ -77,7 +80,6 @@ jobs:
           thresholds: |
             total:75
             diff:70
-          github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
   build:
@@ -170,6 +172,9 @@ jobs:
           </coverage>
           EOF
 
+      - name: Build action
+        run: npm run build
+
       - name: Run HanCover Action
         uses: ./
         with:
@@ -186,4 +191,3 @@ jobs:
               exclude: ["src/**/*.test.*"]
             - name: "Components"  
               include: ["src/components/**"]
-          github-token: ${{ secrets.GITHUB_TOKEN }}
