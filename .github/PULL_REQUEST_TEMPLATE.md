@@ -1,5 +1,3 @@
-## /hancover-action/hancover-action/.github/PULL_REQUEST_TEMPLATE.md
-
 <!-- Please describe your changes in detail. -->
 
 ### Checklist
