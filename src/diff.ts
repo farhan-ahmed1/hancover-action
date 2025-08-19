@@ -11,7 +11,9 @@ export async function computeDiff(baseRef?: string): Promise<Record<string, Set<
         // Run git diff to get changed lines
         const diffOutput = execSync(`git diff --unified=0 ${ref}..HEAD`, { 
             encoding: 'utf8',
-            cwd: process.cwd()
+            cwd: process.cwd(),
+            maxBuffer: 1024 * 1024 * 50, // 50MB buffer limit (increased)
+            timeout: 60000 // 60 second timeout (increased)
         });
         
         const lines = diffOutput.split('\n');
@@ -45,8 +47,16 @@ export async function computeDiff(baseRef?: string): Promise<Record<string, Set<
         
         return diffMap;
     } catch (error) {
-        // If git diff fails (e.g., no git repo, no commits), return empty diff
-        core.warning(`Failed to compute diff: ${error}`);
+        // If git diff fails (e.g., no git repo, no commits, ENOBUFS), return empty diff
+        if (error instanceof Error) {
+            if (error.message.includes('ENOBUFS')) {
+                core.warning('Git diff output too large (ENOBUFS). Skipping diff coverage calculation.');
+            } else {
+                core.warning(`Failed to compute diff: ${error.message}`);
+            }
+        } else {
+            core.warning(`Failed to compute diff: ${error}`);
+        }
         return {};
     }
 }
