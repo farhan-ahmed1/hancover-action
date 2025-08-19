@@ -130,8 +130,8 @@ jobs:
 
 The changes badge will appear next to your coverage badge:
 
-- [![Coverage](https://img.shields.io/badge/coverage-78.5%25-lightgrey?labelColor=lightgrey&color=green)](#) [![Changes](https://img.shields.io/badge/changes-%2B2.1%25-lightgrey?labelColor=lightgrey&color=brightgreen)](#) - Coverage improved
-- [![Coverage](https://img.shields.io/badge/coverage-76.2%25-lightgrey?labelColor=lightgrey&color=green)](#) [![Changes](https://img.shields.io/badge/changes--1.3%25-lightgrey?labelColor=lightgrey&color=red)](#) - Coverage decreased
+- [![Coverage](https://img.shields.io/badge/coverage-78.5%25-green)](#) [![Changes](https://img.shields.io/badge/changes-+2.1%25-brightgreen)](#) - Coverage improved
+- [![Coverage](https://img.shields.io/badge/coverage-76.2%25-green)](#) [![Changes](https://img.shields.io/badge/changes--1.3%25-red)](#) - Coverage decreased
 
 ## Data Structure
 

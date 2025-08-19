@@ -48,50 +48,6 @@ describe('Comment Rendering', () => {
         expect(comment).toContain('Lines Covered');
         expect(comment).toContain('85.0%');
         expect(comment).toContain('60.0%');
-        // Verify the new two-color badge format
-        expect(comment).toContain('labelColor=lightgrey&color=');
-    });
-
-    it('should render changes badge with two-color format', async () => {
-        const sampleFile: FileCov = {
-            path: 'src/example.ts',
-            lines: { covered: 85, total: 100 },
-            branches: { covered: 60, total: 100 },
-            functions: { covered: 10, total: 12 },
-            coveredLineNumbers: new Set([1, 2, 3])
-        };
-
-        const prProject: ProjectCov = {
-            files: [sampleFile],
-            totals: {
-                lines: { covered: 85, total: 100 },
-                branches: { covered: 60, total: 100 },
-                functions: { covered: 10, total: 12 }
-            }
-        };
-
-        const prPackages: PkgCov[] = [{
-            name: 'src',
-            files: [sampleFile],
-            totals: {
-                lines: { covered: 85, total: 100 },
-                branches: { covered: 60, total: 100 },
-                functions: { covered: 10, total: 12 }
-            }
-        }];
-
-        // Test with main branch coverage to generate changes badge
-        const comment = await renderComment({ 
-            prProject,
-            prPackages,
-            mainBranchCoverage: 80.0,  // Lower than current 85%
-            minThreshold: 50
-        });
-
-        // Verify changes badge is present and uses two-color format
-        expect(comment).toContain('[![Changes](');
-        expect(comment).toContain('changes-%2B5.0%25-lightgrey?labelColor=lightgrey&color=brightgreen');
-        expect(comment).toContain('labelColor=lightgrey&color=');
     });
 
     it('should update an existing sticky comment', async () => {

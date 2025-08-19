@@ -48320,35 +48320,21 @@ async function renderComment(data) {
     const { prProject, prPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
-    const coverageColor = colorForPct(projectLinesPct);
-    // Use two-color badge format for coverage
-    const encodedCoverageLabel = encodeURIComponent('coverage');
-    const encodedCoverageValue = encodeURIComponent(`${projectLinesPct.toFixed(1)}%`);
-    const coverageBadge = `https://img.shields.io/badge/${encodedCoverageLabel}-${encodedCoverageValue}-lightgrey?labelColor=lightgrey&color=${coverageColor}`;
+    const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
     // Generate changes badge if main branch coverage is available
     let changesBadge = '';
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
         const prefix = delta >= 0 ? '+' : '';
         const value = `${prefix}${delta.toFixed(1)}%`;
-        const valueColor = delta >= 0 ? 'brightgreen' : 'red';
-        // Use two-color badge format for changes
-        const encodedLabel = encodeURIComponent('changes');
-        const encodedValue = encodeURIComponent(value);
-        const changesBadgeUrl = `https://img.shields.io/badge/${encodedLabel}-${encodedValue}-lightgrey?labelColor=lightgrey&color=${valueColor}`;
-        changesBadge = ` [![Changes](${changesBadgeUrl})](#)`;
+        const color = delta >= 0 ? 'brightgreen' : 'red';
+        changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
     }
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
         // Calculate overall delta from summary
         const totalDelta = calculateOverallDelta(deltaCoverage);
-        const deltaValue = formatDelta(totalDelta);
-        const deltaValueColor = deltaColor(totalDelta);
-        // Use two-color badge format for delta
-        const encodedDeltaLabel = encodeURIComponent('Δ coverage');
-        const encodedDeltaValue = encodeURIComponent(deltaValue);
-        const deltaBadgeUrl = `https://img.shields.io/badge/${encodedDeltaLabel}-${encodedDeltaValue}-lightgrey?labelColor=lightgrey&color=${deltaValueColor}`;
-        deltaBadge = ` [![Δ vs main](${deltaBadgeUrl})](#)`;
+        deltaBadge = ` [![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
     }
     // Badge section
     const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
@@ -48479,6 +48465,10 @@ function formatDelta(delta) {
         return '±0.0%';
     return `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`;
 }
+function shield(label, value, color) {
+    const e = encodeURIComponent;
+    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${e(color)}`;
+}
 function colorForPct(p) {
     return p >= 90 ? 'brightgreen' : p >= 80 ? 'green' : p >= 70 ? 'yellowgreen' : p >= 60 ? 'yellow' : p >= 50 ? 'orange' : 'red';
 }
@@ -48596,7 +48586,7 @@ function writeCoverageData(filePath, coverage, branch = 'main', commit) {
     }
 }
 /**
- * Generates a changes badge showing coverage delta with two-color design
+ * Generates a changes badge showing coverage delta
  * @param currentCoverage Current PR coverage
  * @param mainCoverage Main branch coverage
  * @returns Badge URL
@@ -48605,11 +48595,8 @@ function generateChangesBadge(currentCoverage, mainCoverage) {
     const delta = currentCoverage - mainCoverage;
     const prefix = delta >= 0 ? '+' : '';
     const value = `${prefix}${delta.toFixed(1)}%`;
-    const valueColor = delta >= 0 ? 'brightgreen' : 'red';
-    // Use two-color badge format: label color (lightgrey) and value color (based on delta)
-    const encodedLabel = encodeURIComponent('changes');
-    const encodedValue = encodeURIComponent(value);
-    return `https://img.shields.io/badge/${encodedLabel}-${encodedValue}-lightgrey?labelColor=lightgrey&color=${valueColor}`;
+    const color = delta >= 0 ? 'brightgreen' : 'red';
+    return shields_generateBadgeUrl('changes', value, color);
 }
 /**
  * Generates a badge URL

@@ -60,9 +60,9 @@ This document summarizes the implementation of the enhanced coverage reporting s
 ```
 
 ### Badge URLs
-- Uses `shields.io` with dynamic values and two-color design
-- Example: `https://img.shields.io/badge/Coverage-92.7%25-lightgrey?labelColor=lightgrey&color=brightgreen`
-- Delta: `https://img.shields.io/badge/Δ%20coverage-%2B0.5%25-lightgrey?labelColor=lightgrey&color=brightgreen`
+- Uses `shields.io` with dynamic values
+- Example: `https://img.shields.io/badge/Coverage-92.7%25-brightgreen`
+- Delta: `https://img.shields.io/badge/Δ%20coverage-%2B0.5%25-brightgreen`
 
 ### Color Scheme
 ```typescript
