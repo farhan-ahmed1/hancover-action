@@ -1,4 +1,4 @@
-import { CoverageBundle } from './schema.js';
+import { ProjectCov } from './schema.js';
 
 export type Totals = {
     totalPct: number;
@@ -30,11 +30,11 @@ export type Thresholds = {
 };
 
 /**
- * Compute coverage totals for a bundle and diff map
+ * Compute coverage totals for a project and diff map
  * diffMap: { [filePath: string]: Set<number> }
  */
 export function computeTotals(
-    bundle: CoverageBundle, 
+    project: ProjectCov, 
     diffMap: Record<string, Set<number>>,
     thresholds?: Thresholds,
     baseline?: BaselineTotals
@@ -46,28 +46,24 @@ export function computeTotals(
     let totalBranchesCovered = 0;
     let totalBranches = 0;
 
-    for (const file of bundle.files) {
-        const linesCovered = file.lines.filter(l => l.hits > 0).length;
-        const linesTotal = file.lines.length;
+    for (const file of project.files) {
+        totalLinesCovered += file.lines.covered;
+        totalLines += file.lines.total;
 
-        totalLinesCovered += linesCovered;
-        totalLines += linesTotal;
-
-        // Branch coverage (if available)
-        if (file.summary.branchesCovered !== undefined && file.summary.branchesTotal !== undefined) {
-            totalBranchesCovered += file.summary.branchesCovered;
-            totalBranches += file.summary.branchesTotal;
-        }
+        // Branch coverage
+        totalBranchesCovered += file.branches.covered;
+        totalBranches += file.branches.total;
 
         // Diff coverage for this file
         const changed = diffMap[file.path] ?? new Set<number>();
         for (const lineNumber of changed) {
-            const line = file.lines.find(l => l.line === lineNumber);
-            if (line) {
+            if (file.coveredLineNumbers.has(lineNumber)) {
                 totalDiffLines++;
-                if (line.hits > 0) {
-                    totalDiffCovered++;
-                }
+                totalDiffCovered++;
+            } else {
+                // Check if this line exists in the file (within total lines)
+                // For simplicity, assume all changed lines are valid
+                totalDiffLines++;
             }
         }
     }

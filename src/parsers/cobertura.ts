@@ -1,9 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
 import { readFileSync } from 'fs';
-import { CoverageBundle, FileCov } from '../schema.js';
+import { FileCov, ProjectCov } from '../schema.js';
 import { validateXmlSecurity } from '../fs-limits.js';
 
-export function parseCobertura(xmlContent: string): CoverageBundle {
+export function parseCobertura(xmlContent: string): ProjectCov {
     try {
         // Security validation before parsing
         validateXmlSecurity(xmlContent);
@@ -23,10 +23,17 @@ export function parseCobertura(xmlContent: string): CoverageBundle {
         const coverage = result.coverage;
         
         if (!coverage) {
-            return { files: [] };
+            return { 
+                files: [], 
+                totals: { 
+                    lines: { covered: 0, total: 0 }, 
+                    branches: { covered: 0, total: 0 }, 
+                    functions: { covered: 0, total: 0 } 
+                } 
+            };
         }
 
-        const files: FileCov[] = [];
+        const filesMap: Record<string, FileCov> = {};
 
         // Handle different Cobertura XML structures
         let packages = [];
@@ -46,73 +53,128 @@ export function parseCobertura(xmlContent: string): CoverageBundle {
                 : pkg.classes.class ? [pkg.classes.class] : [];
 
             for (const cls of classes) {
-                if (!cls || !cls['@_filename']) continue;
+                if (!cls) continue;
                 
-                const filePath = cls['@_filename'];
-                const lines = [];
-                let linesCovered = 0;
-                let linesTotal = 0;
-                let branchesCovered = 0;
-                let branchesTotal = 0;
+                // Prefer filename attribute, fallback to package + class name
+                let filePath = cls['@_filename'];
+                if (!filePath) {
+                    const packageName = pkg['@_name'] || '';
+                    const className = cls['@_name'] || '';
+                    filePath = `${packageName.replace(/\./g, '/')}/${className.replace(/\./g, '/')}.js`;
+                }
 
-                // Parse line coverage
-                if (cls.lines && cls.lines.line) {
-                    const lineArray = Array.isArray(cls.lines.line) 
-                        ? cls.lines.line 
-                        : [cls.lines.line];
+                // Get or create file entry
+                if (!filesMap[filePath]) {
+                    filesMap[filePath] = {
+                        path: filePath,
+                        lines: { covered: 0, total: 0 },
+                        branches: { covered: 0, total: 0 },
+                        functions: { covered: 0, total: 0 },
+                        coveredLineNumbers: new Set<number>()
+                    };
+                }
+                
+                const file = filesMap[filePath];
 
-                    for (const line of lineArray) {
-                        if (line && line['@_number'] !== undefined && line['@_hits'] !== undefined) {
-                            const lineNumber = parseInt(line['@_number'], 10);
-                            const hits = parseInt(line['@_hits'], 10);
-                            const isBranch = line['@_branch'] === 'true';
+                // Parse methods → functions
+                if (cls.methods && cls.methods.method) {
+                    const methods = Array.isArray(cls.methods.method) 
+                        ? cls.methods.method 
+                        : [cls.methods.method];
+
+                    for (const method of methods) {
+                        if (!method) continue;
+                        
+                        file.functions.total++;
+                        
+                        // Check if method has any covered lines
+                        let methodHasCoveredLines = false;
+                        if (method.lines && method.lines.line) {
+                            const methodLines = Array.isArray(method.lines.line) 
+                                ? method.lines.line 
+                                : [method.lines.line];
                             
-                            const lineCov: any = { line: lineNumber, hits };
-                            
-                            // Handle branch information
-                            if (isBranch && line['@_condition-coverage']) {
-                                const conditionCoverage = line['@_condition-coverage'];
-                                const match = conditionCoverage.match(/(\d+)%\s*\((\d+)\/(\d+)\)/);
-                                if (match) {
-                                    const branchesHit = parseInt(match[2], 10);
-                                    const totalBranchesForLine = parseInt(match[3], 10);
-                                    lineCov.isBranch = true;
-                                    lineCov.branchesHit = branchesHit;
-                                    lineCov.branchesTotal = totalBranchesForLine;
-                                    
-                                    branchesCovered += branchesHit;
-                                    branchesTotal += totalBranchesForLine;
+                            for (const line of methodLines) {
+                                if (line && line['@_hits'] && parseInt(line['@_hits'], 10) > 0) {
+                                    methodHasCoveredLines = true;
+                                    break;
                                 }
                             }
-                            
-                            lines.push(lineCov);
-                            linesTotal++;
-                            if (hits > 0) linesCovered++;
+                        }
+                        
+                        if (methodHasCoveredLines) {
+                            file.functions.covered++;
                         }
                     }
                 }
 
-                files.push({
-                    path: filePath,
-                    lines,
-                    summary: { 
-                        linesCovered, 
-                        linesTotal,
-                        branchesCovered: branchesTotal > 0 ? branchesCovered : undefined,
-                        branchesTotal: branchesTotal > 0 ? branchesTotal : undefined
+                // Parse lines → statements & branches
+                if (cls.lines && cls.lines.line) {
+                    const lines = Array.isArray(cls.lines.line) 
+                        ? cls.lines.line 
+                        : [cls.lines.line];
+
+                    for (const line of lines) {
+                        if (!line || line['@_number'] === undefined || line['@_hits'] === undefined) continue;
+                        
+                        const lineNumber = parseInt(line['@_number'], 10);
+                        const hits = parseInt(line['@_hits'], 10);
+                        
+                        if (isNaN(lineNumber) || isNaN(hits)) continue;
+                        
+                        // Count line/statement coverage
+                        file.lines.total++;
+                        if (hits > 0) {
+                            file.lines.covered++;
+                            file.coveredLineNumbers.add(lineNumber);
+                        }
+
+                        // Parse branch coverage from condition-coverage attribute
+                        if (line['@_condition-coverage']) {
+                            const conditionCoverage = line['@_condition-coverage'];
+                            // Format: "x% (a/b)" where a=covered, b=total
+                            const match = conditionCoverage.match(/\((\d+)\/(\d+)\)/);
+                            if (match) {
+                                const branchesCovered = parseInt(match[1], 10);
+                                const branchesTotal = parseInt(match[2], 10);
+                                
+                                if (!isNaN(branchesCovered) && !isNaN(branchesTotal)) {
+                                    file.branches.covered += branchesCovered;
+                                    file.branches.total += branchesTotal;
+                                }
+                            }
+                        }
                     }
-                });
+                }
             }
         }
 
-        return { files };
+        const files = Object.values(filesMap);
+
+        // Compute project totals
+        const totals = {
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        };
+
+        for (const file of files) {
+            totals.lines.covered += file.lines.covered;
+            totals.lines.total += file.lines.total;
+            totals.branches.covered += file.branches.covered;
+            totals.branches.total += file.branches.total;
+            totals.functions.covered += file.functions.covered;
+            totals.functions.total += file.functions.total;
+        }
+
+        return { files, totals };
     } catch (error) {
         throw new Error(`Failed to parse Cobertura XML: ${error}`);
     }
 }
 
 // Read Cobertura file from disk and parse it
-export function parseCoberturaFile(filePath: string): CoverageBundle {
+export function parseCoberturaFile(filePath: string): ProjectCov {
     try {
         const xmlContent = readFileSync(filePath, 'utf8');
         return parseCobertura(xmlContent);

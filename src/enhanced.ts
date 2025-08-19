@@ -1,6 +1,6 @@
 import * as core from '@actions/core';
 import { readInputs } from './inputs.js';
-import { parseLcovFile } from './parsers/lcov.js';
+import { parseAnyCoverage } from './parsers/index.js';
 import { groupPackages } from './group.js';
 import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
@@ -10,7 +10,7 @@ export async function runEnhancedCoverage() {
     try {
         const inputs = readInputs();
         
-        // Step 1: Parse PR coverage from LCOV
+        // Step 1: Parse PR coverage (auto-detect LCOV or Cobertura)
         core.info('Parsing PR coverage...');
         const prFiles = inputs.files;
         
@@ -18,8 +18,8 @@ export async function runEnhancedCoverage() {
             throw new Error('No coverage files provided');
         }
         
-        // For now, use the first LCOV file (could be enhanced to merge multiple)
-        const prProject = parseLcovFile(prFiles[0]);
+        // For now, use the first coverage file (could be enhanced to merge multiple)
+        const prProject = await parseAnyCoverage(prFiles[0]);
         core.info(`Parsed ${prProject.files.length} files from PR coverage`);
         
         // Step 2: Smart package grouping
@@ -43,12 +43,12 @@ export async function runEnhancedCoverage() {
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
         
-        // Step 5: Parse baseline coverage if available
+        // Step 5: Parse baseline coverage if available (auto-detect format)
         let deltaCoverage;
         if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
                 core.info('Parsing baseline coverage...');
-                const mainProject = parseLcovFile(inputs.baselineFiles[0]);
+                const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
                 const mainPackages = groupPackages(mainProject.files);
                 
                 deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);

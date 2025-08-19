@@ -1,33 +1,67 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderComment, upsertStickyComment } from '../src/comment.js';
-import { Totals } from '../src/compute.js';
+import { ProjectCov, PkgCov, FileCov } from '../src/schema.js';
+import { ChangesCoverage } from '../src/changes.js';
 
 describe('Comment Rendering', () => {
     it('should render a markdown comment correctly', async () => {
-        const totals: Totals = {
-            totalPct: 85,
-            diffPct: 75,
-            branchPct: 60,
-            didBreachThresholds: false,
-            linesCovered: 85,
-            linesTotal: 100,
-            diffLinesCovered: 15,
-            diffLinesTotal: 20,
-            branchesCovered: 60,
-            branchesTotal: 100
+        const sampleFile: FileCov = {
+            path: 'src/example.ts',
+            lines: { covered: 85, total: 100 },
+            branches: { covered: 60, total: 100 },
+            functions: { covered: 10, total: 12 },
+            coveredLineNumbers: new Set([1, 2, 3])
+        };
+
+        const prProject: ProjectCov = {
+            files: [sampleFile],
+            totals: {
+                lines: { covered: 85, total: 100 },
+                branches: { covered: 60, total: 100 },
+                functions: { covered: 10, total: 12 }
+            }
+        };
+
+        const prPackages: PkgCov[] = [{
+            name: 'src',
+            files: [sampleFile],
+            totals: {
+                lines: { covered: 85, total: 100 },
+                branches: { covered: 60, total: 100 },
+                functions: { covered: 10, total: 12 }
+            }
+        }];
+
+        const changesCoverage: ChangesCoverage = {
+            files: [sampleFile],
+            packages: [{
+                name: 'src',
+                files: [sampleFile],
+                totals: {
+                    lines: { covered: 15, total: 20 },
+                    branches: { covered: 0, total: 0 },
+                    functions: { covered: 0, total: 0 }
+                }
+            }],
+            totals: {
+                lines: { covered: 15, total: 20 },
+                branches: { covered: 0, total: 0 },
+                functions: { covered: 0, total: 0 }
+            }
         };
 
         const comment = await renderComment({ 
-            totals, 
-            baseRef: 'main',
+            prProject,
+            prPackages,
+            changesCoverage,
             minThreshold: 50
         });
 
         // Test for new format
         expect(comment).toContain('<!-- coverage-comment:anchor -->');
         expect(comment).toContain('[![Coverage](');
-        expect(comment).toContain('📊 Coverage Report vs main');
-        expect(comment).toContain('**Overall Coverage**: 85.0%');
+        expect(comment).toContain('Code Coverage');
+        expect(comment).toContain('85.0%');
         expect(comment).toContain('<details>');
         expect(comment).toContain('### Project Coverage (PR)');
         expect(comment).toContain('### Code Changes Coverage');
