@@ -64,7 +64,7 @@ describe('computeTotals', () => {
 
         const totals = computeTotals(bundle, {});
 
-        expect(totals.totalPct).toBe(75); // (3/4)*100
+        expect(totals.totalPct).toBe(60); // (3/5)*100 = 60%
         expect(totals.diffPct).toBe(0); // Assuming no diff coverage for this test
     });
 });

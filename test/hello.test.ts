@@ -1,4 +1,5 @@
-const assert = require('assert');
+import { test, expect } from 'vitest';
+
 test('hello world!', () => {
-    assert.strictEqual(1 + 1, 2);
+    expect(1 + 1).toBe(2);
 });
