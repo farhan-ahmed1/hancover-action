@@ -1,7 +1,7 @@
 # HanCover - Coverage Reports for PRs
 
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-59%25-red)
+![Coverage](https://img.shields.io/badge/coverage-55%25-red)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
 A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
@@ -33,6 +33,8 @@ The new enhanced coverage system provides comprehensive coverage analysis with:
 [🏷️ Coverage Badge Setup](./docs/COVERAGE-BADGE.md)
 
 > **Note**: For coverage badges on your main branch, you'll need to add a separate workflow to your repository. See the [Coverage Badge Setup Guide](./docs/COVERAGE-BADGE.md) for complete instructions.
+> 
+> *This repository uses the same approach - our coverage badge is maintained by the [Coverage Badge workflow](.github/workflows/coverage-badge.yml) and manually updated.*
 
 ## Quick Start
 
