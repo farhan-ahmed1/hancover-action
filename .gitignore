@@ -5,3 +5,4 @@ dist/
 coverage/
 .env
 .vscode/settings.json
+.cspell.json

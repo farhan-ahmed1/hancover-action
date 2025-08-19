@@ -12,3 +12,7 @@ scripts/security-audit.sh @farhan-ahmed1
 action.yml @farhan-ahmed1
 package.json @farhan-ahmed1
 package-lock.json @farhan-ahmed1
+
+# Dependency management files
+.github/dependabot.yml @farhan-ahmed1
+renovate.json @farhan-ahmed1
