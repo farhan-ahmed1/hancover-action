@@ -55,7 +55,7 @@ jobs:
 
       - name: Create signed release
         id: create_release
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v1.0.4
+        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v1.0.4
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
