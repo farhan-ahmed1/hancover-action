@@ -23,7 +23,6 @@ export type ActionInputs = Omit<z.infer<typeof InputsSchema>, 'groups' | 'baseli
     files: string[]; 
     groups?: GroupsConfig;
     baselineFiles?: string[];
-    coverageDataPath: string;
 };
 
 export function readInputs(): ActionInputs {
@@ -39,8 +38,7 @@ export function readInputs(): ActionInputs {
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
-        coverageDataPath: process.env['INPUT_COVERAGE-DATA-PATH'] ?? '.github/coverage-data.json'
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
     };
 
     const parsed = InputsSchema.parse({
@@ -55,8 +53,7 @@ export function readInputs(): ActionInputs {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold,
-        coverageDataPath: raw.coverageDataPath
+        minThreshold: raw.minThreshold
     });
 
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
@@ -75,5 +72,5 @@ export function readInputs(): ActionInputs {
         }
     }
 
-    return { ...parsed, files, baselineFiles, groups: groupsParsed, coverageDataPath: raw.coverageDataPath } as unknown as ActionInputs;
+    return { ...parsed, files, baselineFiles, groups: groupsParsed } as unknown as ActionInputs;
 }

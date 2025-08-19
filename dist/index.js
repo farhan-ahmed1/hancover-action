@@ -45610,8 +45610,7 @@ function readInputs() {
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
-        coverageDataPath: process.env['INPUT_COVERAGE-DATA-PATH'] ?? '.github/coverage-data.json'
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -45625,8 +45624,7 @@ function readInputs() {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold,
-        coverageDataPath: raw.coverageDataPath
+        minThreshold: raw.minThreshold
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const baselineFiles = raw.baselineFiles
@@ -45643,7 +45641,7 @@ function readInputs() {
             groupsParsed = undefined;
         }
     }
-    return { ...parsed, files, baselineFiles, groups: groupsParsed, coverageDataPath: raw.coverageDataPath };
+    return { ...parsed, files, baselineFiles, groups: groupsParsed };
 }
 
 // EXTERNAL MODULE: external "fs"
@@ -48527,94 +48525,9 @@ async function upsertStickyComment(md, mode = 'update') {
     }
 }
 
-;// CONCATENATED MODULE: ./src/shields.ts
-
-
-
-/**
- * Reads main branch coverage from a local JSON file
- * @param filePath Path to the coverage data JSON file
- * @returns Coverage percentage or null if not available
- */
-function readMainBranchCoverage(filePath) {
-    try {
-        if (!external_fs_.existsSync(filePath)) {
-            lib_core.info(`Coverage data file not found: ${filePath}`);
-            return null;
-        }
-        const data = external_fs_.readFileSync(filePath, 'utf8');
-        const coverageData = JSON.parse(data);
-        if (typeof coverageData.coverage === 'number') {
-            lib_core.info(`Main branch coverage from ${filePath}: ${coverageData.coverage.toFixed(1)}% (updated: ${coverageData.timestamp})`);
-            return coverageData.coverage;
-        }
-        else {
-            lib_core.warning('Invalid coverage data format in JSON file');
-            return null;
-        }
-    }
-    catch (error) {
-        lib_core.warning(`Error reading coverage data file: ${error}`);
-        return null;
-    }
-}
-/**
- * Writes coverage data to a local JSON file
- * @param filePath Path to write the coverage data
- * @param coverage Coverage percentage
- * @param branch Branch name
- * @param commit Commit hash (optional)
- */
-function writeCoverageData(filePath, coverage, branch = 'main', commit) {
-    try {
-        const coverageData = {
-            coverage,
-            timestamp: new Date().toISOString(),
-            branch,
-            commit
-        };
-        // Ensure directory exists
-        const dir = external_path_.dirname(filePath);
-        if (!external_fs_.existsSync(dir)) {
-            external_fs_.mkdirSync(dir, { recursive: true });
-        }
-        external_fs_.writeFileSync(filePath, JSON.stringify(coverageData, null, 2));
-        lib_core.info(`Coverage data written to: ${filePath} (${coverage.toFixed(1)}%)`);
-    }
-    catch (error) {
-        lib_core.warning(`Failed to write coverage data: ${error}`);
-    }
-}
-/**
- * Generates a changes badge showing coverage delta
- * @param currentCoverage Current PR coverage
- * @param mainCoverage Main branch coverage
- * @returns Badge URL
- */
-function generateChangesBadge(currentCoverage, mainCoverage) {
-    const delta = currentCoverage - mainCoverage;
-    const prefix = delta >= 0 ? '+' : '';
-    const value = `${prefix}${delta.toFixed(1)}%`;
-    const color = delta >= 0 ? 'brightgreen' : 'red';
-    return shields_generateBadgeUrl('changes', value, color);
-}
-/**
- * Generates a badge URL
- * @param label Badge label
- * @param message Badge message
- * @param color Badge color
- * @returns Badge URL
- */
-function shields_generateBadgeUrl(label, message, color) {
-    const encodedLabel = encodeURIComponent(label);
-    const encodedMessage = encodeURIComponent(message);
-    return `https://img.shields.io/badge/${encodedLabel}-${encodedMessage}-${color}`;
-}
-
 // EXTERNAL MODULE: external "child_process"
 var external_child_process_ = __nccwpck_require__(5317);
 ;// CONCATENATED MODULE: ./src/enhanced.ts
-
 
 
 
@@ -48650,10 +48563,8 @@ async function runEnhancedCoverage() {
         // Step 4: Compute code changes coverage
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
-        // Step 5: Read main branch coverage from local JSON file
+        // Step 5: Parse baseline coverage if available (auto-detect format)
         let mainBranchCoverage = null;
-        mainBranchCoverage = readMainBranchCoverage(inputs.coverageDataPath);
-        // Step 6: Parse baseline coverage if available (auto-detect format)
         let deltaCoverage;
         if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
@@ -48688,13 +48599,6 @@ async function runEnhancedCoverage() {
         if (mainBranchCoverage !== null) {
             const coverageDelta = projectLinesPct - mainBranchCoverage;
             lib_core.setOutput('coverage-delta', coverageDelta.toFixed(1));
-        }
-        // Step 10: Update coverage data file if this is the main branch
-        const currentBranch = process.env.GITHUB_REF_NAME || 'unknown';
-        const currentCommit = process.env.GITHUB_SHA;
-        if (currentBranch === 'main' || currentBranch === 'master') {
-            writeCoverageData(inputs.coverageDataPath, projectLinesPct, currentBranch, currentCommit);
-            lib_core.info('Updated coverage data file for main branch');
         }
         // Check thresholds
         const thresholdMet = projectLinesPct >= inputs.minThreshold;
