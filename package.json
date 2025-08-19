@@ -8,6 +8,10 @@
     "build": "tsc",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:security": "vitest run test/security.test.ts",
+    "audit": "npm audit --audit-level high",
+    "audit:fix": "npm audit fix",
+    "security:check": "./scripts/security-audit.sh",
     "prepare": "npm run build"
   },
   "dependencies": {

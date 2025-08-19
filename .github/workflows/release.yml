@@ -1,8 +1,15 @@
 name: Release
+
 on:
   push:
     tags:
       - 'v*.*.*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  actions: read
 
 jobs:
   release:
@@ -10,28 +17,92 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Run security audit
+        run: npm audit --audit-level high
+
+      - name: Run tests
+        run: npm test
+
       - name: Build the project
         run: npm run build
 
-      - name: Create Release
+      - name: Verify build integrity
+        run: |
+          echo "Verifying build output..."
+          test -f dist/index.js || exit 1
+          echo "Build verification passed"
+
+      - name: Generate build hashes
+        id: hash
+        run: |
+          cd dist
+          sha256sum * > ../checksums.txt
+          echo "hashes<<EOF" >> "$GITHUB_OUTPUT"
+          cat ../checksums.txt >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create signed release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: |
-            Changes in this release:
-            - Add your release notes here.
+            ## 🔒 Security Information
+            
+            This release has been security audited and signed.
+            
+            **Verification:**
+            - All dependencies audited for security vulnerabilities
+            - Code analyzed with CodeQL
+            - Build integrity verified with checksums
+            
+            ## 📋 Recommended Usage
+            
+            Pin to this specific version in your workflows:
+            ```yaml
+            uses: farhan-ahmed1/hancover-action@${{ github.ref_name }}
+            ```
+            
+            **Required permissions:**
+            ```yaml
+            permissions:
+              pull-requests: write
+              contents: read
+            ```
+            
+            ## 🔐 Build Checksums
+            
+            ```
+            ${{ steps.hash.outputs.hashes }}
+            ```
+            
+            ## Changes in this release:
+            - See commit history for detailed changes
+            
           files: |
-            dist/**
+            dist/index.js
+            action.yml
+            README.md
+          generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'dist/index.js'

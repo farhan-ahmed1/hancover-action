@@ -1,6 +1,12 @@
 name: HanCover — Coverage Reports for PRs
-description: Merge LCOV/Cobertura, compute total & diff coverage, group by package, and post a sticky PR comment with badges.
+description: |
+  Merge LCOV/Cobertura coverage files, compute total & diff coverage, group by package, 
+  and post a sticky PR comment with badges. Uses minimal permissions for security.
 author: FarHan Labs
+branding:
+  icon: 'shield'
+  color: 'green'
+
 runs:
   using: node20
   main: dist/index.js

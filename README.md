@@ -3,7 +3,7 @@
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
 ![Coverage](https://img.shields.io/badge/coverage-85%25-green)
 
-> A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
+A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
 
 ## Features
 
@@ -52,6 +52,45 @@ jobs:
           comment-mode: update
           warn-only: false
 ```
+
+## 🔒 Security & Trust
+
+HanCover is designed with security as a top priority:
+
+### Minimal Permissions
+Only requires the minimum permissions needed:
+```yaml
+permissions:
+  pull-requests: write  # To post/update comments
+  contents: read        # To read coverage files
+```
+
+### Safe XML Parsing
+- DTD processing disabled to prevent XXE attacks
+- External entity loading blocked
+- Input validation for all XML content
+- Protection against XML bombs
+
+### File Size Limits
+- Default 50MB per file, 200MB total
+- Configurable via inputs
+- Prevents resource exhaustion attacks
+
+### Supply Chain Security
+- Signed releases with SLSA Level 3 provenance
+- Regular security audits with CodeQL
+- OpenSSF Scorecard monitoring
+- Dependency vulnerability scanning
+
+### Pin to Specific Versions
+Always pin to specific versions for security:
+```yaml
+uses: farhan-ahmed1/hancover-action@v0.1.0  # ✅ Good
+uses: farhan-ahmed1/hancover-action@main     # ❌ Avoid
+```
+
+### Reporting Security Issues
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## Features
 

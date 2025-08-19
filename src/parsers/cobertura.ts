@@ -1,16 +1,22 @@
 import { XMLParser } from 'fast-xml-parser';
 import { readFileSync } from 'fs';
 import { CoverageBundle, FileCov } from '../schema.js';
+import { validateXmlSecurity } from '../fs-limits.js';
 
 export function parseCobertura(xmlContent: string): CoverageBundle {
     try {
+        // Security validation before parsing
+        validateXmlSecurity(xmlContent);
+        
         const parser = new XMLParser({
             ignoreAttributes: false,
             attributeNamePrefix: '@_',
-            // Disable DTD processing for security and performance
+            // Security: Disable DTD processing and external entity loading to prevent XXE attacks
             processEntities: false,
             ignoreDeclaration: true,
-            trimValues: true
+            trimValues: true,
+            // Additional security measures
+            allowBooleanAttributes: false
         });
         
         const result = parser.parse(xmlContent);
