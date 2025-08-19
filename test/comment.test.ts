@@ -13,7 +13,9 @@ describe('Comment Rendering', () => {
             linesCovered: 85,
             linesTotal: 100,
             diffLinesCovered: 15,
-            diffLinesTotal: 20
+            diffLinesTotal: 20,
+            branchesCovered: 60,
+            branchesTotal: 100
         };
         const grouped: GroupSummary[] = [
             { 
@@ -31,10 +33,15 @@ describe('Comment Rendering', () => {
 
         const comment = await renderComment({ totals, grouped, thresholds });
 
-        expect(comment).toContain('## 📊 Coverage Report');
-        expect(comment).toContain('**Total Coverage** | 85.0%');
-        expect(comment).toContain('**Diff Coverage** | 75.0%');
-        expect(comment).toContain('**Branch Coverage** | 60.0%');
+        // Test for new collapsible format
+        expect(comment).toContain('<!-- coverage-comment:anchor -->');
+        expect(comment).toContain('[![Coverage](');
+        expect(comment).toContain('<details>');
+        expect(comment).toContain('### Project Coverage (PR)');
+        expect(comment).toContain('### Code Changes Coverage');
+        expect(comment).toContain('85.0%');
+        expect(comment).toContain('75.0%');
+        expect(comment).toContain('60.0%');
     });
 
     it('should update an existing sticky comment', async () => {

@@ -51,6 +51,13 @@ inputs:
     description: "If true, oversize/invalid files fail the job"
     required: false
     default: "false"
+  baseline-files:
+    description: "Glob patterns for baseline coverage files from main branch"
+    required: false
+  min-threshold:
+    description: "Minimum coverage threshold for health indicators (default: 50)"
+    required: false
+    default: "50"
 
 outputs:
   total_coverage:
@@ -59,3 +66,5 @@ outputs:
     description: "Diff (changed lines) coverage %"
   branch_coverage:
     description: "Branch coverage % (if available)"
+  delta_coverage:
+    description: "Coverage delta compared to baseline %"

@@ -1,52 +1,135 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { Totals } from './compute.js';
+import { Totals, BaselineTotals } from './compute.js';
 import { GroupSummary } from './group.js';
+import { generateCoverageBadge, generateDeltaBadge, getHealthIcon } from './badges.js';
 
-const STICKY_COMMENT_MARKER = '<!-- hancover:sticky -->';
+const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
+
+export interface CommentData {
+    totals: Totals;
+    baseline?: BaselineTotals;
+    grouped?: GroupSummary[];
+    thresholds?: any;
+    baseRef?: string;
+    minThreshold?: number;
+}
 
 export async function renderComment({ 
     totals, 
+    baseline,
     grouped, 
     thresholds,
-    baseRef 
-}: { 
-    totals: Totals; 
-    grouped?: GroupSummary[]; 
-    thresholds?: any;
-    baseRef?: string;
-}): Promise<string> {
-    const groupsMd = grouped && grouped.length > 0 
-        ? grouped.map(g => `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`).join('\n')
-        : 'No groups found.';
+    baseRef,
+    minThreshold = 50
+}: CommentData): Promise<string> {
+    // Generate badges
+    const coverageBadge = generateCoverageBadge(totals.totalPct);
+    const deltaBadge = totals.deltaPct !== undefined ? generateDeltaBadge(totals.deltaPct) : null;
 
-    const thresholdStatus = totals.didBreachThresholds ? '❌' : '✅';
+    // Badge section
+    let badgeSection = `[![Coverage](${coverageBadge})](#)`;
+    if (deltaBadge) {
+        badgeSection += `\n[![Δ vs main](${deltaBadge})](#)`;
+    }
+
+    // Project Coverage table
+    const projectTable = renderCoverageTable({
+        title: 'Project Coverage (PR)',
+        lineRate: totals.totalPct,
+        branchRate: totals.branchPct,
+        linesHit: totals.linesCovered,
+        linesTotal: totals.linesTotal,
+        branchesHit: totals.branchesCovered,
+        branchesTotal: totals.branchesTotal,
+        minThreshold
+    });
+
+    // Code Changes Coverage table  
+    const changesTable = renderCoverageTable({
+        title: 'Code Changes Coverage',
+        lineRate: totals.diffPct,
+        branchRate: undefined, // Branch coverage for changes not typically available
+        linesHit: totals.diffLinesCovered,
+        linesTotal: totals.diffLinesTotal,
+        branchesHit: undefined,
+        branchesTotal: undefined,
+        minThreshold
+    });
+
+    // Groups section (if available)
+    const groupsSection = grouped && grouped.length > 0 
+        ? `\n### 📈 Coverage by Group\n\n${grouped.map(g => 
+            `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`
+        ).join('\n')}\n`
+        : '';
+
     const comparisonText = baseRef ? ` vs ${baseRef}` : '';
 
-    return `${STICKY_COMMENT_MARKER}
+    return `${COVERAGE_COMMENT_MARKER}
+${badgeSection}
 
-## 📊 Coverage Report${comparisonText}
+<details>
+<summary><b>Code Coverage${comparisonText}</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
 
-### Overall Coverage ${thresholdStatus}
+<br/>
 
-| Metric | Coverage | Status |
-|--------|----------|--------|
-| **Total Coverage** | ${totals.totalPct.toFixed(1)}% | ${totals.totalPct >= 80 ? '✅' : '⚠️'} |
-| **Diff Coverage** | ${totals.diffPct.toFixed(1)}% | ${totals.diffPct >= 80 ? '✅' : '⚠️'} |
-| **Branch Coverage** | ${totals.branchPct != null ? totals.branchPct.toFixed(1) + '%' : 'N/A'} | ${totals.branchPct != null && totals.branchPct >= 80 ? '✅' : '⚠️'} |
+${projectTable}
 
-### 📈 Coverage by Group
+---
 
-${groupsMd}
-
+${changesTable}
+${groupsSection}
 ### 📋 Summary
 
 - **Lines Covered**: ${totals.linesCovered}/${totals.linesTotal}
 - **Changed Lines Covered**: ${totals.diffLinesCovered}/${totals.diffLinesTotal}
+${baseline ? `- **Coverage Delta**: ${totals.deltaPct?.toFixed(1)}%` : ''}
 - **Thresholds**: ${thresholds ? JSON.stringify(thresholds, null, 2) : 'Not configured'}
 
 ${totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**'}
+
+</details>
 `;
+}
+
+interface TableConfig {
+    title: string;
+    lineRate: number;
+    branchRate?: number;
+    linesHit: number;
+    linesTotal: number;
+    branchesHit?: number;
+    branchesTotal?: number;
+    minThreshold: number;
+}
+
+function renderCoverageTable(config: TableConfig): string {
+    const {
+        title,
+        lineRate,
+        branchRate,
+        linesHit,
+        linesTotal,
+        branchesHit,
+        branchesTotal,
+        minThreshold
+    } = config;
+
+    const lineHealth = getHealthIcon(lineRate, minThreshold);
+    
+    const branchRateDisplay = branchRate !== undefined ? `${branchRate.toFixed(1)}%` : 'N/A';
+    const branchSummary = branchesHit !== undefined && branchesTotal !== undefined 
+        ? `(${branchesHit} / ${branchesTotal})` 
+        : '';
+
+    return `### ${title}
+| Package | Line Rate | Branch Rate | Health |
+|---|---:|---:|:---:|
+| main | ${lineRate.toFixed(1)}% | ${branchRateDisplay} | ${lineHealth} |
+| **Summary** | **${lineRate.toFixed(1)}% (${linesHit} / ${linesTotal})** | **${branchRateDisplay} ${branchSummary}** | **${lineHealth}** |
+
+_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
 }
 
 export async function upsertStickyComment(md: string, mode: 'update' | 'new' = 'update'): Promise<void> {
@@ -70,15 +153,16 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
         const pull_number = context.payload.pull_request.number;
 
         if (mode === 'update') {
-            // Find existing sticky comment
+            // Find existing coverage comment
             const { data: comments } = await octokit.rest.issues.listComments({
                 owner,
                 repo,
                 issue_number: pull_number,
+                per_page: 100
             });
 
             const existingComment = comments.find(comment => 
-                comment.body?.includes(STICKY_COMMENT_MARKER)
+                comment.body?.includes(COVERAGE_COMMENT_MARKER)
             );
 
             if (existingComment) {

@@ -53572,7 +53572,9 @@ const InputsSchema = object({
     maxBytesPerFile: coerce_number().optional().default(52428800),
     maxTotalBytes: coerce_number().optional().default(209715200),
     timeoutSeconds: coerce_number().optional().default(120),
-    strict: schemas_boolean().optional().default(false)
+    strict: schemas_boolean().optional().default(false),
+    baselineFiles: schemas_string().optional(),
+    minThreshold: coerce_number().optional().default(50)
 });
 function readInputs() {
     const raw = {
@@ -53585,7 +53587,9 @@ function readInputs() {
         maxBytesPerFile: Number(process.env['INPUT_MAX-BYTES-PER-FILE'] ?? 52428800),
         maxTotalBytes: Number(process.env['INPUT_MAX-TOTAL-BYTES'] ?? 209715200),
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
-        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true'
+        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
+        baselineFiles: process.env['INPUT_BASELINE-FILES'],
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -53597,9 +53601,14 @@ function readInputs() {
         maxBytesPerFile: raw.maxBytesPerFile,
         maxTotalBytes: raw.maxTotalBytes,
         timeoutSeconds: raw.timeoutSeconds,
-        strict: raw.strict
+        strict: raw.strict,
+        baselineFiles: raw.baselineFiles,
+        minThreshold: raw.minThreshold
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const baselineFiles = raw.baselineFiles
+        ? raw.baselineFiles.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+        : undefined;
     // parse YAML groups if provided
     let groupsParsed = undefined;
     if (raw.groups) {
@@ -53611,7 +53620,7 @@ function readInputs() {
             groupsParsed = undefined;
         }
     }
-    return { ...parsed, files, groups: groupsParsed };
+    return { ...parsed, files, baselineFiles, groups: groupsParsed };
 }
 
 ;// CONCATENATED MODULE: external "node:process"
@@ -56711,7 +56720,7 @@ function matchesGroup(filePath, group) {
  * Compute coverage totals for a bundle and diff map
  * diffMap: { [filePath: string]: Set<number> }
  */
-function computeTotals(bundle, diffMap, thresholds) {
+function computeTotals(bundle, diffMap, thresholds, baseline) {
     let totalLinesCovered = 0;
     let totalLines = 0;
     let totalDiffCovered = 0;
@@ -56744,6 +56753,8 @@ function computeTotals(bundle, diffMap, thresholds) {
     const totalPct = totalLines > 0 ? Math.round((totalLinesCovered / totalLines) * 10000) / 100 : 0;
     const diffPct = totalDiffLines > 0 ? Math.round((totalDiffCovered / totalDiffLines) * 10000) / 100 : 0;
     const branchPct = totalBranches > 0 ? Math.round((totalBranchesCovered / totalBranches) * 10000) / 100 : undefined;
+    // Calculate delta if baseline is provided
+    const deltaPct = baseline ? totalPct - baseline.totalPct : undefined;
     // Check thresholds
     let didBreachThresholds = false;
     if (thresholds) {
@@ -56765,7 +56776,10 @@ function computeTotals(bundle, diffMap, thresholds) {
         linesCovered: totalLinesCovered,
         linesTotal: totalLines,
         diffLinesCovered: totalDiffCovered,
-        diffLinesTotal: totalDiffLines
+        diffLinesTotal: totalDiffLines,
+        branchesCovered: totalBranches > 0 ? totalBranchesCovered : undefined,
+        branchesTotal: totalBranches > 0 ? totalBranches : undefined,
+        deltaPct
     };
 }
 function parseThresholds(thresholdsString) {
@@ -56797,40 +56811,128 @@ function parseThresholds(thresholdsString) {
 
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: ./src/badges.ts
+function generateBadgeUrl(label, message, color = 'blue') {
+    return `https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(message)}-${color}`;
+}
+function generateCoverageBadge(coverage) {
+    const color = getColorForPercentage(coverage);
+    return generateBadgeUrl('coverage', `${coverage.toFixed(1)}%`, color);
+}
+function generateBuildBadge(status) {
+    const color = status === 'passing' ? 'brightgreen' : 'red';
+    return generateBadgeUrl('build', status, color);
+}
+function generateDeltaBadge(delta) {
+    const isPositive = delta >= 0;
+    const prefix = isPositive ? '+' : '';
+    const value = `${prefix}${delta.toFixed(1)}%`;
+    const color = isPositive ? 'brightgreen' : 'red';
+    return generateBadgeUrl('Δ coverage', value, color);
+}
+function createShieldsBadge(label, message, color) {
+    const encodedLabel = encodeURIComponent(label);
+    const encodedMessage = encodeURIComponent(message);
+    return `https://img.shields.io/badge/${encodedLabel}-${encodedMessage}-${color}`;
+}
+function getColorForPercentage(percentage) {
+    if (percentage >= 90)
+        return 'brightgreen';
+    if (percentage >= 80)
+        return 'green';
+    if (percentage >= 70)
+        return 'yellowgreen';
+    if (percentage >= 60)
+        return 'yellow';
+    if (percentage >= 50)
+        return 'orange';
+    return 'red';
+}
+function getHealthIcon(percentage, threshold = 50) {
+    return percentage >= threshold ? '✅' : '❌';
+}
+
 ;// CONCATENATED MODULE: ./src/comment.ts
 
 
-const STICKY_COMMENT_MARKER = '<!-- hancover:sticky -->';
-async function renderComment({ totals, grouped, thresholds, baseRef }) {
-    const groupsMd = grouped && grouped.length > 0
-        ? grouped.map(g => `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`).join('\n')
-        : 'No groups found.';
-    const thresholdStatus = totals.didBreachThresholds ? '❌' : '✅';
+
+const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
+async function renderComment({ totals, baseline, grouped, thresholds, baseRef, minThreshold = 50 }) {
+    // Generate badges
+    const coverageBadge = generateCoverageBadge(totals.totalPct);
+    const deltaBadge = totals.deltaPct !== undefined ? generateDeltaBadge(totals.deltaPct) : null;
+    // Badge section
+    let badgeSection = `[![Coverage](${coverageBadge})](#)`;
+    if (deltaBadge) {
+        badgeSection += `\n[![Δ vs main](${deltaBadge})](#)`;
+    }
+    // Project Coverage table
+    const projectTable = renderCoverageTable({
+        title: 'Project Coverage (PR)',
+        lineRate: totals.totalPct,
+        branchRate: totals.branchPct,
+        linesHit: totals.linesCovered,
+        linesTotal: totals.linesTotal,
+        branchesHit: totals.branchesCovered,
+        branchesTotal: totals.branchesTotal,
+        minThreshold
+    });
+    // Code Changes Coverage table  
+    const changesTable = renderCoverageTable({
+        title: 'Code Changes Coverage',
+        lineRate: totals.diffPct,
+        branchRate: undefined, // Branch coverage for changes not typically available
+        linesHit: totals.diffLinesCovered,
+        linesTotal: totals.diffLinesTotal,
+        branchesHit: undefined,
+        branchesTotal: undefined,
+        minThreshold
+    });
+    // Groups section (if available)
+    const groupsSection = grouped && grouped.length > 0
+        ? `\n### 📈 Coverage by Group\n\n${grouped.map(g => `- **${g.name}**: ${g.coveragePct.toFixed(1)}% (${g.linesCovered}/${g.linesTotal} lines)`).join('\n')}\n`
+        : '';
     const comparisonText = baseRef ? ` vs ${baseRef}` : '';
-    return `${STICKY_COMMENT_MARKER}
+    return `${COVERAGE_COMMENT_MARKER}
+${badgeSection}
 
-## 📊 Coverage Report${comparisonText}
+<details>
+<summary><b>Code Coverage${comparisonText}</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
 
-### Overall Coverage ${thresholdStatus}
+<br/>
 
-| Metric | Coverage | Status |
-|--------|----------|--------|
-| **Total Coverage** | ${totals.totalPct.toFixed(1)}% | ${totals.totalPct >= 80 ? '✅' : '⚠️'} |
-| **Diff Coverage** | ${totals.diffPct.toFixed(1)}% | ${totals.diffPct >= 80 ? '✅' : '⚠️'} |
-| **Branch Coverage** | ${totals.branchPct != null ? totals.branchPct.toFixed(1) + '%' : 'N/A'} | ${totals.branchPct != null && totals.branchPct >= 80 ? '✅' : '⚠️'} |
+${projectTable}
 
-### 📈 Coverage by Group
+---
 
-${groupsMd}
-
+${changesTable}
+${groupsSection}
 ### 📋 Summary
 
 - **Lines Covered**: ${totals.linesCovered}/${totals.linesTotal}
 - **Changed Lines Covered**: ${totals.diffLinesCovered}/${totals.diffLinesTotal}
+${baseline ? `- **Coverage Delta**: ${totals.deltaPct?.toFixed(1)}%` : ''}
 - **Thresholds**: ${thresholds ? JSON.stringify(thresholds, null, 2) : 'Not configured'}
 
 ${totals.didBreachThresholds ? '⚠️ **Coverage thresholds not met**' : '✅ **All coverage thresholds met**'}
+
+</details>
 `;
+}
+function renderCoverageTable(config) {
+    const { title, lineRate, branchRate, linesHit, linesTotal, branchesHit, branchesTotal, minThreshold } = config;
+    const lineHealth = getHealthIcon(lineRate, minThreshold);
+    const branchRateDisplay = branchRate !== undefined ? `${branchRate.toFixed(1)}%` : 'N/A';
+    const branchSummary = branchesHit !== undefined && branchesTotal !== undefined
+        ? `(${branchesHit} / ${branchesTotal})`
+        : '';
+    return `### ${title}
+| Package | Line Rate | Branch Rate | Health |
+|---|---:|---:|:---:|
+| main | ${lineRate.toFixed(1)}% | ${branchRateDisplay} | ${lineHealth} |
+| **Summary** | **${lineRate.toFixed(1)}% (${linesHit} / ${linesTotal})** | **${branchRateDisplay} ${branchSummary}** | **${lineHealth}** |
+
+_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
 }
 async function upsertStickyComment(md, mode = 'update') {
     try {
@@ -56849,13 +56951,14 @@ async function upsertStickyComment(md, mode = 'update') {
         const { owner, repo } = context.repo;
         const pull_number = context.payload.pull_request.number;
         if (mode === 'update') {
-            // Find existing sticky comment
+            // Find existing coverage comment
             const { data: comments } = await octokit.rest.issues.listComments({
                 owner,
                 repo,
                 issue_number: pull_number,
+                per_page: 100
             });
-            const existingComment = comments.find(comment => comment.body?.includes(STICKY_COMMENT_MARKER));
+            const existingComment = comments.find(comment => comment.body?.includes(COVERAGE_COMMENT_MARKER));
             if (existingComment) {
                 // Update existing comment
                 await octokit.rest.issues.updateComment({
@@ -56897,20 +57000,44 @@ async function run() {
         const bundle = await collectCoverage(i.files, i.maxBytesPerFile, i.maxTotalBytes, i.strict);
         const diff = await computeDiff(i.baseRef);
         const thresholds = parseThresholds(i.thresholds);
-        const totals = computeTotals(bundle, diff, thresholds);
+        // Collect baseline coverage if baseline files are provided
+        let baseline;
+        if (i.baselineFiles && i.baselineFiles.length > 0) {
+            try {
+                const baselineBundle = await collectCoverage(i.baselineFiles, i.maxBytesPerFile, i.maxTotalBytes, i.strict);
+                // Compute baseline totals
+                const baselineTotals = computeTotals(baselineBundle, {}, thresholds);
+                baseline = {
+                    totalPct: baselineTotals.totalPct,
+                    branchPct: baselineTotals.branchPct,
+                    linesCovered: baselineTotals.linesCovered,
+                    linesTotal: baselineTotals.linesTotal,
+                    branchesCovered: baselineTotals.branchesCovered,
+                    branchesTotal: baselineTotals.branchesTotal
+                };
+            }
+            catch (error) {
+                lib_core.warning(`Failed to process baseline coverage files: ${error}`);
+            }
+        }
+        const totals = computeTotals(bundle, diff, thresholds, baseline);
         const grouped = groupCoverage(bundle, i.groups);
         const groupSummaries = computeGroupSummaries(grouped);
         const md = await renderComment({
             totals,
+            baseline,
             grouped: groupSummaries,
             thresholds,
-            baseRef: i.baseRef
+            baseRef: i.baseRef,
+            minThreshold: i.minThreshold
         });
         await upsertStickyComment(md, i.commentMode);
         lib_core.setOutput('total_coverage', totals.totalPct.toFixed(1));
         lib_core.setOutput('diff_coverage', totals.diffPct.toFixed(1));
         if (totals.branchPct != null)
             lib_core.setOutput('branch_coverage', totals.branchPct.toFixed(1));
+        if (totals.deltaPct != null)
+            lib_core.setOutput('delta_coverage', totals.deltaPct.toFixed(1));
         const failed = totals.didBreachThresholds && !i.warnOnly;
         if (failed)
             lib_core.setFailed('Coverage thresholds not met.');

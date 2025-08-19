@@ -9,6 +9,18 @@ export type Totals = {
     linesTotal: number;
     diffLinesCovered: number;
     diffLinesTotal: number;
+    branchesCovered?: number;
+    branchesTotal?: number;
+    deltaPct?: number; // Coverage delta compared to baseline
+};
+
+export type BaselineTotals = {
+    totalPct: number;
+    branchPct?: number;
+    linesCovered: number;
+    linesTotal: number;
+    branchesCovered?: number;
+    branchesTotal?: number;
 };
 
 export type Thresholds = {
@@ -24,7 +36,8 @@ export type Thresholds = {
 export function computeTotals(
     bundle: CoverageBundle, 
     diffMap: Record<string, Set<number>>,
-    thresholds?: Thresholds
+    thresholds?: Thresholds,
+    baseline?: BaselineTotals
 ): Totals {
     let totalLinesCovered = 0;
     let totalLines = 0;
@@ -63,6 +76,9 @@ export function computeTotals(
     const totalPct = totalLines > 0 ? Math.round((totalLinesCovered / totalLines) * 10000) / 100 : 0;
     const diffPct = totalDiffLines > 0 ? Math.round((totalDiffCovered / totalDiffLines) * 10000) / 100 : 0;
     const branchPct = totalBranches > 0 ? Math.round((totalBranchesCovered / totalBranches) * 10000) / 100 : undefined;
+    
+    // Calculate delta if baseline is provided
+    const deltaPct = baseline ? totalPct - baseline.totalPct : undefined;
 
     // Check thresholds
     let didBreachThresholds = false;
@@ -86,7 +102,10 @@ export function computeTotals(
         linesCovered: totalLinesCovered,
         linesTotal: totalLines,
         diffLinesCovered: totalDiffCovered,
-        diffLinesTotal: totalDiffLines
+        diffLinesTotal: totalDiffLines,
+        branchesCovered: totalBranches > 0 ? totalBranchesCovered : undefined,
+        branchesTotal: totalBranches > 0 ? totalBranches : undefined,
+        deltaPct
     };
 }
 
