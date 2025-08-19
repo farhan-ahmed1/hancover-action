@@ -48104,21 +48104,13 @@ function rollup(files) {
     return totals;
 }
 // Legacy function for backwards compatibility
-function groupCoverage(bundle, groups) {
+function groupCoverage(bundle) {
     const packages = groupPackages(bundle.files);
     const result = new Map();
     for (const pkg of packages) {
         result.set(pkg.name, pkg.files);
     }
     return result;
-}
-function matchesGroup(filePath, group) {
-    // Simplified implementation for backwards compatibility
-    const includes = Array.isArray(group.include) ? group.include : [group.include];
-    const excludes = group.exclude ? (Array.isArray(group.exclude) ? group.exclude : [group.exclude]) : [];
-    const matchesInclude = includes.some(pattern => filePath.includes(pattern));
-    const matchesExclude = excludes.some(pattern => filePath.includes(pattern));
-    return matchesInclude && !matchesExclude;
 }
 
 ;// CONCATENATED MODULE: ./src/changes.ts
