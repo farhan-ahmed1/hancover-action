@@ -12,15 +12,26 @@ export interface CommentData {
     prPackages: PkgCov[];
     changesCoverage: ChangesCoverage;
     deltaCoverage?: DeltaCoverage;
+    mainBranchCoverage?: number | null;
     minThreshold?: number;
 }
 
 export async function renderComment(data: CommentData): Promise<string> {
-    const { prProject, prPackages, changesCoverage, deltaCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, changesCoverage, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
     
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
     const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
+    
+    // Generate changes badge if main branch coverage is available
+    let changesBadge = '';
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        const prefix = delta >= 0 ? '+' : '';
+        const value = `${prefix}${delta.toFixed(1)}%`;
+        const color = delta >= 0 ? 'brightgreen' : 'red';
+        changesBadge = `\n[![Changes](${shield('changes', value, color)})](#)`;
+    }
     
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
@@ -30,7 +41,7 @@ export async function renderComment(data: CommentData): Promise<string> {
     }
     
     // Badge section
-    const badgeSection = `[![Coverage](${coverageBadge})](#)${deltaBadge}`;
+    const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
     
     // Generate table sections
     const projectTable = renderProjectTable(prPackages, minThreshold);

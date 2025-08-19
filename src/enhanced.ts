@@ -4,6 +4,7 @@ import { parseAnyCoverage } from './parsers/index.js';
 import { groupPackages } from './group.js';
 import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
+import { readMainBranchCoverage, writeCoverageData } from './shields.js';
 import { execSync } from 'child_process';
 
 export async function runEnhancedCoverage() {
@@ -43,7 +44,11 @@ export async function runEnhancedCoverage() {
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
         
-        // Step 5: Parse baseline coverage if available (auto-detect format)
+        // Step 5: Read main branch coverage from local JSON file
+        let mainBranchCoverage: number | null = null;
+        mainBranchCoverage = readMainBranchCoverage(inputs.coverageDataPath);
+
+        // Step 6: Parse baseline coverage if available (auto-detect format)
         let deltaCoverage;
         if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
@@ -58,19 +63,20 @@ export async function runEnhancedCoverage() {
             }
         }
         
-        // Step 6: Render the comprehensive comment
+        // Step 7: Render the comprehensive comment
         const comment = await renderComment({
             prProject,
             prPackages,
             changesCoverage,
             deltaCoverage,
+            mainBranchCoverage,
             minThreshold: inputs.minThreshold
         });
         
-        // Step 7: Upsert the comment
+        // Step 8: Upsert the comment
         await upsertStickyComment(comment, inputs.commentMode);
         
-        // Step 8: Set outputs and check thresholds
+        // Step 9: Set outputs and check thresholds
         const projectLinesPct = (prProject.totals.lines.covered / prProject.totals.lines.total) * 100;
         const changesLinesPct = changesCoverage.totals.lines.total > 0 
             ? (changesCoverage.totals.lines.covered / changesCoverage.totals.lines.total) * 100 
@@ -78,6 +84,20 @@ export async function runEnhancedCoverage() {
         
         core.setOutput('coverage-pct', projectLinesPct.toFixed(1));
         core.setOutput('changes-coverage-pct', changesLinesPct.toFixed(1));
+        
+        // Set coverage delta output if main branch coverage is available
+        if (mainBranchCoverage !== null) {
+            const coverageDelta = projectLinesPct - mainBranchCoverage;
+            core.setOutput('coverage-delta', coverageDelta.toFixed(1));
+        }
+        
+        // Step 10: Update coverage data file if this is the main branch
+        const currentBranch = process.env.GITHUB_REF_NAME || 'unknown';
+        const currentCommit = process.env.GITHUB_SHA;
+        if (currentBranch === 'main' || currentBranch === 'master') {
+            writeCoverageData(inputs.coverageDataPath, projectLinesPct, currentBranch, currentCommit);
+            core.info('Updated coverage data file for main branch');
+        }
         
         // Check thresholds
         const thresholdMet = projectLinesPct >= inputs.minThreshold;

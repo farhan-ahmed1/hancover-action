@@ -10,6 +10,7 @@ A GitHub Action that processes LCOV and Cobertura coverage files, calculates tot
 
 - **Multi-format support**: LCOV and Cobertura XML
 - **Enhanced coverage system**: Smart package grouping, code changes analysis, and delta comparison
+- **Changes badge**: Visual delta showing coverage improvement/decline vs main branch using local JSON file
 - **Diff coverage**: Track coverage on changed lines only
 - **Smart grouping**: Auto-group by package or define custom groups
 - **Threshold checking**: Fail builds when coverage drops
@@ -23,11 +24,13 @@ The new enhanced coverage system provides comprehensive coverage analysis with:
 
 - **Smart Package Grouping**: Automatically organizes files by directory structure
 - **Code Changes Coverage**: Shows coverage only for lines modified in the PR
+- **Changes Badge**: Visual delta badge showing coverage improvement/decline vs main branch stored in local JSON
 - **Delta Analysis**: Compares PR coverage against main branch baseline
 - **Collapsible Tables**: Clean, organized presentation with badges
 - **Health Indicators**: Visual status based on configurable thresholds
 
 [📖 Read the Enhanced Coverage Guide](./docs/ENHANCED-COVERAGE.md)
+[📊 Set up Changes Badge](./docs/CHANGES-BADGE.md)
 
 ## Quick Start
 
@@ -67,15 +70,6 @@ jobs:
           warn-only: false
 ```
 
-## Features
-
-- **Multi-format support**: LCOV, Cobertura (Clover & JaCoCo coming soon)
-- **Diff coverage**: Focus on changed lines in PRs
-- **Smart grouping**: Auto-detect packages or define custom groups
-- **Sticky comments**: Update existing PR comments instead of spam
-- **Security-first**: Size limits, safe XML parsing, minimal permissions
-- **Fast**: Streaming parsers for large coverage files
-
 ## Inputs
 
 | Input | Description | Required | Default |
@@ -90,6 +84,7 @@ jobs:
 | `max-total-bytes` | Max total size in bytes | No | `209715200` (200MB) |
 | `timeout-seconds` | Execution timeout | No | `120` |
 | `strict` | Fail on oversize/invalid files | No | `false` |
+| `coverage-data-path` | Path to JSON file for storing main branch coverage data | No | `.github/coverage-data.json` |
 
 ## Outputs
 
@@ -98,6 +93,9 @@ jobs:
 | `total_coverage` | Total line coverage percentage |
 | `diff_coverage` | Diff (changed lines) coverage percentage |
 | `branch_coverage` | Branch coverage percentage (if available) |
+| `coverage-pct` | Project coverage percentage |
+| `changes-coverage-pct` | Code changes coverage percentage |
+| `coverage-delta` | Coverage delta compared to main branch |
 
 ## Security
 

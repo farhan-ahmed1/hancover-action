@@ -45594,7 +45594,8 @@ const InputsSchema = object({
     timeoutSeconds: coerce_number().optional().default(120),
     strict: schemas_boolean().optional().default(false),
     baselineFiles: schemas_string().optional(),
-    minThreshold: coerce_number().optional().default(50)
+    minThreshold: coerce_number().optional().default(50),
+    coverageDataPath: schemas_string().optional().default('.github/coverage-data.json')
 });
 function readInputs() {
     const raw = {
@@ -45609,7 +45610,8 @@ function readInputs() {
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
+        coverageDataPath: process.env['INPUT_COVERAGE-DATA-PATH'] ?? '.github/coverage-data.json'
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -45623,7 +45625,8 @@ function readInputs() {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold
+        minThreshold: raw.minThreshold,
+        coverageDataPath: raw.coverageDataPath
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const baselineFiles = raw.baselineFiles
@@ -45640,7 +45643,7 @@ function readInputs() {
             groupsParsed = undefined;
         }
     }
-    return { ...parsed, files, baselineFiles, groups: groupsParsed };
+    return { ...parsed, files, baselineFiles, groups: groupsParsed, coverageDataPath: raw.coverageDataPath };
 }
 
 // EXTERNAL MODULE: external "fs"
@@ -48314,10 +48317,19 @@ function getHealthIcon(percentage, threshold = 50) {
 
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 async function renderComment(data) {
-    const { prProject, prPackages, changesCoverage, deltaCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, changesCoverage, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
     const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
+    // Generate changes badge if main branch coverage is available
+    let changesBadge = '';
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        const prefix = delta >= 0 ? '+' : '';
+        const value = `${prefix}${delta.toFixed(1)}%`;
+        const color = delta >= 0 ? 'brightgreen' : 'red';
+        changesBadge = `\n[![Changes](${shield('changes', value, color)})](#)`;
+    }
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
         // Calculate overall delta from summary
@@ -48325,7 +48337,7 @@ async function renderComment(data) {
         deltaBadge = `\n[![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
     }
     // Badge section
-    const badgeSection = `[![Coverage](${coverageBadge})](#)${deltaBadge}`;
+    const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
     // Generate table sections
     const projectTable = renderProjectTable(prPackages, minThreshold);
     const changesTable = renderChangesTable(changesCoverage, minThreshold);
@@ -48518,9 +48530,94 @@ async function upsertStickyComment(md, mode = 'update') {
     }
 }
 
+;// CONCATENATED MODULE: ./src/shields.ts
+
+
+
+/**
+ * Reads main branch coverage from a local JSON file
+ * @param filePath Path to the coverage data JSON file
+ * @returns Coverage percentage or null if not available
+ */
+function readMainBranchCoverage(filePath) {
+    try {
+        if (!external_fs_.existsSync(filePath)) {
+            lib_core.info(`Coverage data file not found: ${filePath}`);
+            return null;
+        }
+        const data = external_fs_.readFileSync(filePath, 'utf8');
+        const coverageData = JSON.parse(data);
+        if (typeof coverageData.coverage === 'number') {
+            lib_core.info(`Main branch coverage from ${filePath}: ${coverageData.coverage.toFixed(1)}% (updated: ${coverageData.timestamp})`);
+            return coverageData.coverage;
+        }
+        else {
+            lib_core.warning('Invalid coverage data format in JSON file');
+            return null;
+        }
+    }
+    catch (error) {
+        lib_core.warning(`Error reading coverage data file: ${error}`);
+        return null;
+    }
+}
+/**
+ * Writes coverage data to a local JSON file
+ * @param filePath Path to write the coverage data
+ * @param coverage Coverage percentage
+ * @param branch Branch name
+ * @param commit Commit hash (optional)
+ */
+function writeCoverageData(filePath, coverage, branch = 'main', commit) {
+    try {
+        const coverageData = {
+            coverage,
+            timestamp: new Date().toISOString(),
+            branch,
+            commit
+        };
+        // Ensure directory exists
+        const dir = external_path_.dirname(filePath);
+        if (!external_fs_.existsSync(dir)) {
+            external_fs_.mkdirSync(dir, { recursive: true });
+        }
+        external_fs_.writeFileSync(filePath, JSON.stringify(coverageData, null, 2));
+        lib_core.info(`Coverage data written to: ${filePath} (${coverage.toFixed(1)}%)`);
+    }
+    catch (error) {
+        lib_core.warning(`Failed to write coverage data: ${error}`);
+    }
+}
+/**
+ * Generates a changes badge showing coverage delta
+ * @param currentCoverage Current PR coverage
+ * @param mainCoverage Main branch coverage
+ * @returns Badge URL
+ */
+function generateChangesBadge(currentCoverage, mainCoverage) {
+    const delta = currentCoverage - mainCoverage;
+    const prefix = delta >= 0 ? '+' : '';
+    const value = `${prefix}${delta.toFixed(1)}%`;
+    const color = delta >= 0 ? 'brightgreen' : 'red';
+    return shields_generateBadgeUrl('changes', value, color);
+}
+/**
+ * Generates a badge URL
+ * @param label Badge label
+ * @param message Badge message
+ * @param color Badge color
+ * @returns Badge URL
+ */
+function shields_generateBadgeUrl(label, message, color) {
+    const encodedLabel = encodeURIComponent(label);
+    const encodedMessage = encodeURIComponent(message);
+    return `https://img.shields.io/badge/${encodedLabel}-${encodedMessage}-${color}`;
+}
+
 // EXTERNAL MODULE: external "child_process"
 var external_child_process_ = __nccwpck_require__(5317);
 ;// CONCATENATED MODULE: ./src/enhanced.ts
+
 
 
 
@@ -48556,7 +48653,10 @@ async function runEnhancedCoverage() {
         // Step 4: Compute code changes coverage
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
-        // Step 5: Parse baseline coverage if available (auto-detect format)
+        // Step 5: Read main branch coverage from local JSON file
+        let mainBranchCoverage = null;
+        mainBranchCoverage = readMainBranchCoverage(inputs.coverageDataPath);
+        // Step 6: Parse baseline coverage if available (auto-detect format)
         let deltaCoverage;
         if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
@@ -48570,23 +48670,36 @@ async function runEnhancedCoverage() {
                 lib_core.warning(`Failed to process baseline coverage: ${error}`);
             }
         }
-        // Step 6: Render the comprehensive comment
+        // Step 7: Render the comprehensive comment
         const comment = await renderComment({
             prProject,
             prPackages,
             changesCoverage,
             deltaCoverage,
+            mainBranchCoverage,
             minThreshold: inputs.minThreshold
         });
-        // Step 7: Upsert the comment
+        // Step 8: Upsert the comment
         await upsertStickyComment(comment, inputs.commentMode);
-        // Step 8: Set outputs and check thresholds
+        // Step 9: Set outputs and check thresholds
         const projectLinesPct = (prProject.totals.lines.covered / prProject.totals.lines.total) * 100;
         const changesLinesPct = changesCoverage.totals.lines.total > 0
             ? (changesCoverage.totals.lines.covered / changesCoverage.totals.lines.total) * 100
             : 100;
         lib_core.setOutput('coverage-pct', projectLinesPct.toFixed(1));
         lib_core.setOutput('changes-coverage-pct', changesLinesPct.toFixed(1));
+        // Set coverage delta output if main branch coverage is available
+        if (mainBranchCoverage !== null) {
+            const coverageDelta = projectLinesPct - mainBranchCoverage;
+            lib_core.setOutput('coverage-delta', coverageDelta.toFixed(1));
+        }
+        // Step 10: Update coverage data file if this is the main branch
+        const currentBranch = process.env.GITHUB_REF_NAME || 'unknown';
+        const currentCommit = process.env.GITHUB_SHA;
+        if (currentBranch === 'main' || currentBranch === 'master') {
+            writeCoverageData(inputs.coverageDataPath, projectLinesPct, currentBranch, currentCommit);
+            lib_core.info('Updated coverage data file for main branch');
+        }
         // Check thresholds
         const thresholdMet = projectLinesPct >= inputs.minThreshold;
         const changesThresholdMet = changesLinesPct >= inputs.minThreshold;

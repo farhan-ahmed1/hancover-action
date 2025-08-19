@@ -62,6 +62,10 @@ inputs:
     description: "Enable enhanced coverage reporting with smart grouping and delta tables"
     required: false
     default: "false"
+  coverage-data-path:
+    description: "Path to JSON file that stores main branch coverage data (e.g., .github/coverage-data.json)"
+    required: false
+    default: ".github/coverage-data.json"
 
 outputs:
   total_coverage:
@@ -72,3 +76,9 @@ outputs:
     description: "Branch coverage % (if available)"
   delta_coverage:
     description: "Coverage delta compared to baseline %"
+  coverage-pct:
+    description: "Project coverage percentage"
+  changes-coverage-pct:
+    description: "Code changes coverage percentage"
+  coverage-delta:
+    description: "Coverage delta compared to main branch"
