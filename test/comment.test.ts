@@ -40,13 +40,13 @@ describe('Comment Rendering', () => {
         // Test for new format
         expect(comment).toContain('<!-- coverage-comment:anchor -->');
         expect(comment).toContain('[![Coverage](');
-        expect(comment).toContain('Code Coverage');
+        expect(comment).toContain('Coverage Report');
         expect(comment).toContain('85.0%');
         expect(comment).toContain('<details>');
-        expect(comment).toContain('### Project Coverage (PR)');
-        expect(comment).toContain('### Code Changes Coverage');
+        expect(comment).toContain('Detailed Coverage by Package');
+        expect(comment).toContain('Overall Coverage');
+        expect(comment).toContain('Lines Covered');
         expect(comment).toContain('85.0%');
-        expect(comment).toContain('75.0%');
         expect(comment).toContain('60.0%');
     });
 
