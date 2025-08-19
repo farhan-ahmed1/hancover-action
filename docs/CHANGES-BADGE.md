@@ -10,142 +10,162 @@ The changes badge shows the coverage delta between your PR and the main branch u
 
 ## Setup
 
-The changes badge compares your PR's coverage against the main branch coverage and displays a delta (e.g., `+2.3%` or `-1.1%`). This provides immediate visual feedback on whether your changes improve or decrease code coverage.
+### 1. Add Coverage Data Path (Optional)
 
-## Setup Steps
-
-### 1. Create a Shields JSON Endpoint
-
-You need to create a publicly accessible JSON endpoint that stores your main branch coverage. This can be:
-
-- **GitHub Gist** (recommended for simplicity)
-- **GitHub Pages**
-- **Your own server/CDN**
-
-#### Option A: GitHub Gist (Recommended)
-
-1. Create a new **public** gist at https://gist.github.com
-2. Create a file named `coverage.json` with initial content:
-   ```json
-   {
-     "schemaVersion": 1,
-     "label": "coverage",
-     "message": "0.0%",
-     "color": "red",
-     "coverage": 0,
-     "timestamp": "2025-01-01T00:00:00.000Z"
-   }
-   ```
-3. Get the raw URL of your gist file (it will look like):
-   ```
-   https://gist.githubusercontent.com/username/gist-id/raw/coverage.json
-   ```
-
-#### Option B: GitHub Pages
-
-1. Create a `docs/` folder in your repository
-2. Add a `coverage.json` file with the same content as above
-3. Enable GitHub Pages for the `docs/` folder
-4. Your endpoint will be:
-   ```
-   https://username.github.io/repository/coverage.json
-   ```
-
-### 2. Update Your Workflow
-
-Add the `shields-endpoint-url` input to your workflow:
+By default, the action uses `.github/coverage-data.json`. You can customize this:
 
 ```yaml
-- name: Coverage Report
+- name: HanCover Action
   uses: farhan-ahmed1/hancover-action@v1
   with:
     files: coverage/lcov.info
-    shields-endpoint-url: https://gist.githubusercontent.com/username/gist-id/raw/coverage.json
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    coverage-data-path: .github/coverage-data.json  # Custom path
 ```
 
-### 3. Update Your Main Branch Coverage
+### 2. Create Initial Coverage Data File
 
-When running on the main branch, the action will automatically:
-1. Generate shields JSON with the current coverage
-2. Output it via the `shields-json` output
+Create the file manually or let the action create it on the first main branch run:
 
-You need to set up a workflow step to update your endpoint:
+```json
+{
+  "coverage": 75.0,
+  "timestamp": "2025-08-19T12:00:00.000Z", 
+  "branch": "main",
+  "commit": "abc123def456789"
+}
+```
 
-#### For GitHub Gist:
+### 3. Workflow Configuration
+
+#### Main Branch Workflow
+Updates the coverage data file:
 
 ```yaml
-- name: Coverage Report
-  id: coverage
-  uses: farhan-ahmed1/hancover-action@v1
-  with:
-    files: coverage/lcov.info
-    shields-endpoint-url: https://gist.githubusercontent.com/username/gist-id/raw/coverage.json
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+name: Update Coverage Data
+on:
+  push:
+    branches: [main]
 
-- name: Update Coverage Gist
-  if: github.ref == 'refs/heads/main'
-  run: |
-    echo '${{ steps.coverage.outputs.shields-json }}' > coverage.json
-    curl -X PATCH \
-      -H "Authorization: token ${{ secrets.GIST_TOKEN }}" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "files": {
-          "coverage.json": {
-            "content": "'"$(cat coverage.json | sed 's/"/\\"/g' | tr -d '\n')"'"
-          }
-        }
-      }' \
-      "https://api.github.com/gists/YOUR_GIST_ID"
+permissions:
+  contents: write
+
+jobs:
+  update-coverage-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+          
+      - name: Update Coverage Data File
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          coverage-data-path: .github/coverage-data.json
+          
+      - name: Commit updated coverage data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if ! git diff --quiet .github/coverage-data.json; then
+            git add .github/coverage-data.json
+            COVERAGE=$(jq -r '.coverage' .github/coverage-data.json)
+            git commit -m "Update coverage data to ${COVERAGE}% [skip ci]"
+            git push
+          else
+            echo "No changes to coverage data file"
+          fi
 ```
 
-#### For GitHub Pages:
+#### PR Workflow  
+Displays the changes badge:
 
 ```yaml
-- name: Update Coverage Data
-  if: github.ref == 'refs/heads/main'
-  run: |
-    echo '${{ steps.coverage.outputs.shields-json }}' > docs/coverage.json
-    git config --local user.email "action@github.com"
-    git config --local user.name "GitHub Action"
-    git add docs/coverage.json
-    git commit -m "Update coverage data" || exit 0
-    git push
+name: PR Coverage
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for git diff
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage
+          
+      - name: Coverage Report with Changes Badge
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          coverage-data-path: .github/coverage-data.json
 ```
 
-### 4. Required Secrets
+## Badge Examples
 
-For GitHub Gist updates, you'll need:
-1. Create a Personal Access Token with `gist` scope
-2. Add it as a repository secret named `GIST_TOKEN`
+The changes badge will appear next to your coverage badge:
 
-## Result
+- [![Coverage](https://img.shields.io/badge/coverage-78.5%25-green)](#) [![Changes](https://img.shields.io/badge/changes-+2.1%25-brightgreen)](#) - Coverage improved
+- [![Coverage](https://img.shields.io/badge/coverage-76.2%25-green)](#) [![Changes](https://img.shields.io/badge/changes--1.3%25-red)](#) - Coverage decreased
 
-After setup, your PR comments will show:
+## Data Structure
 
+The coverage data JSON file contains:
+
+```typescript
+interface CoverageData {
+  coverage: number;     // Coverage percentage (e.g., 75.0)
+  timestamp: string;    // ISO timestamp of when data was updated
+  branch: string;       // Branch name (typically "main")
+  commit?: string;      // Git commit hash (optional)
+}
 ```
-[![Coverage](https://img.shields.io/badge/coverage-85.2%25-green)](#)
-[![Changes](https://img.shields.io/badge/changes-%2B2.3%25-brightgreen)](#)
-```
 
-The changes badge will be:
-- **Green** with `+X.X%` if coverage increased
-- **Red** with `-X.X%` if coverage decreased
-- **Hidden** if main branch coverage isn't available yet
+## Benefits
+
+- **Simple**: No external dependencies or services required
+- **Version Controlled**: Coverage data is tracked in your repository
+- **Reliable**: Works offline and doesn't depend on external endpoints
+- **Transparent**: You can see exactly what coverage percentage is being used for comparison
+- **Flexible**: Easy to modify or reset the baseline coverage
 
 ## Troubleshooting
 
-1. **Changes badge not showing**: Ensure your shields endpoint URL is correct and publicly accessible
-2. **Wrong coverage values**: Make sure you're updating the endpoint when merging to main
-3. **Rate limits**: GitHub Gist API has rate limits; consider using GitHub Pages for high-frequency updates
+### No Changes Badge Showing
+- Ensure the coverage data file exists
+- Check that the file path matches the `coverage-data-path` input
+- Verify the JSON format is correct
 
-## Migration from Baseline Files
+### Incorrect Delta Calculation
+- Check that the main branch workflow is updating the coverage data file
+- Ensure the coverage data file is being committed to the repository
+- Verify that the timestamp in the file is recent
 
-If you're currently using `baseline-files`, you can switch to this simpler approach:
-
-1. Set up the shields endpoint as described above
-2. Remove the `baseline-files` input from your workflow
-3. Add the `shields-endpoint-url` input instead
-
-The changes badge provides the same delta information but with a simpler setup and no need to store baseline files.
+### Permission Issues
+- Make sure the main branch workflow has `contents: write` permission
+- Ensure the commit step in the main branch workflow is configured correctly
