@@ -1,7 +1,7 @@
 # Workflow to update coverage data file on main branch via PR
 # This creates a PR to update the baseline coverage data
 
-name: Update Coverage Data
+name: Update Coverage Data via PR
 
 on:
   push:
@@ -42,8 +42,6 @@ jobs:
           title: 'Update coverage data'
           body: |
             This PR updates the coverage data file based on the latest test results.
-            
-            Coverage data has been automatically updated after the latest push to main.
             
             This is an automated PR created by the coverage update workflow.
           branch: update-coverage-data
