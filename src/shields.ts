@@ -67,7 +67,7 @@ export function writeCoverageData(filePath: string, coverage: number, branch: st
 }
 
 /**
- * Generates a changes badge showing coverage delta
+ * Generates a changes badge showing coverage delta with two-color design
  * @param currentCoverage Current PR coverage
  * @param mainCoverage Main branch coverage
  * @returns Badge URL
@@ -76,9 +76,12 @@ export function generateChangesBadge(currentCoverage: number, mainCoverage: numb
     const delta = currentCoverage - mainCoverage;
     const prefix = delta >= 0 ? '+' : '';
     const value = `${prefix}${delta.toFixed(1)}%`;
-    const color = delta >= 0 ? 'brightgreen' : 'red';
+    const valueColor = delta >= 0 ? 'brightgreen' : 'red';
     
-    return generateBadgeUrl('changes', value, color);
+    // Use two-color badge format: label color (lightgrey) and value color (based on delta)
+    const encodedLabel = encodeURIComponent('changes');
+    const encodedValue = encodeURIComponent(value);
+    return `https://img.shields.io/badge/${encodedLabel}-${encodedValue}-lightgrey?labelColor=lightgrey&color=${valueColor}`;
 }
 
 /**

@@ -283,8 +283,8 @@ If you're upgrading from the basic comment format:
 The enhanced comment will look like:
 
 ```markdown
-[![Coverage](https://img.shields.io/badge/Coverage-92.7%25-brightgreen)](#)
-[![Δ coverage](https://img.shields.io/badge/%CE%94%20coverage-%2B0.5%25-brightgreen)](#)
+[![Coverage](https://img.shields.io/badge/Coverage-92.7%25-lightgrey?labelColor=lightgrey&color=brightgreen)](#)
+[![Δ coverage](https://img.shields.io/badge/%CE%94%20coverage-%2B0.5%25-lightgrey?labelColor=lightgrey&color=brightgreen)](#)
 
 <details>
 <summary><b>Code Coverage</b> &nbsp;|&nbsp; <i>expand for full summary</i></summary>
