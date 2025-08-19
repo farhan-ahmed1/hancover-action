@@ -51,9 +51,6 @@ inputs:
     description: "If true, oversize/invalid files fail the job"
     required: false
     default: "false"
-  github-token:
-    description: "GitHub token for posting comments (defaults to GITHUB_TOKEN)"
-    required: false
 
 outputs:
   total_coverage:
