@@ -11,7 +11,9 @@ export async function computeDiff(baseRef?: string): Promise<Record<string, Set<
         // Run git diff to get changed lines
         const diffOutput = execSync(`git diff --unified=0 ${ref}..HEAD`, { 
             encoding: 'utf8',
-            cwd: process.cwd()
+            cwd: process.cwd(),
+            maxBuffer: 1024 * 1024 * 10, // 10MB buffer limit
+            timeout: 30000 // 30 second timeout
         });
         
         const lines = diffOutput.split('\n');

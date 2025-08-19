@@ -55665,7 +55665,9 @@ async function computeDiff(baseRef) {
         // Run git diff to get changed lines
         const diffOutput = (0,external_child_process_.execSync)(`git diff --unified=0 ${ref}..HEAD`, {
             encoding: 'utf8',
-            cwd: process.cwd()
+            cwd: process.cwd(),
+            maxBuffer: 1024 * 1024 * 10, // 10MB buffer limit
+            timeout: 30000 // 30 second timeout
         });
         const lines = diffOutput.split('\n');
         let currentFile = null;
