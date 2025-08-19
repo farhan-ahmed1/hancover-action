@@ -121,8 +121,6 @@ function renderProjectTable(packages: PkgCov[], minThreshold: number): string {
     
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
     
-    table += `\n_Minimum pass threshold is ${minThreshold.toFixed(1)}%_`;
-    
     return table;
 }
 
