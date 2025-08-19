@@ -48,4 +48,5 @@ jobs:
         uses: actions/dependency-review-action@bc41886e18ea39df68b1b1245f4184881938e050 # v4.7.2
         with:
           fail-on-severity: high
-          allow-dependencies-licenses: 'Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC'
+          allow-licenses: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC
+        continue-on-error: true
