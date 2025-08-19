@@ -1,7 +1,7 @@
 # HanCover - Coverage Reports for PRs
 
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/badge/coverage-85%25-green)
+![Coverage](https://img.shields.io/badge/coverage-59%25-red)
 
 A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
 
