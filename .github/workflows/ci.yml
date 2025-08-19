@@ -1,0 +1,231 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Generate coverage report
+        run: |
+          # Create a sample LCOV file for testing
+          mkdir -p coverage
+          cat > coverage/lcov.info << EOF
+          SF:src/compute.ts
+          DA:1,1
+          DA:2,1
+          DA:3,0
+          DA:4,1
+          end_of_record
+          SF:src/diff.ts
+          DA:1,1
+          DA:2,1
+          DA:3,1
+          DA:4,0
+          end_of_record
+          EOF
+
+      - name: Test action (self-test)
+        uses: ./
+        with:
+          files: coverage/lcov.info
+          thresholds: |
+            total:75
+            diff:70
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Check dist
+        run: |
+          if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
+            echo "Detected uncommitted changes after build."
+            echo "Please run 'npm run build' and commit the changes."
+            exit 1
+          fi
+
+  integration:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [lint, test, build]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate sample coverage
+        run: |
+          mkdir -p coverage/jest coverage/vitest
+          
+          # Create LCOV file
+          cat > coverage/jest/lcov.info << EOF
+          SF:src/index.ts
+          DA:1,5
+          DA:2,0
+          DA:3,3
+          DA:4,1
+          DA:5,0
+          end_of_record
+          SF:src/utils.ts
+          DA:1,10
+          DA:2,8
+          DA:3,0
+          DA:4,5
+          end_of_record
+          EOF
+          
+          # Create Cobertura XML
+          cat > coverage/vitest/cobertura.xml << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <coverage line-rate="0.7" branch-rate="0.6">
+            <packages>
+              <package name="components">
+                <classes>
+                  <class filename="src/components/Button.tsx" line-rate="0.8">
+                    <lines>
+                      <line number="1" hits="1"/>
+                      <line number="2" hits="1"/>
+                      <line number="3" hits="0"/>
+                      <line number="4" hits="1"/>
+                      <line number="5" hits="1"/>
+                    </lines>
+                  </class>
+                </classes>
+              </package>
+            </packages>
+          </coverage>
+          EOF
+
+      - name: Run HanCover Action
+        uses: ./
+        with:
+          files: |
+            coverage/jest/lcov.info
+            coverage/vitest/cobertura.xml
+          thresholds: |
+            total:75
+            diff:70
+            branches:60
+          groups: |
+            - name: "Core"
+              include: ["src/**"]
+              exclude: ["src/**/*.test.*"]
+            - name: "Components"  
+              include: ["src/components/**"]
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build

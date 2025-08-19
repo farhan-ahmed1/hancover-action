@@ -1,0 +1,52 @@
+name: HanCover — Coverage Reports for PRs
+description: Merge LCOV/Cobertura, compute total & diff coverage, group by package, and post a sticky PR comment with badges.
+author: FarHan Labs
+runs:
+  using: node20
+  main: dist/index.js
+
+inputs:
+  files:
+    description: "Glob patterns for coverage files (e.g., coverage/**/lcov.info, **/cobertura.xml)"
+    required: true
+  base-ref:
+    description: "Base commit SHA (defaults to PR base)"
+    required: false
+  thresholds:
+    description: "Key:Value lines (e.g., 'total:80\ndiff:75\nbranches:60')"
+    required: false
+  warn-only:
+    description: "If true, do not fail on threshold breach"
+    required: false
+    default: "false"
+  comment-mode:
+    description: "'update' (sticky) or 'new'"
+    required: false
+    default: "update"
+  groups:
+    description: "YAML groups definition (optional)"
+    required: false
+  max-bytes-per-file:
+    description: "Default 52428800 (50 MB)"
+    required: false
+    default: "52428800"
+  max-total-bytes:
+    description: "Default 209715200 (200 MB)"
+    required: false
+    default: "209715200"
+  timeout-seconds:
+    description: "Execution timeout, default 120"
+    required: false
+    default: "120"
+  strict:
+    description: "If true, oversize/invalid files fail the job"
+    required: false
+    default: "false"
+
+outputs:
+  total_coverage:
+    description: "Total line coverage %"
+  diff_coverage:
+    description: "Diff (changed lines) coverage %"
+  branch_coverage:
+    description: "Branch coverage % (if available)"
