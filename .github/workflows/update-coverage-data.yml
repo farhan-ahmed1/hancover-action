@@ -1,5 +1,5 @@
-# Workflow to update coverage data file on main branch via PR
-# This creates a PR to update the baseline coverage data
+# Workflow to update coverage data file on main branch
+# This should run on main branch pushes to keep the baseline coverage updated
 
 name: Update Coverage Data
 
@@ -8,8 +8,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: write  # Required to commit the updated coverage data file
 
 jobs:
   update-coverage-data:
@@ -34,19 +33,16 @@ jobs:
           files: coverage/lcov.info
           coverage-data-path: .github/coverage-data.json
 
-      - name: Create Pull Request for coverage data update
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'Update coverage data [skip ci]'
-          title: 'Update coverage data'
-          body: |
-            This PR updates the coverage data file based on the latest test results.
-            
-            Coverage data has been automatically updated after the latest push to main.
-            
-            This is an automated PR created by the coverage update workflow.
-          branch: update-coverage-data
-          delete-branch: true
-          author: GitHub Action <action@github.com>
-          committer: GitHub Action <action@github.com>
+      - name: Commit updated coverage data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if ! git diff --quiet .github/coverage-data.json; then
+            git add .github/coverage-data.json
+            COVERAGE=$(jq -r '.coverage' .github/coverage-data.json)
+            git commit -m "Update coverage data to ${COVERAGE}% [skip ci]"
+            git push
+          else
+            echo "No changes to coverage data file"
+          fi
