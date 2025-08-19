@@ -38,6 +38,8 @@ jobs:
       # --- MAIN BASELINE COVERAGE ---
       - name: Checkout main (baseline)
         run: |
+          # Stash any uncommitted changes (like coverage-reports files)
+          git stash push -u -m "Stash coverage reports before baseline checkout"
           git checkout origin/main
           npm ci
 
@@ -50,7 +52,10 @@ jobs:
           # If using Cobertura: cp coverage/cobertura-coverage.xml coverage-reports/main.xml
 
       - name: Checkout back to PR
-        run: git checkout ${{ github.event.pull_request.head.sha }}
+        run: |
+          git checkout ${{ github.event.pull_request.head.sha }}
+          # Restore the stashed coverage reports
+          git stash pop || echo "No stash to restore"
 
       # --- GENERATE ENHANCED COVERAGE REPORT ---
       - name: Coverage Report with Baseline
