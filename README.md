@@ -1,7 +1,7 @@
 # HanCover - Coverage Reports for PRs
 
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
-![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/28d3a47ac254c0d740450d8a29fd3613/raw/hancover-coverage.json)
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/96e4dc85e2b5c6a2e7f7cdcdc576eb6c/raw/hancover-coverage.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
 A GitHub Action that generates comprehensive coverage reports with change detection for Pull Requests. Supports multiple coverage formats and provides dynamic badges showing coverage changes compared to the main branch.
