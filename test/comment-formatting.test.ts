@@ -80,14 +80,14 @@ describe('Comment Formatting', () => {
         expect(comment).toContain('### Top-level Packages (Summary)');
         expect(comment).toContain('Detailed Coverage by Package');
         expect(comment).toContain('<details>');
-        expect(comment).toContain('Files in <code>src/parsers</code>');
+        expect(comment).toContain('<b>Files in <code>src/parsers</code></b>');
         
         // Verify the table formatting is clean
         expect(comment).not.toContain('| src/parsers | 83.0% (254/306) | 67.6% (50/74) | 100.0% (9/9) | ✅ |');
         expect(comment).not.toContain('Files in src\n| src/parsers |');
         
         // Verify expandable section is properly formatted
-        const detailsMatch = comment.match(/<details>\s*<summary>Files in <code>src\/parsers<\/code><\/summary>([\s\S]*?)<\/details>/);
+        const detailsMatch = comment.match(/<details>\s*<summary><b>Files in <code>src\/parsers<\/code><\/b><\/summary>([\s\S]*?)<\/details>/);
         expect(detailsMatch).toBeTruthy();
         if (detailsMatch) {
             const detailsContent = detailsMatch[1];

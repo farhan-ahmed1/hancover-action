@@ -216,7 +216,7 @@ function renderExpandableFileTable(pkg: PkgCov, minThreshold: number): string {
     
     let fileTable = `
 <details>
-<summary>Files in <code>${pkg.name}</code></summary>
+<summary><b>Files in <code>${pkg.name}</code></b></summary>
 
 | File | Statements | Branches | Functions | Health |
 |---|---:|---:|---:|:---:|
