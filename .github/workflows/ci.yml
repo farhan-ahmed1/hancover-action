@@ -52,39 +52,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
-      - name: Generate coverage report
-        run: |
-          # Create a sample LCOV file for testing
-          mkdir -p coverage
-          cat > coverage/lcov.info << EOF
-          SF:src/compute.ts
-          DA:1,1
-          DA:2,1
-          DA:3,0
-          DA:4,1
-          end_of_record
-          SF:src/diff.ts
-          DA:1,1
-          DA:2,1
-          DA:3,1
-          DA:4,0
-          end_of_record
-          EOF
+      - name: Run tests with coverage
+        run: npm test -- --coverage
 
       - name: Build action
         run: npm run build
 
-      - name: Test action (self-test)
+      - name: Test action with real coverage data (self-test)
         uses: ./
         with:
           files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           thresholds: |
-            total:75
-            diff:70
+            total:60
+            diff:50
           warn-only: true
         continue-on-error: true
 

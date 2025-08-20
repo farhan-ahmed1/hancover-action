@@ -24,13 +24,15 @@ jobs:
       - name: Run tests with coverage
         run: npm test -- --coverage
 
-      - name: Generate coverage percentage
+      - name: Build action
+        run: npm run build
+
+      - name: Generate coverage with HanCover Action
         id: coverage
-        run: |
-          COVERAGE_OUTPUT=$(npm test -- --coverage 2>&1)
-          COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep "All files" | awk '{print $4}' | head -1 | cut -d. -f1)
-          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
-          echo "Coverage: $COVERAGE%"
+        uses: ./
+        with:
+          files: coverage/lcov.info
+          warn-only: true
 
       - name: Update coverage badge
         uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
@@ -39,12 +41,29 @@ jobs:
           gistID: ${{ secrets.COVERAGE_GIST_ID }}
           filename: hancover-coverage.json
           label: coverage
-          message: ${{ steps.coverage.outputs.percentage }}%
+          message: ${{ steps.coverage.outputs.coverage-pct }}%
           color: >
             ${{
-              steps.coverage.outputs.percentage >= 90 && 'brightgreen' ||
-              steps.coverage.outputs.percentage >= 80 && 'green' ||
-              steps.coverage.outputs.percentage >= 70 && 'yellow' ||
-              steps.coverage.outputs.percentage >= 60 && 'orange' ||
+              steps.coverage.outputs.coverage-pct >= 90 && 'brightgreen' ||
+              steps.coverage.outputs.coverage-pct >= 80 && 'green' ||
+              steps.coverage.outputs.coverage-pct >= 70 && 'yellowgreen' ||
+              steps.coverage.outputs.coverage-pct >= 60 && 'orange' ||
+              'red'
+            }}
+
+      - name: Update changes badge
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ secrets.COVERAGE_GIST_ID }}
+          filename: hancover-changes.json
+          label: changes
+          message: ${{ steps.coverage.outputs.changes-coverage-pct }}%
+          color: >
+            ${{
+              steps.coverage.outputs.changes-coverage-pct >= 90 && 'brightgreen' ||
+              steps.coverage.outputs.changes-coverage-pct >= 80 && 'green' ||
+              steps.coverage.outputs.changes-coverage-pct >= 70 && 'yellowgreen' ||
+              steps.coverage.outputs.changes-coverage-pct >= 60 && 'orange' ||
               'red'
             }}
