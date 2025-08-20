@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generator="clover" version="4.4.1">
+    <project timestamp="1642781234" name="simple-test">
+        <package name="src">
+            <file name="example.js" path="src/example.js">
+                <line num="1" type="stmt" count="1"/>
+                <line num="2" type="stmt" count="0"/>
+                <line num="3" type="stmt" count="1"/>
+                <line num="4" type="cond" count="1" truecount="1" falsecount="0"/>
+                <line num="5" type="method" count="1"/>
+                <metrics statements="3" coveredstatements="2" conditionals="2" coveredconditionals="1" methods="1" coveredmethods="1"/>
+            </file>
+        </package>
+        <metrics files="1" statements="3" coveredstatements="2" conditionals="2" coveredconditionals="1" methods="1" coveredmethods="1"/>
+    </project>
+</coverage>
