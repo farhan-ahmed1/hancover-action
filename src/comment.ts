@@ -201,7 +201,7 @@ function formatDelta(delta: number): string {
 
 function shield(label: string, value: string, color: string): string {
     const e = encodeURIComponent;
-    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${e(color)}`;
+    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${color}`;
 }
 
 function colorForPct(p: number): string {
