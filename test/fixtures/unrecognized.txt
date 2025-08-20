@@ -1,0 +1,3 @@
+Random text that contains no coverage markers at all.
+Just plain text content.
+Nothing here should be recognized as any format.

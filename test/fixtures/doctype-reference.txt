@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This file contains <!DOCTYPE coverage reference -->
+<coverage version="1.0">
+    <packages>
+        <package name="src">
+            <classes>
+                <class filename="src/test.js">
+                    <lines>
+                        <line number="1" hits="1"/>
+                    </lines>
+                </class>
+            </classes>
+        </package>
+    </packages>
+</coverage>
