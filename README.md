@@ -4,118 +4,146 @@
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/28d3a47ac254c0d740450d8a29fd3613/raw/hancover-coverage.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
-A GitHub Action that processes LCOV and Cobertura coverage files, calculates total and diff coverage for PRs, and posts organized coverage reports as sticky comments with configurable thresholds.
+A GitHub Action that generates comprehensive coverage reports with change detection for Pull Requests. Supports multiple coverage formats and provides dynamic badges showing coverage changes compared to the main branch.
 
 ## Features
 
-- **Multi-format support**: LCOV and Cobertura XML
-- **Enhanced coverage system**: Smart package grouping, code changes analysis, and delta comparison
-- **Changes badge**: Visual delta showing coverage improvement/decline vs main branch using local JSON file
-- **Diff coverage**: Track coverage on changed lines only
-- **Smart grouping**: Auto-group by package or define custom groups
-- **Threshold checking**: Fail builds when coverage drops
-- **Sticky PR comments**: Updates existing comments instead of spamming
-- **Size limits**: Configurable file size limits for security
-- **Fast**: Efficient parsing and computation
-
-## Enhanced Coverage System
-
-The new enhanced coverage system provides comprehensive coverage analysis with:
-
-- **Smart Package Grouping**: Automatically organizes files by directory structure
-- **Code Changes Coverage**: Shows coverage only for lines modified in the PR
-- **Changes Badge**: Visual delta badge showing coverage improvement/decline vs main branch stored in local JSON
-- **Delta Analysis**: Compares PR coverage against main branch baseline
-- **Collapsible Tables**: Clean, organized presentation with badges
-- **Health Indicators**: Visual status based on configurable thresholds
-
-[📖 Read the Enhanced Coverage Guide](./docs/ENHANCED-COVERAGE.md)
-[🏷️ Coverage Badge Setup](./docs/COVERAGE-BADGE.md)
-
-> **Note**: For coverage badges on your main branch, you'll need to add a separate workflow to your repository. See the [Coverage Badge Setup Guide](./docs/COVERAGE-BADGE.md) for complete instructions.
-> 
-> *This repository uses the same approach - our coverage badge is maintained by the [Coverage Badge workflow](.github/workflows/coverage-badge.yml) and manually updated.*
+- **Multiple format support**: LCOV, Cobertura, JaCoCo, and Clover coverage files
+- **Change detection**: Automatic baseline comparison using GitHub Gists
+- **Dynamic badges**: Coverage and change badges that update automatically
+- **Smart analysis**: Package grouping, diff coverage, and delta calculations  
+- **Sticky comments**: Clean PR comments that update instead of spam
+- **Threshold checking**: Configurable coverage requirements
+- **Secure**: Minimal permissions, input validation, and safe parsing
 
 ## Quick Start
 
+### Basic Usage
+
 ```yaml
-name: coverage
+name: Coverage
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
 
 permissions:
   pull-requests: write
   contents: read
 
 jobs:
-  hancover:
+  coverage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-
+      
       - run: npm ci
-      - run: npm test -- --coverage   # produces coverage/lcov.info
-
-      - name: HanCover
-        uses: farhan-ahmed1/hancover-action@v0
+      - run: npm test -- --coverage
+      
+      - name: Coverage Report
+        uses: farhan-ahmed1/hancover-action@v1
         with:
-          files: |
-            coverage/**/lcov.info
-            **/cobertura.xml
-          thresholds: |
-            total:80
-            diff:75
-          comment-mode: update
-          warn-only: false
+          files: coverage/lcov.info
+          min-threshold: 80
 ```
 
-## Inputs
+### With Change Detection (Recommended)
+
+Enable change badges by setting up a GitHub Gist for baseline storage:
+
+```yaml
+Enable change badges by setting up a GitHub Gist for baseline storage:
+
+```yaml
+- name: Coverage Report with Changes
+  uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: coverage/lcov.info
+    gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    min-threshold: 80
+```
+
+**Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
+
+## Example Output
+```
+
+**📋 Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
+## 📊 Example Output
+
+With the Gist setup, your PR comments will include both badges:
+
+![Coverage](https://img.shields.io/badge/coverage-87.1%25-green) ![Changes](https://img.shields.io/badge/changes-+1.9%25-brightgreen)
+
+**Overall Coverage:** 87.1% | **Lines Covered:** 1523/1749  
+
+_Changes made in this PR increased coverage by 1.9 percentage points._
+
+<details>
+<summary><b>Detailed Coverage by Package</b></summary>
+
+| Package | Statements | Branches | Functions | Health |
+|---------|------------|----------|-----------|--------|
+| src/core | 95.2% (120/126) | 88.9% (24/27) | 100.0% (8/8) | ✅ |
+| src/utils | 78.3% (47/60) | 66.7% (4/6) | 85.7% (6/7) | ✅ |
+| **Summary** | **87.1% (167/192)** | **84.8% (28/33)** | **93.3% (14/15)** | **✅** |
+
+</details>
+
+## Configuration
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `files` | Glob patterns for coverage files | Yes | - |
-| `base-ref` | Base commit SHA (defaults to PR base) | No | - |
-| `thresholds` | Coverage thresholds (e.g., `total:80\ndiff:75`) | No | - |
-| `warn-only` | Don't fail on threshold breach | No | `false` |
-| `comment-mode` | `update` (sticky) or `new` | No | `update` |
-| `groups` | YAML groups definition | No | - |
-| `max-bytes-per-file` | Max file size in bytes | No | `52428800` (50MB) |
-| `max-total-bytes` | Max total size in bytes | No | `209715200` (200MB) |
-| `timeout-seconds` | Execution timeout | No | `120` |
-| `strict` | Fail on oversize/invalid files | No | `false` |
+| `files` | Coverage file patterns (e.g., `'coverage/lcov.info'`) | Yes | - |
+| `gist-id` | GitHub Gist ID for baseline storage (enables change badges) | No | - |
+| `github-token` | GitHub token for API access | No | `GITHUB_TOKEN` |
+| `min-threshold` | Minimum coverage threshold for health indicators | No | `50` |
+| `comment-mode` | `'update'` (sticky) or `'new'` | No | `'update'` |
+| `warn-only` | Don't fail on threshold violations | No | `false` |
+| `baseline-files` | Baseline coverage files (alternative to gist) | No | - |
+| `groups` | YAML configuration for custom package grouping | No | - |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `total_coverage` | Total line coverage percentage |
-| `diff_coverage` | Diff (changed lines) coverage percentage |
-| `branch_coverage` | Branch coverage percentage (if available) |
-| `coverage-pct` | Project coverage percentage |
-| `changes-coverage-pct` | Code changes coverage percentage |
-| `coverage-delta` | Coverage delta compared to main branch |
+| `coverage-pct` | Overall project coverage percentage |
+| `changes-coverage-pct` | Coverage percentage for code changes in this PR |
+| `coverage-delta` | Coverage change compared to main branch (when gist-id provided) |
+
+## Coverage Formats Supported
+
+- **LCOV** (`.info` files) - Jest, Vitest, Karma, etc.
+- **Cobertura** (`.xml` files) - .NET, Python, etc.  
+- **JaCoCo** (`.xml` files) - Java, Kotlin, Scala
+- **Clover** (`.xml` files) - PHP, JavaScript
+
+## Documentation
+
+- **[Complete Setup Guide](./docs/COMPLETE-SETUP.md)** - Step-by-step Gist setup for change badges
+- **[Token Flow Guide](./docs/TOKEN-FLOW.md)** - How authentication and data flow works
+- **[Coverage Badge Setup](./docs/COVERAGE-BADGE.md)** - Legacy badge setup documentation
 
 ## Security
 
 HanCover is designed with security as a top priority:
 
 - **Minimal permissions**: Only requires `pull-requests: write` and `contents: read`
-- **Safe XML parsing**: XXE protection, no external entities, input validation
-- **File size limits**: Configurable limits (50MB/file, 200MB total) prevent resource exhaustion
-- **Supply chain security**: Signed releases, regular audits, dependency scanning
+- **Safe parsing**: XXE protection, input validation, and secure XML processing
+- **Size limits**: Built-in protections against large file attacks
+- **Supply chain security**: Signed releases, dependency scanning, and regular audits
 
-Always pin to specific versions for security:
+**Security best practices:**
 ```yaml
-uses: farhan-ahmed1/hancover-action@v0.1.0  # ✅ Good
-uses: farhan-ahmed1/hancover-action@main     # ❌ Avoid
+# Pin to specific versions
+uses: farhan-ahmed1/hancover-action@v1.0.0
+
+# Avoid using branches or tags
+uses: farhan-ahmed1/hancover-action@main
 ```
 
-Report security issues via [SECURITY.md](SECURITY.md).
+Report security issues: See [SECURITY.md](SECURITY.md)
 
 ## License
 

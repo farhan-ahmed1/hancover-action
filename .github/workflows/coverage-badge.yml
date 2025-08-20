@@ -24,27 +24,14 @@ jobs:
       - name: Run tests with coverage
         run: npm test -- --coverage
 
-      - name: Generate coverage percentage
-        id: coverage
-        run: |
-          COVERAGE_OUTPUT=$(npm test -- --coverage 2>&1)
-          COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep "All files" | awk '{print $4}' | head -1 | cut -d. -f1)
-          echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
-          echo "Coverage: $COVERAGE%"
+      - name: Build action
+        run: npm run build
 
-      - name: Update coverage badge
-        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+      - name: Update Coverage Data & Generate Badges
+        id: coverage
+        uses: ./
         with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: ${{ secrets.COVERAGE_GIST_ID }}
-          filename: hancover-coverage.json
-          label: coverage
-          message: ${{ steps.coverage.outputs.percentage }}%
-          color: >
-            ${{
-              steps.coverage.outputs.percentage >= 90 && 'brightgreen' ||
-              steps.coverage.outputs.percentage >= 80 && 'green' ||
-              steps.coverage.outputs.percentage >= 70 && 'yellow' ||
-              steps.coverage.outputs.percentage >= 60 && 'orange' ||
-              'red'
-            }}
+          files: coverage/lcov.info
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+          gist-token: ${{ secrets.GIST_TOKEN }}
+          warn-only: true

@@ -24,12 +24,17 @@ export async function renderComment(data: CommentData): Promise<string> {
     
     // Generate changes badge if main branch coverage is available
     let changesBadge = '';
+    core.info(`Checking for changes badge: mainBranchCoverage = ${mainBranchCoverage}`);
+    
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
         const prefix = delta >= 0 ? '+' : '';
         const value = `${prefix}${delta.toFixed(1)}%`;
         const color = delta >= 0 ? 'brightgreen' : 'red';
         changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
+        core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
+    } else {
+        core.info('❌ No changes badge - missing baseline coverage data');
     }
     
     let deltaBadge = '';
@@ -67,6 +72,7 @@ export async function renderComment(data: CommentData): Promise<string> {
     
     return `${COVERAGE_COMMENT_MARKER}
 ## Coverage Report
+<!-- Last updated: ${new Date().toISOString()} -->
 
 ${badgeSection}
 
@@ -235,9 +241,16 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
                 per_page: 100
             });
 
-            const existingComment = comments.find(comment => 
-                comment.body?.includes(COVERAGE_COMMENT_MARKER)
-            );
+            const coverageComments = comments.filter(comment => {
+                const body = comment.body || '';
+                return body.includes(COVERAGE_COMMENT_MARKER) || body.includes('## Coverage Report');
+            });
+            
+            if (coverageComments.length > 1) {
+                core.warning(`Found multiple coverage comments (${coverageComments.length}), using the latest one`);
+            }
+
+            const existingComment = coverageComments[coverageComments.length - 1]; // Use the latest one
 
             if (existingComment) {
                 // Update existing comment
@@ -247,6 +260,7 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
                     comment_id: existingComment.id,
                     body: md,
                 });
+                
                 core.info(`Updated existing coverage comment (ID: ${existingComment.id})`);
                 return;
             }
@@ -259,6 +273,7 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
             issue_number: pull_number,
             body: md,
         });
+        
         core.info('Created new coverage comment');
 
     } catch (error) {

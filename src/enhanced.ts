@@ -4,6 +4,7 @@ import { parseAnyCoverage } from './parsers/index.js';
 import { groupPackages } from './group.js';
 import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
+import { getCoverageData, saveCoverageData } from './coverage-data.js';
 import { execSync } from 'child_process';
 
 export async function runEnhancedCoverage() {
@@ -43,14 +44,30 @@ export async function runEnhancedCoverage() {
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
         
-        // Step 5: Parse baseline coverage if available (auto-detect format)
+        // Step 5: Parse baseline coverage from gist or baseline files
         let mainBranchCoverage: number | null = null;
         let deltaCoverage;
-        if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
+        
+        // First try to get baseline coverage from gist
+        core.info('Attempting to fetch baseline coverage from gist...');
+        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.gistToken);
+        
+        if (mainBranchCoverage !== null) {
+            core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
+        } else {
+            core.info('❌ No baseline coverage available from gist');
+        }
+        
+        // If no gist coverage available, try baseline files
+        if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
-                core.info('Parsing baseline coverage...');
+                core.info('Parsing baseline coverage from files...');
                 const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
                 const mainPackages = groupPackages(mainProject.files);
+                
+                // Calculate main branch coverage percentage
+                mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
+                core.info(`Main branch coverage from files: ${mainBranchCoverage.toFixed(1)}%`);
                 
                 deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);
                 core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
@@ -109,6 +126,19 @@ export async function runEnhancedCoverage() {
         }
         
         core.info('Enhanced coverage analysis completed successfully');
+        
+        // Step 10: Save coverage data to gist if we're on main branch
+        const isMainBranch = process.env.GITHUB_REF === 'refs/heads/main' || 
+                            process.env.GITHUB_REF === 'refs/heads/master';
+        
+        if (isMainBranch) {
+            try {
+                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.gistToken);
+                core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
+            } catch (error) {
+                core.warning(`Failed to save coverage data: ${error}`);
+            }
+        }
         
     } catch (error) {
         core.setFailed(`Enhanced coverage analysis failed: ${error}`);

@@ -15,7 +15,9 @@ const InputsSchema = z.object({
     strict: z.boolean().optional().default(false),
     baselineFiles: z.string().optional(),
     minThreshold: z.coerce.number().optional().default(50),
-    coverageDataPath: z.string().optional().default('.github/coverage-data.json')
+    coverageDataPath: z.string().optional().default('.github/coverage-data.json'),
+    gistId: z.string().optional(),
+    gistToken: z.string().optional()
 });
 
 // ActionInputs exposes `groups` as a parsed GroupsConfig (not raw string)
@@ -26,19 +28,30 @@ export type ActionInputs = Omit<z.infer<typeof InputsSchema>, 'groups' | 'baseli
 };
 
 export function readInputs(): ActionInputs {
+    // Helper to read env with fallback between hyphenated and underscored names
+    const env = (names: string[]): string | undefined => {
+        for (const n of names) {
+            const v = process.env[n];
+            if (v !== undefined) return v;
+        }
+        return undefined;
+    };
+
     const raw = {
-        files: (process.env['INPUT_FILES'] ?? '').trim(),
-        baseRef: process.env['INPUT_BASE-REF'],
-        thresholds: process.env['INPUT_THRESHOLDS'],
-        warnOnly: (process.env['INPUT_WARN-ONLY'] ?? 'false') === 'true',
-        commentMode: (process.env['INPUT_COMMENT-MODE'] ?? 'update') as 'update' | 'new',
-        groups: process.env['INPUT_GROUPS'],
-        maxBytesPerFile: Number(process.env['INPUT_MAX-BYTES-PER-FILE'] ?? 52428800),
-        maxTotalBytes: Number(process.env['INPUT_MAX-TOTAL-BYTES'] ?? 209715200),
-        timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
-        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
-        baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
+        files: (process.env.INPUT_FILES ?? '').trim(),
+        baseRef: env(['INPUT_BASE-REF', 'INPUT_BASE_REF']),
+        thresholds: env(['INPUT_THRESHOLDS']),
+        warnOnly: (env(['INPUT_WARN-ONLY', 'INPUT_WARN_ONLY']) ?? 'false') === 'true',
+        commentMode: (env(['INPUT_COMMENT-MODE', 'INPUT_COMMENT_MODE']) ?? 'update') as 'update' | 'new',
+        groups: env(['INPUT_GROUPS']),
+        maxBytesPerFile: Number(env(['INPUT_MAX-BYTES-PER-FILE', 'INPUT_MAX_BYTES_PER_FILE']) ?? 52428800),
+        maxTotalBytes: Number(env(['INPUT_MAX-TOTAL-BYTES', 'INPUT_MAX_TOTAL_BYTES']) ?? 209715200),
+        timeoutSeconds: Number(env(['INPUT_TIMEOUT-SECONDS', 'INPUT_TIMEOUT_SECONDS']) ?? 120),
+        strict: (env(['INPUT_STRICT']) ?? 'false') === 'true',
+        baselineFiles: env(['INPUT_BASELINE-FILES', 'INPUT_BASELINE_FILES']),
+        minThreshold: Number(env(['INPUT_MIN-THRESHOLD', 'INPUT_MIN_THRESHOLD']) ?? 50),
+        gistId: env(['INPUT_GIST-ID', 'INPUT_GIST_ID']) || process.env.COVERAGE_GIST_ID || undefined,
+        gistToken: env(['INPUT_GIST-TOKEN', 'INPUT_GIST_TOKEN']) || process.env.GIST_TOKEN || undefined
     };
 
     const parsed = InputsSchema.parse({
@@ -53,7 +66,9 @@ export function readInputs(): ActionInputs {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold
+        minThreshold: raw.minThreshold,
+        gistId: raw.gistId,
+        gistToken: raw.gistToken
     });
 
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
