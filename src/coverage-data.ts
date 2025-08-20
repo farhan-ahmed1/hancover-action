@@ -11,24 +11,24 @@ export interface CoverageData {
 /**
  * Get coverage data from GitHub Gist
  */
-export async function getCoverageData(gistId?: string, githubToken?: string): Promise<number | null> {
+export async function getCoverageData(gistId?: string, gistToken?: string): Promise<number | null> {
     try {
         // Use provided gistId or fall back to environment inputs
         let resolvedGistId: string | undefined = gistId || 
                             core.getInput('gist-id') || 
                             core.getInput('gistId') || 
-                            process.env['INPUT_GIST-ID'] || 
-                            process.env['INPUT_GISTID'];
+                            process.env.INPUT_GIST_ID || 
+                            process.env.INPUT_GISTID ||
+                            process.env.COVERAGE_GIST_ID;
         
         // Handle empty strings
         if (resolvedGistId && resolvedGistId.trim() === '') {
             resolvedGistId = undefined;
         }
         
-        const token = githubToken || 
-                     core.getInput('github-token') || 
-                     process.env['INPUT_GITHUB-TOKEN'] || 
-                     process.env.GITHUB_TOKEN;
+        const token = gistToken || 
+                     core.getInput('gist-token') || 
+                     process.env.GIST_TOKEN;
         
         core.info(`Gist ID resolution: "${resolvedGistId || 'NOT_FOUND'}"`);
         
@@ -61,18 +61,19 @@ export async function getCoverageData(gistId?: string, githubToken?: string): Pr
 /**
  * Save coverage data to GitHub Gist only
  */
-export async function saveCoverageData(coverage: number, gistId?: string, githubToken?: string): Promise<void> {
-    let resolvedGistId: string | undefined = gistId || core.getInput('gist-id');
+export async function saveCoverageData(coverage: number, gistId?: string, gistToken?: string): Promise<void> {
+    let resolvedGistId: string | undefined = gistId || 
+                        core.getInput('gist-id') || 
+                        process.env.COVERAGE_GIST_ID;
     
     // Handle empty strings
     if (resolvedGistId && resolvedGistId.trim() === '') {
         resolvedGistId = undefined;
     }
     
-    const token = githubToken || 
-                 core.getInput('github-token') || 
-                 process.env['INPUT_GITHUB-TOKEN'] || 
-                 process.env.GITHUB_TOKEN;
+    const token = gistToken || 
+                 core.getInput('gist-token') || 
+                 process.env.GIST_TOKEN;
     
     if (!resolvedGistId) {
         core.info('No gist-id provided, skipping coverage data save');

@@ -17,7 +17,10 @@ inputs:
     description: "Coverage file patterns (e.g., 'coverage/lcov.info', '**/cobertura.xml')"
     required: true
   github-token:
-    description: "GitHub token for API access (defaults to GITHUB_TOKEN)"
+    description: "GitHub token for PR comments and GitHub API access (defaults to GITHUB_TOKEN)"
+    required: false
+  gist-token:
+    description: "GitHub token with 'gist' scope for baseline storage"
     required: false
   gist-id:
     description: "GitHub Gist ID for storing baseline coverage data (enables change badges)"

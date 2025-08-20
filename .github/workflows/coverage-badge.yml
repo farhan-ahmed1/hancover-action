@@ -33,5 +33,5 @@ jobs:
         with:
           files: coverage/lcov.info
           gist-id: ${{ secrets.COVERAGE_GIST_ID }}
-          github-token: ${{ secrets.GIST_TOKEN }}
+          gist-token: ${{ secrets.GIST_TOKEN }}
           warn-only: true
