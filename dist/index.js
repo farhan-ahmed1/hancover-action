@@ -7380,6 +7380,134 @@ function onceStrict (fn) {
 
 /***/ }),
 
+/***/ 5747:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+/*jshint node:true*/
+
+
+/**
+ * Replaces characters in strings that are illegal/unsafe for filenames.
+ * Unsafe characters are either removed or replaced by a substitute set
+ * in the optional `options` object.
+ *
+ * Illegal Characters on Various Operating Systems
+ * / ? < > \ : * | "
+ * https://kb.acronis.com/content/39790
+ *
+ * Unicode Control codes
+ * C0 0x00-0x1f & C1 (0x80-0x9f)
+ * http://en.wikipedia.org/wiki/C0_and_C1_control_codes
+ *
+ * Reserved filenames on Unix-based systems (".", "..")
+ * Reserved filenames in Windows ("CON", "PRN", "AUX", "NUL", "COM1",
+ * "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+ * "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", and
+ * "LPT9") case-insesitively and with or without filename extensions.
+ *
+ * Capped at 255 characters in length.
+ * http://unix.stackexchange.com/questions/32795/what-is-the-maximum-allowed-filename-and-folder-size-with-ecryptfs
+ *
+ * @param  {String} input   Original filename
+ * @param  {Object} options {replacement: String | Function }
+ * @return {String}         Sanitized filename
+ */
+
+var truncate = __nccwpck_require__(3096);
+
+var illegalRe = /[\/\?<>\\:\*\|"]/g;
+var controlRe = /[\x00-\x1f\x80-\x9f]/g;
+var reservedRe = /^\.+$/;
+var windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
+var windowsTrailingRe = /[\. ]+$/;
+
+function sanitize(input, replacement) {
+  if (typeof input !== 'string') {
+    throw new Error('Input must be string');
+  }
+  var sanitized = input
+    .replace(illegalRe, replacement)
+    .replace(controlRe, replacement)
+    .replace(reservedRe, replacement)
+    .replace(windowsReservedRe, replacement)
+    .replace(windowsTrailingRe, replacement);
+  return truncate(sanitized, 255);
+}
+
+module.exports = function (input, options) {
+  var replacement = (options && options.replacement) || '';
+  var output = sanitize(input, replacement);
+  if (replacement === '') {
+    return output;
+  }
+  return sanitize(output, '');
+};
+
+
+/***/ }),
+
+/***/ 3096:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+
+
+var truncate = __nccwpck_require__(2216);
+var getLength = Buffer.byteLength.bind(Buffer);
+module.exports = truncate.bind(null, getLength);
+
+
+/***/ }),
+
+/***/ 2216:
+/***/ ((module) => {
+
+
+
+function isHighSurrogate(codePoint) {
+  return codePoint >= 0xd800 && codePoint <= 0xdbff;
+}
+
+function isLowSurrogate(codePoint) {
+  return codePoint >= 0xdc00 && codePoint <= 0xdfff;
+}
+
+// Truncate string by size in bytes
+module.exports = function truncate(getLength, string, byteLength) {
+  if (typeof string !== "string") {
+    throw new Error("Input must be string");
+  }
+
+  var charLength = string.length;
+  var curByteLength = 0;
+  var codePoint;
+  var segment;
+
+  for (var i = 0; i < charLength; i += 1) {
+    codePoint = string.charCodeAt(i);
+    segment = string[i];
+
+    if (isHighSurrogate(codePoint) && isLowSurrogate(string.charCodeAt(i + 1))) {
+      i += 1;
+      segment += string[i];
+    }
+
+    curByteLength += getLength(segment);
+
+    if (curByteLength === byteLength) {
+      return string.slice(0, i + 1);
+    }
+    else if (curByteLength > byteLength) {
+      return string.slice(0, i - segment.length + 1);
+    }
+  }
+
+  return string;
+};
+
+
+
+/***/ }),
+
 /***/ 770:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -40213,6 +40341,35 @@ exports.visitAsync = visitAsync;
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/compat get default export */
+/******/ (() => {
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -48021,7 +48178,11 @@ function sanitizeFilePath(filePath) {
     return sanitized || 'unknown';
 }
 
+// EXTERNAL MODULE: ./node_modules/sanitize-filename/index.js
+var sanitize_filename = __nccwpck_require__(5747);
+var sanitize_filename_default = /*#__PURE__*/__nccwpck_require__.n(sanitize_filename);
 ;// CONCATENATED MODULE: ./src/parsers/clover.ts
+
 
 
 
@@ -48272,19 +48433,12 @@ function clover_sanitizeFilePath(filePath) {
     if (!filePath || typeof filePath !== 'string') {
         return '';
     }
-    // Remove null bytes and control characters
-    let sanitized = filePath.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
-    // Remove all path traversal attempts (../ and ..\) repeatedly until gone
-    let prev;
-    do {
-        prev = sanitized;
-        sanitized = sanitized.replace(/\.\.\//g, '').replace(/\.\.\\/g, '');
-    } while (sanitized !== prev);
-    // Normalize path separators
-    sanitized = sanitized.replace(/\\/g, '/');
-    // Remove leading slashes for relative paths
-    sanitized = sanitized.replace(/^\/+/, '');
-    return sanitized;
+    // Split path into segments and sanitize each segment individually
+    const segments = filePath.split(/[/\\]+/);
+    const sanitizedSegments = segments
+        .map(segment => sanitize_filename_default()(segment))
+        .filter(segment => segment && segment !== '.' && segment !== '..');
+    return sanitizedSegments.join('/');
 }
 
 ;// CONCATENATED MODULE: ./src/parsers/index.ts

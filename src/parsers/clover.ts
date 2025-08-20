@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { validateXmlSecurity } from '../fs-limits.js';
+import sanitize from 'sanitize-filename';
 
 /**
  * Parse Clover XML coverage format
@@ -278,21 +279,11 @@ function sanitizeFilePath(filePath: string): string {
         return '';
     }
     
-    // Remove null bytes and control characters
-    let sanitized = filePath.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
+    // Split path into segments and sanitize each segment individually
+    const segments = filePath.split(/[/\\]+/);
+    const sanitizedSegments = segments
+        .map(segment => sanitize(segment))
+        .filter(segment => segment && segment !== '.' && segment !== '..');
     
-    // Remove all path traversal attempts (../ and ..\) repeatedly until gone
-    let prev;
-    do {
-        prev = sanitized;
-        sanitized = sanitized.replace(/\.\.\//g, '').replace(/\.\.\\/g, '');
-    } while (sanitized !== prev);
-    
-    // Normalize path separators
-    sanitized = sanitized.replace(/\\/g, '/');
-    
-    // Remove leading slashes for relative paths
-    sanitized = sanitized.replace(/^\/+/, '');
-    
-    return sanitized;
+    return sanitizedSegments.join('/');
 }
