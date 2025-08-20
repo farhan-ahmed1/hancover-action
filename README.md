@@ -53,9 +53,6 @@ jobs:
 Enable change badges by setting up a GitHub Gist for baseline storage:
 
 ```yaml
-Enable change badges by setting up a GitHub Gist for baseline storage:
-
-```yaml
 - name: Coverage Report with Changes
   uses: farhan-ahmed1/hancover-action@v1
   with:
@@ -68,10 +65,6 @@ Enable change badges by setting up a GitHub Gist for baseline storage:
 **Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
 
 ## Example Output
-```
-
-**📋 Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
-## 📊 Example Output
 
 With the Gist setup, your PR comments will include both badges:
 
@@ -138,10 +131,10 @@ HanCover is designed with security as a top priority:
 **Security best practices:**
 ```yaml
 # Pin to specific versions
-uses: farhan-ahmed1/hancover-action@v1.0.0
+uses: farhan-ahmed1/hancover-action@v1.0.0 ✅ 
 
 # Avoid using branches or tags
-uses: farhan-ahmed1/hancover-action@main
+uses: farhan-ahmed1/hancover-action@main ❌
 ```
 
 Report security issues: See [SECURITY.md](SECURITY.md)
