@@ -1,7 +1,8 @@
 name: HanCover — Coverage Reports for PRs
 description: |
-  Merge LCOV/Cobertura coverage files, compute total & diff coverage, group by package, 
-  and post a sticky PR comment with badges. Uses minimal permissions for security.
+  Generate comprehensive coverage reports with change detection for Pull Requests.
+  Supports LCOV, Cobertura, JaCoCo, and Clover formats. Posts sticky PR comments 
+  with coverage badges and change indicators. Uses GitHub Gists for baseline storage.
 author: FarHan Labs
 branding:
   icon: 'shield'
@@ -13,78 +14,37 @@ runs:
 
 inputs:
   files:
-    description: "Glob patterns for coverage files (e.g., coverage/**/lcov.info, **/cobertura.xml)"
+    description: "Coverage file patterns (e.g., 'coverage/lcov.info', '**/cobertura.xml')"
     required: true
   github-token:
     description: "GitHub token for API access (defaults to GITHUB_TOKEN)"
     required: false
-  base-ref:
-    description: "Base commit SHA (defaults to PR base)"
-    required: false
-  thresholds:
-    description: "Key:Value lines (e.g., 'total:80\ndiff:75\nbranches:60')"
-    required: false
-  warn-only:
-    description: "If true, do not fail on threshold breach"
-    required: false
-    default: "false"
-  comment-mode:
-    description: "'update' (sticky) or 'new'"
-    required: false
-    default: "update"
-  groups:
-    description: "YAML groups definition (optional)"
-    required: false
-  max-bytes-per-file:
-    description: "Default 52428800 (50 MB)"
-    required: false
-    default: "52428800"
-  max-total-bytes:
-    description: "Default 209715200 (200 MB)"
-    required: false
-    default: "209715200"
-  timeout-seconds:
-    description: "Execution timeout, default 120"
-    required: false
-    default: "120"
-  strict:
-    description: "If true, oversize/invalid files fail the job"
-    required: false
-    default: "false"
-  baseline-files:
-    description: "Glob patterns for baseline coverage files from main branch"
+  gist-id:
+    description: "GitHub Gist ID for storing baseline coverage data (enables change badges)"
     required: false
   min-threshold:
     description: "Minimum coverage threshold for health indicators (default: 50)"
     required: false
     default: "50"
-  enhanced:
-    description: "Enable enhanced coverage reporting with smart grouping and delta tables"
+  comment-mode:
+    description: "'update' (sticky comment) or 'new' (always create new)"
+    required: false
+    default: "update"
+  warn-only:
+    description: "If true, don't fail the action on coverage threshold violations"
     required: false
     default: "false"
-  gist-id:
-    description: "GitHub Gist ID for storing and retrieving baseline coverage data"
+  baseline-files:
+    description: "Baseline coverage files for comparison (alternative to gist-id)"
     required: false
-  gist-id:
-    description: "GitHub Gist ID for storing coverage data (enables dynamic badges)"
+  groups:
+    description: "YAML configuration for custom package grouping"
     required: false
-  coverage-data-path:
-    description: "Path to store coverage data JSON file (default: .github/coverage-data.json)"
-    required: false
-    default: ".github/coverage-data.json"
 
 outputs:
-  total_coverage:
-    description: "Total line coverage %"
-  diff_coverage:
-    description: "Diff (changed lines) coverage %"
-  branch_coverage:
-    description: "Branch coverage % (if available)"
-  delta_coverage:
-    description: "Coverage delta compared to baseline %"
   coverage-pct:
-    description: "Project coverage percentage"
+    description: "Overall project coverage percentage"
   changes-coverage-pct:
-    description: "Code changes coverage percentage"
+    description: "Coverage percentage for code changes in this PR"
   coverage-delta:
-    description: "Coverage delta compared to main branch"
+    description: "Coverage change compared to main branch (when gist-id provided)"
