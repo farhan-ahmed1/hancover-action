@@ -46153,20 +46153,21 @@ function parseLcovFile(filePath) {
 /**
  * Safely parse integer from string, return null if invalid
  * Includes bounds checking to prevent integer overflow issues
- * Strict parsing - rejects non-integer strings like "1.5" or "1abc"
+ * For LCOV, we only accept non-negative integers (hit counts cannot be negative)
  */
 function parseIntSafe(value) {
     if (value === undefined || value === null)
         return null;
     const stringValue = String(value).trim();
-    // Check if it's a valid integer string (only digits, optionally with leading +/-)
-    if (!/^[+-]?\d+$/.test(stringValue)) {
+    // Check if it's a valid non-negative integer string (only digits)
+    if (!/^\d+$/.test(stringValue)) {
         return null;
     }
     const parsed = parseInt(stringValue, 10);
     if (isNaN(parsed))
         return null;
     // Security: Bounds checking to prevent integer overflow
+    // LCOV hit counts should be non-negative and within safe integer range
     if (parsed < 0 || parsed > Number.MAX_SAFE_INTEGER)
         return null;
     return parsed;
