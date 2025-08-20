@@ -2,10 +2,11 @@ import { readFileSync } from 'fs';
 import { ProjectCov } from '../schema.js';
 import { parseLCOV, parseLcovFile } from './lcov.js';
 import { parseCobertura, parseCoberturaFile } from './cobertura.js';
+import { parseClover, parseCloverFile } from './clover.js';
 
 /**
  * Auto-detect and parse any supported coverage format
- * Supports both LCOV (.info) and Cobertura (.xml) formats
+ * Supports LCOV (.info), Cobertura (.xml), and Clover (.xml) formats
  */
 export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
     // Auto-detect by file extension first
@@ -14,12 +15,35 @@ export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
     }
     
     if (filePath.endsWith('.xml')) {
-        return parseCoberturaFile(filePath);
+        // For XML files, we need to sniff content to distinguish between formats
+        try {
+            const head = readFileSync(filePath, 'utf8').substring(0, 500);
+            
+            // Check for Clover XML markers first (more specific)
+            if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
+                return parseCloverFile(filePath);
+            }
+            
+            // Check for Cobertura XML markers
+            if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
+                return parseCoberturaFile(filePath);
+            }
+            
+            // Default to Cobertura for XML files if uncertain
+            return parseCoberturaFile(filePath);
+        } catch (error) {
+            throw new Error(`Failed to auto-detect XML coverage format for ${filePath}: ${error}`);
+        }
     }
     
-    // Fallback: sniff file content
+    // Fallback: sniff file content for non-standard extensions
     try {
-        const head = readFileSync(filePath, 'utf8').substring(0, 200);
+        const head = readFileSync(filePath, 'utf8').substring(0, 500);
+        
+        // Check for Clover XML markers first (most specific)
+        if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
+            return parseCloverFile(filePath);
+        }
         
         // Check for Cobertura XML markers
         if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
@@ -41,7 +65,7 @@ export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
 /**
  * Parse coverage data from raw content with format detection
  */
-export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobertura'): ProjectCov {
+export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobertura' | 'clover'): ProjectCov {
     if (hint === 'lcov') {
         return parseLCOV(content);
     }
@@ -50,8 +74,17 @@ export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobert
         return parseCobertura(content);
     }
     
+    if (hint === 'clover') {
+        return parseClover(content);
+    }
+    
     // Auto-detect from content
-    if (content.includes('<coverage') || content.includes('<!DOCTYPE coverage')) {
+    if (content.includes('<coverage')) {
+        // Distinguish between Clover and Cobertura
+        if (content.includes('<project') || content.includes('generator="clover')) {
+            return parseClover(content);
+        }
+        // Default to Cobertura for other coverage XML
         return parseCobertura(content);
     }
     
@@ -62,3 +95,4 @@ export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobert
 // Re-export individual parsers for direct use
 export { parseLCOV, parseLcovFile } from './lcov.js';
 export { parseCobertura, parseCoberturaFile } from './cobertura.js';
+export { parseClover, parseCloverFile } from './clover.js';

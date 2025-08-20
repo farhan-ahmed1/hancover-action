@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generator="clover" version="4.4.1">
+    <project timestamp="1642781234" name="test-project">
+        <package name="src">
+            <file name="Calculator.php" path="src/Calculator.php">
+                <class name="Calculator" namespace="src">
+                    <metrics complexity="4" methods="3" coveredmethods="2" conditionals="2" coveredconditionals="1" statements="8" coveredstatements="6" elements="13" coveredelements="9"/>
+                </class>
+                <line num="3" type="method" name="add" visibility="public" complexity="1" count="1"/>
+                <line num="4" type="stmt" count="1"/>
+                <line num="5" type="stmt" count="1"/>
+                <line num="8" type="method" name="subtract" visibility="public" complexity="1" count="1"/>
+                <line num="9" type="stmt" count="1"/>
+                <line num="10" type="stmt" count="1"/>
+                <line num="13" type="method" name="divide" visibility="public" complexity="2" count="0"/>
+                <line num="14" type="cond" count="0" truecount="0" falsecount="0"/>
+                <line num="15" type="stmt" count="0"/>
+                <line num="17" type="stmt" count="0"/>
+                <metrics loc="20" ncloc="15" classes="1" methods="3" coveredmethods="2" conditionals="2" coveredconditionals="1" statements="8" coveredstatements="6" elements="13" coveredelements="9"/>
+            </file>
+            <file name="MathUtils.php" path="src/MathUtils.php">
+                <class name="MathUtils" namespace="src">
+                    <metrics complexity="2" methods="2" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="4" coveredstatements="2" elements="6" coveredelements="3"/>
+                </class>
+                <line num="3" type="method" name="square" visibility="public" complexity="1" count="1"/>
+                <line num="4" type="stmt" count="1"/>
+                <line num="7" type="method" name="cube" visibility="public" complexity="1" count="0"/>
+                <line num="8" type="stmt" count="0"/>
+                <metrics loc="10" ncloc="8" classes="1" methods="2" coveredmethods="1" conditionals="0" coveredconditionals="0" statements="4" coveredstatements="2" elements="6" coveredelements="3"/>
+            </file>
+        </package>
+        <package name="tests">
+            <file name="CalculatorTest.php" path="tests/CalculatorTest.php">
+                <class name="CalculatorTest" namespace="tests">
+                    <metrics complexity="3" methods="3" coveredmethods="3" conditionals="1" coveredconditionals="1" statements="6" coveredstatements="6" elements="10" coveredelements="10"/>
+                </class>
+                <line num="8" type="method" name="testAdd" visibility="public" complexity="1" count="1"/>
+                <line num="9" type="stmt" count="1"/>
+                <line num="10" type="stmt" count="1"/>
+                <line num="13" type="method" name="testSubtract" visibility="public" complexity="1" count="1"/>
+                <line num="14" type="stmt" count="1"/>
+                <line num="15" type="stmt" count="1"/>
+                <line num="18" type="method" name="testDivideByZero" visibility="public" complexity="1" count="1"/>
+                <line num="19" type="cond" count="1" truecount="1" falsecount="0"/>
+                <line num="20" type="stmt" count="1"/>
+                <metrics loc="25" ncloc="20" classes="1" methods="3" coveredmethods="3" conditionals="1" coveredconditionals="1" statements="6" coveredstatements="6" elements="10" coveredelements="10"/>
+            </file>
+        </package>
+        <metrics files="3" loc="55" ncloc="43" packages="2" classes="3" methods="8" coveredmethods="6" conditionals="3" coveredconditionals="2" statements="18" coveredstatements="14" elements="29" coveredelements="22"/>
+    </project>
+</coverage>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generator="clover" version="4.4.1">
+    <project timestamp="1642781234" name="malicious-test">
+        <package name="evil">
+            <file name="../../../etc/passwd" path="../../../etc/passwd">
+                <line num="1" type="stmt" count="1"/>
+            </file>
+            <file name="normal.js" path="src/normal.js">
+                <line num="1" type="stmt" count="1"/>
+                <line num="2" type="stmt" count="0"/>
+            </file>
+        </package>
+    </project>
+</coverage>

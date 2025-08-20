@@ -7380,6 +7380,134 @@ function onceStrict (fn) {
 
 /***/ }),
 
+/***/ 5747:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+/*jshint node:true*/
+
+
+/**
+ * Replaces characters in strings that are illegal/unsafe for filenames.
+ * Unsafe characters are either removed or replaced by a substitute set
+ * in the optional `options` object.
+ *
+ * Illegal Characters on Various Operating Systems
+ * / ? < > \ : * | "
+ * https://kb.acronis.com/content/39790
+ *
+ * Unicode Control codes
+ * C0 0x00-0x1f & C1 (0x80-0x9f)
+ * http://en.wikipedia.org/wiki/C0_and_C1_control_codes
+ *
+ * Reserved filenames on Unix-based systems (".", "..")
+ * Reserved filenames in Windows ("CON", "PRN", "AUX", "NUL", "COM1",
+ * "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+ * "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", and
+ * "LPT9") case-insesitively and with or without filename extensions.
+ *
+ * Capped at 255 characters in length.
+ * http://unix.stackexchange.com/questions/32795/what-is-the-maximum-allowed-filename-and-folder-size-with-ecryptfs
+ *
+ * @param  {String} input   Original filename
+ * @param  {Object} options {replacement: String | Function }
+ * @return {String}         Sanitized filename
+ */
+
+var truncate = __nccwpck_require__(3096);
+
+var illegalRe = /[\/\?<>\\:\*\|"]/g;
+var controlRe = /[\x00-\x1f\x80-\x9f]/g;
+var reservedRe = /^\.+$/;
+var windowsReservedRe = /^(con|prn|aux|nul|com[0-9]|lpt[0-9])(\..*)?$/i;
+var windowsTrailingRe = /[\. ]+$/;
+
+function sanitize(input, replacement) {
+  if (typeof input !== 'string') {
+    throw new Error('Input must be string');
+  }
+  var sanitized = input
+    .replace(illegalRe, replacement)
+    .replace(controlRe, replacement)
+    .replace(reservedRe, replacement)
+    .replace(windowsReservedRe, replacement)
+    .replace(windowsTrailingRe, replacement);
+  return truncate(sanitized, 255);
+}
+
+module.exports = function (input, options) {
+  var replacement = (options && options.replacement) || '';
+  var output = sanitize(input, replacement);
+  if (replacement === '') {
+    return output;
+  }
+  return sanitize(output, '');
+};
+
+
+/***/ }),
+
+/***/ 3096:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+
+
+var truncate = __nccwpck_require__(2216);
+var getLength = Buffer.byteLength.bind(Buffer);
+module.exports = truncate.bind(null, getLength);
+
+
+/***/ }),
+
+/***/ 2216:
+/***/ ((module) => {
+
+
+
+function isHighSurrogate(codePoint) {
+  return codePoint >= 0xd800 && codePoint <= 0xdbff;
+}
+
+function isLowSurrogate(codePoint) {
+  return codePoint >= 0xdc00 && codePoint <= 0xdfff;
+}
+
+// Truncate string by size in bytes
+module.exports = function truncate(getLength, string, byteLength) {
+  if (typeof string !== "string") {
+    throw new Error("Input must be string");
+  }
+
+  var charLength = string.length;
+  var curByteLength = 0;
+  var codePoint;
+  var segment;
+
+  for (var i = 0; i < charLength; i += 1) {
+    codePoint = string.charCodeAt(i);
+    segment = string[i];
+
+    if (isHighSurrogate(codePoint) && isLowSurrogate(string.charCodeAt(i + 1))) {
+      i += 1;
+      segment += string[i];
+    }
+
+    curByteLength += getLength(segment);
+
+    if (curByteLength === byteLength) {
+      return string.slice(0, i + 1);
+    }
+    else if (curByteLength > byteLength) {
+      return string.slice(0, i - segment.length + 1);
+    }
+  }
+
+  return string;
+};
+
+
+
+/***/ }),
+
 /***/ 770:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -40213,6 +40341,35 @@ exports.visitAsync = visitAsync;
 /******/ }
 /******/ 
 /************************************************************************/
+/******/ /* webpack/runtime/compat get default export */
+/******/ (() => {
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__nccwpck_require__.n = (module) => {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			() => (module['default']) :
+/******/ 			() => (module);
+/******/ 		__nccwpck_require__.d(getter, { a: getter });
+/******/ 		return getter;
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/define property getters */
+/******/ (() => {
+/******/ 	// define getter functions for harmony exports
+/******/ 	__nccwpck_require__.d = (exports, definition) => {
+/******/ 		for(var key in definition) {
+/******/ 			if(__nccwpck_require__.o(definition, key) && !__nccwpck_require__.o(exports, key)) {
+/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/ 			}
+/******/ 		}
+/******/ 	};
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/hasOwnProperty shorthand */
+/******/ (() => {
+/******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/compat */
 /******/ 
 /******/ if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = new URL('.', import.meta.url).pathname.slice(import.meta.url.match(/^file:\/\/\/\w:/) ? 1 : 0, -1) + "/";
@@ -47779,9 +47936,42 @@ function formatBytes(bytes) {
 
 
 
+/**
+ * Parse Cobertura XML coverage format
+ *
+ * Cobertura XML structure:
+ * <coverage line-rate="0.8" branch-rate="0.7" version="1.0">
+ *   <packages>
+ *     <package name="com.example" line-rate="0.8" branch-rate="0.7">
+ *       <classes>
+ *         <class name="Example" filename="src/Example.java" line-rate="0.8" branch-rate="0.7">
+ *           <methods>
+ *             <method name="method1" signature="()" line-rate="1.0" branch-rate="1.0">
+ *               <lines>
+ *                 <line number="1" hits="5"/>
+ *               </lines>
+ *             </method>
+ *           </methods>
+ *           <lines>
+ *             <line number="1" hits="5" branch="true" condition-coverage="50% (1/2)"/>
+ *             <line number="2" hits="0"/>
+ *           </lines>
+ *         </class>
+ *       </classes>
+ *     </package>
+ *   </packages>
+ * </coverage>
+ *
+ * Security measures:
+ * - XML security validation (DTD/Entity protection)
+ * - Safe XML parser configuration
+ * - Input validation and sanitization
+ * - Path sanitization to prevent directory traversal
+ * - Bounded parsing (nested structure limits handled by security validator)
+ */
 function cobertura_parseCobertura(xmlContent) {
     try {
-        // Security validation before parsing
+        // Security validation before parsing - protects against XXE, XML bombs, etc.
         validateXmlSecurity(xmlContent);
         const parser = new XMLParser({
             ignoreAttributes: false,
@@ -47791,19 +47981,14 @@ function cobertura_parseCobertura(xmlContent) {
             ignoreDeclaration: true,
             trimValues: true,
             // Additional security measures
-            allowBooleanAttributes: false
+            allowBooleanAttributes: false,
+            parseTagValue: false, // Prevent script injection in tag values
+            parseAttributeValue: false // Keep attribute values as strings
         });
         const result = parser.parse(xmlContent);
         const coverage = result.coverage;
         if (!coverage) {
-            return {
-                files: [],
-                totals: {
-                    lines: { covered: 0, total: 0 },
-                    branches: { covered: 0, total: 0 },
-                    functions: { covered: 0, total: 0 }
-                }
-            };
+            return createEmptyProjectCov();
         }
         const filesMap = {};
         // Handle different Cobertura XML structures
@@ -47831,24 +48016,27 @@ function cobertura_parseCobertura(xmlContent) {
                     const className = cls['@_name'] || '';
                     filePath = `${packageName.replace(/\./g, '/')}/${className.replace(/\./g, '/')}.js`;
                 }
+                // Validate file path to prevent directory traversal
+                const normalizedPath = sanitizeFilePath(filePath);
                 // Get or create file entry
-                if (!filesMap[filePath]) {
-                    filesMap[filePath] = {
-                        path: filePath,
+                if (!filesMap[normalizedPath]) {
+                    filesMap[normalizedPath] = {
+                        path: normalizedPath,
                         lines: { covered: 0, total: 0 },
                         branches: { covered: 0, total: 0 },
                         functions: { covered: 0, total: 0 },
-                        coveredLineNumbers: new Set()
+                        coveredLineNumbers: new Set(),
+                        package: pkg['@_name']
                     };
                 }
-                const file = filesMap[filePath];
+                const file = filesMap[normalizedPath];
                 // Parse methods → functions
                 if (cls.methods && cls.methods.method) {
                     const methods = Array.isArray(cls.methods.method)
                         ? cls.methods.method
                         : [cls.methods.method];
                     for (const method of methods) {
-                        if (!method)
+                        if (!method || !method['@_name'])
                             continue;
                         file.functions.total++;
                         // Check if method has any covered lines
@@ -47858,9 +48046,12 @@ function cobertura_parseCobertura(xmlContent) {
                                 ? method.lines.line
                                 : [method.lines.line];
                             for (const line of methodLines) {
-                                if (line && line['@_hits'] && parseInt(line['@_hits'], 10) > 0) {
-                                    methodHasCoveredLines = true;
-                                    break;
+                                if (line && line['@_hits']) {
+                                    const hits = parseIntSafe(line['@_hits']);
+                                    if (hits !== null && hits > 0) {
+                                        methodHasCoveredLines = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -47877,9 +48068,9 @@ function cobertura_parseCobertura(xmlContent) {
                     for (const line of lines) {
                         if (!line || line['@_number'] === undefined || line['@_hits'] === undefined)
                             continue;
-                        const lineNumber = parseInt(line['@_number'], 10);
-                        const hits = parseInt(line['@_hits'], 10);
-                        if (isNaN(lineNumber) || isNaN(hits))
+                        const lineNumber = parseIntSafe(line['@_number']);
+                        const hits = parseIntSafe(line['@_hits']);
+                        if (lineNumber === null || hits === null)
                             continue;
                         // Count line/statement coverage
                         file.lines.total++;
@@ -47891,11 +48082,12 @@ function cobertura_parseCobertura(xmlContent) {
                         if (line['@_condition-coverage']) {
                             const conditionCoverage = line['@_condition-coverage'];
                             // Format: "x% (a/b)" where a=covered, b=total
-                            const match = conditionCoverage.match(/\((\d+)\/(\d+)\)/);
+                            // Only match if it starts with a percentage
+                            const match = conditionCoverage.match(/^\d+%\s*\((\d+)\/(\d+)\)/);
                             if (match) {
-                                const branchesCovered = parseInt(match[1], 10);
-                                const branchesTotal = parseInt(match[2], 10);
-                                if (!isNaN(branchesCovered) && !isNaN(branchesTotal)) {
+                                const branchesCovered = parseIntSafe(match[1]);
+                                const branchesTotal = parseIntSafe(match[2]);
+                                if (branchesCovered !== null && branchesTotal !== null) {
                                     file.branches.covered += branchesCovered;
                                     file.branches.total += branchesTotal;
                                 }
@@ -47923,10 +48115,21 @@ function cobertura_parseCobertura(xmlContent) {
         return { files, totals };
     }
     catch (error) {
+        // Provide clear error messaging for different failure modes
+        if (error instanceof Error) {
+            if (error.message.includes('XML content contains potentially dangerous constructs')) {
+                throw new Error(`Cobertura XML security validation failed: ${error.message}`);
+            }
+            if (error.message.includes('excessive nesting')) {
+                throw new Error(`Cobertura XML file too complex: ${error.message}`);
+            }
+        }
         throw new Error(`Failed to parse Cobertura XML: ${error}`);
     }
 }
-// Read Cobertura file from disk and parse it
+/**
+ * Read Cobertura XML file from disk and parse it
+ */
 function parseCoberturaFile(filePath) {
     try {
         const xmlContent = (0,external_fs_.readFileSync)(filePath, 'utf8');
@@ -47936,14 +48139,316 @@ function parseCoberturaFile(filePath) {
         throw new Error(`Failed to read Cobertura file ${filePath}: ${error}`);
     }
 }
+// Helper functions
+/**
+ * Create empty project coverage structure
+ */
+function createEmptyProjectCov() {
+    return {
+        files: [],
+        totals: {
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        }
+    };
+}
+/**
+ * Safely parse integer from string, return null if invalid
+ */
+function parseIntSafe(value) {
+    if (value === undefined || value === null)
+        return null;
+    const parsed = parseInt(String(value), 10);
+    return isNaN(parsed) ? null : parsed;
+}
+/**
+ * Sanitize file path to prevent directory traversal attacks
+ */
+function sanitizeFilePath(filePath) {
+    if (!filePath)
+        return '';
+    // Remove any directory traversal attempts
+    let sanitized = filePath.replace(/\.\./g, '');
+    // Normalize path separators and remove leading slashes
+    sanitized = sanitized.replace(/\\/g, '/');
+    sanitized = sanitized.replace(/^\/+/, '');
+    // Remove any remaining dangerous patterns
+    sanitized = sanitized.replace(/\/\.+\//g, '/');
+    return sanitized || 'unknown';
+}
+
+// EXTERNAL MODULE: ./node_modules/sanitize-filename/index.js
+var sanitize_filename = __nccwpck_require__(5747);
+var sanitize_filename_default = /*#__PURE__*/__nccwpck_require__.n(sanitize_filename);
+;// CONCATENATED MODULE: ./src/parsers/clover.ts
+
+
+
+
+/**
+ * Parse Clover XML coverage format
+ *
+ * Clover XML structure:
+ * <coverage>
+ *   <project>
+ *     <package name="package.name">
+ *       <file name="file.ext" path="/path/to/file.ext">
+ *         <line num="1" type="stmt" count="5"/>
+ *         <line num="2" type="cond" count="2" truecount="1" falsecount="1"/>
+ *         <line num="3" type="method" count="1"/>
+ *       </file>
+ *     </package>
+ *   </project>
+ * </coverage>
+ *
+ * Security measures:
+ * - XML security validation (DTD/Entity protection)
+ * - Safe XML parser configuration
+ * - Input validation and sanitization
+ * - Bounded parsing (nested structure limits handled by security validator)
+ */
+function clover_parseClover(xmlContent) {
+    try {
+        // Security validation before parsing - protects against XXE, XML bombs, etc.
+        validateXmlSecurity(xmlContent);
+        const parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: '@_',
+            // Security: Disable DTD processing and external entity loading to prevent XXE attacks
+            processEntities: false,
+            ignoreDeclaration: true,
+            trimValues: true,
+            // Additional security measures
+            allowBooleanAttributes: false,
+            parseTagValue: false, // Prevent script injection in tag values
+            parseAttributeValue: false // Keep attribute values as strings
+        });
+        const result = parser.parse(xmlContent);
+        const coverage = result.coverage;
+        if (!coverage) {
+            return clover_createEmptyProjectCov();
+        }
+        // Handle different Clover XML structures
+        let project = coverage.project;
+        if (!project) {
+            return clover_createEmptyProjectCov();
+        }
+        const filesMap = {};
+        // Handle packages - can be single object or array
+        let packages = [];
+        if (project.package) {
+            packages = Array.isArray(project.package)
+                ? project.package
+                : [project.package];
+        }
+        else if (project.packages?.package) {
+            // Some Clover variants wrap packages in a <packages> element
+            packages = Array.isArray(project.packages.package)
+                ? project.packages.package
+                : [project.packages.package];
+        }
+        for (const pkg of packages) {
+            if (!pkg)
+                continue;
+            // Handle files - can be single object or array
+            let files = [];
+            if (pkg.file) {
+                files = Array.isArray(pkg.file) ? pkg.file : [pkg.file];
+            }
+            for (const file of files) {
+                if (!file || !file['@_name'])
+                    continue;
+                // Get file path - prefer 'path' attribute, fallback to 'name'
+                const filePath = file['@_path'] || file['@_name'];
+                if (!filePath)
+                    continue;
+                // Validate file path to prevent directory traversal
+                const normalizedPath = clover_sanitizeFilePath(filePath);
+                // Get or create file entry
+                if (!filesMap[normalizedPath]) {
+                    filesMap[normalizedPath] = {
+                        path: normalizedPath,
+                        lines: { covered: 0, total: 0 },
+                        branches: { covered: 0, total: 0 },
+                        functions: { covered: 0, total: 0 },
+                        coveredLineNumbers: new Set(),
+                        package: pkg['@_name'] || undefined
+                    };
+                }
+                const fileCov = filesMap[normalizedPath];
+                // Parse line coverage
+                if (file.line) {
+                    const lines = Array.isArray(file.line) ? file.line : [file.line];
+                    for (const line of lines) {
+                        if (!line || !line['@_num'] || line['@_count'] === undefined)
+                            continue;
+                        const lineNumber = clover_parseIntSafe(line['@_num']);
+                        const count = clover_parseIntSafe(line['@_count']);
+                        const lineType = line['@_type']?.toLowerCase();
+                        if (lineNumber === null || count === null)
+                            continue;
+                        // Process different line types
+                        switch (lineType) {
+                            case 'stmt':
+                            case 'statement':
+                                // Statement/line coverage
+                                fileCov.lines.total++;
+                                if (count > 0) {
+                                    fileCov.lines.covered++;
+                                    fileCov.coveredLineNumbers.add(lineNumber);
+                                }
+                                break;
+                            case 'cond':
+                            case 'conditional':
+                                // Branch coverage - Clover uses truecount/falsecount
+                                const trueCount = clover_parseIntSafe(line['@_truecount']) || 0;
+                                const falseCount = clover_parseIntSafe(line['@_falsecount']) || 0;
+                                // Each conditional can have 2 branches (true/false)
+                                fileCov.branches.total += 2;
+                                if (trueCount > 0)
+                                    fileCov.branches.covered++;
+                                if (falseCount > 0)
+                                    fileCov.branches.covered++;
+                                // If the line was executed, count as covered line too
+                                if (count > 0) {
+                                    fileCov.lines.total++;
+                                    fileCov.lines.covered++;
+                                    fileCov.coveredLineNumbers.add(lineNumber);
+                                }
+                                break;
+                            case 'method':
+                            case 'function':
+                                // Function/method coverage
+                                fileCov.functions.total++;
+                                if (count > 0) {
+                                    fileCov.functions.covered++;
+                                }
+                                break;
+                            default:
+                                // Unknown type - treat as statement coverage for safety
+                                fileCov.lines.total++;
+                                if (count > 0) {
+                                    fileCov.lines.covered++;
+                                    fileCov.coveredLineNumbers.add(lineNumber);
+                                }
+                                break;
+                        }
+                    }
+                }
+                // Parse metrics if available (some Clover variants include summary metrics)
+                if (file.metrics) {
+                    const metrics = file.metrics;
+                    // Override with metrics if they provide more accurate counts
+                    const statements = clover_parseIntSafe(metrics['@_statements']);
+                    const coveredStatements = clover_parseIntSafe(metrics['@_coveredstatements']);
+                    const methods = clover_parseIntSafe(metrics['@_methods']);
+                    const coveredMethods = clover_parseIntSafe(metrics['@_coveredmethods']);
+                    const conditionals = clover_parseIntSafe(metrics['@_conditionals']);
+                    const coveredConditionals = clover_parseIntSafe(metrics['@_coveredconditionals']);
+                    if (statements !== null && coveredStatements !== null) {
+                        fileCov.lines.total = statements;
+                        fileCov.lines.covered = coveredStatements;
+                    }
+                    if (methods !== null && coveredMethods !== null) {
+                        fileCov.functions.total = methods;
+                        fileCov.functions.covered = coveredMethods;
+                    }
+                    if (conditionals !== null && coveredConditionals !== null) {
+                        fileCov.branches.total = conditionals;
+                        fileCov.branches.covered = coveredConditionals;
+                    }
+                }
+            }
+        }
+        const files = Object.values(filesMap);
+        // Compute project totals
+        const totals = {
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        };
+        for (const file of files) {
+            totals.lines.covered += file.lines.covered;
+            totals.lines.total += file.lines.total;
+            totals.branches.covered += file.branches.covered;
+            totals.branches.total += file.branches.total;
+            totals.functions.covered += file.functions.covered;
+            totals.functions.total += file.functions.total;
+        }
+        return { files, totals };
+    }
+    catch (error) {
+        // Provide clear error messaging for different failure modes
+        if (error instanceof Error) {
+            if (error.message.includes('XML content contains potentially dangerous constructs')) {
+                throw new Error(`Clover XML security validation failed: ${error.message}`);
+            }
+            if (error.message.includes('excessive nesting')) {
+                throw new Error(`Clover XML file too complex: ${error.message}`);
+            }
+        }
+        throw new Error(`Failed to parse Clover XML: ${error}`);
+    }
+}
+/**
+ * Read Clover XML file from disk and parse it
+ */
+function parseCloverFile(filePath) {
+    try {
+        const xmlContent = (0,external_fs_.readFileSync)(filePath, 'utf8');
+        return clover_parseClover(xmlContent);
+    }
+    catch (error) {
+        throw new Error(`Failed to read Clover file ${filePath}: ${error}`);
+    }
+}
+// Helper functions
+/**
+ * Create empty project coverage structure
+ */
+function clover_createEmptyProjectCov() {
+    return {
+        files: [],
+        totals: {
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        }
+    };
+}
+/**
+ * Safely parse integer from string, return null if invalid
+ */
+function clover_parseIntSafe(value) {
+    if (value === undefined || value === null)
+        return null;
+    const parsed = parseInt(String(value), 10);
+    return isNaN(parsed) ? null : parsed;
+}
+/**
+ * Sanitize file path to prevent directory traversal attacks
+ */
+function clover_sanitizeFilePath(filePath) {
+    if (!filePath || typeof filePath !== 'string') {
+        return '';
+    }
+    // Split path into segments and sanitize each segment individually
+    const segments = filePath.split(/[/\\]+/);
+    const sanitizedSegments = segments
+        .map(segment => sanitize_filename_default()(segment))
+        .filter(segment => segment && segment !== '.' && segment !== '..');
+    return sanitizedSegments.join('/');
+}
 
 ;// CONCATENATED MODULE: ./src/parsers/index.ts
 
 
 
+
 /**
  * Auto-detect and parse any supported coverage format
- * Supports both LCOV (.info) and Cobertura (.xml) formats
+ * Supports LCOV (.info), Cobertura (.xml), and Clover (.xml) formats
  */
 async function parseAnyCoverage(filePath) {
     // Auto-detect by file extension first
@@ -47951,11 +48456,31 @@ async function parseAnyCoverage(filePath) {
         return parseLcovFile(filePath);
     }
     if (filePath.endsWith('.xml')) {
-        return parseCoberturaFile(filePath);
+        // For XML files, we need to sniff content to distinguish between formats
+        try {
+            const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 500);
+            // Check for Clover XML markers first (more specific)
+            if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
+                return parseCloverFile(filePath);
+            }
+            // Check for Cobertura XML markers
+            if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
+                return parseCoberturaFile(filePath);
+            }
+            // Default to Cobertura for XML files if uncertain
+            return parseCoberturaFile(filePath);
+        }
+        catch (error) {
+            throw new Error(`Failed to auto-detect XML coverage format for ${filePath}: ${error}`);
+        }
     }
-    // Fallback: sniff file content
+    // Fallback: sniff file content for non-standard extensions
     try {
-        const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 200);
+        const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 500);
+        // Check for Clover XML markers first (most specific)
+        if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
+            return parseCloverFile(filePath);
+        }
         // Check for Cobertura XML markers
         if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
             return parseCoberturaFile(filePath);
@@ -47981,14 +48506,23 @@ function parseAnyCoverageContent(content, hint) {
     if (hint === 'cobertura') {
         return parseCobertura(content);
     }
+    if (hint === 'clover') {
+        return parseClover(content);
+    }
     // Auto-detect from content
-    if (content.includes('<coverage') || content.includes('<!DOCTYPE coverage')) {
+    if (content.includes('<coverage')) {
+        // Distinguish between Clover and Cobertura
+        if (content.includes('<project') || content.includes('generator="clover')) {
+            return parseClover(content);
+        }
+        // Default to Cobertura for other coverage XML
         return parseCobertura(content);
     }
     // Default to LCOV
     return parseLCOV(content);
 }
 // Re-export individual parsers for direct use
+
 
 
 

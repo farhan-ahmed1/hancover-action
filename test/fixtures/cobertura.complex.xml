@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage version="1.0" line-rate="0.85" branch-rate="0.75">
+    <packages>
+        <package name="com.example" line-rate="0.85" branch-rate="0.75">
+            <classes>
+                <class name="Calculator" filename="src/Calculator.java" line-rate="0.9" branch-rate="0.8">
+                    <methods>
+                        <method name="add" signature="(II)I" line-rate="1.0" branch-rate="1.0">
+                            <lines>
+                                <line number="10" hits="15"/>
+                                <line number="11" hits="15"/>
+                            </lines>
+                        </method>
+                        <method name="divide" signature="(II)D" line-rate="0.75" branch-rate="0.5">
+                            <lines>
+                                <line number="15" hits="8"/>
+                                <line number="16" hits="8" branch="true" condition-coverage="50% (1/2)"/>
+                                <line number="17" hits="4"/>
+                                <line number="18" hits="0"/>
+                            </lines>
+                        </method>
+                        <method name="unused" signature="()V" line-rate="0.0" branch-rate="0.0">
+                            <lines>
+                                <line number="25" hits="0"/>
+                            </lines>
+                        </method>
+                    </methods>
+                    <lines>
+                        <line number="10" hits="15"/>
+                        <line number="11" hits="15"/>
+                        <line number="15" hits="8"/>
+                        <line number="16" hits="8" branch="true" condition-coverage="50% (1/2)"/>
+                        <line number="17" hits="4"/>
+                        <line number="18" hits="0"/>
+                        <line number="25" hits="0"/>
+                    </lines>
+                </class>
+                <class name="StringUtils" filename="src/utils/StringUtils.java" line-rate="0.8" branch-rate="0.7">
+                    <methods>
+                        <method name="format" signature="(Ljava/lang/String;)Ljava/lang/String;" line-rate="0.8" branch-rate="0.7">
+                            <lines>
+                                <line number="5" hits="20"/>
+                                <line number="6" hits="20" branch="true" condition-coverage="70% (7/10)"/>
+                                <line number="7" hits="14"/>
+                                <line number="8" hits="6"/>
+                                <line number="9" hits="0"/>
+                            </lines>
+                        </method>
+                    </methods>
+                    <lines>
+                        <line number="5" hits="20"/>
+                        <line number="6" hits="20" branch="true" condition-coverage="70% (7/10)"/>
+                        <line number="7" hits="14"/>
+                        <line number="8" hits="6"/>
+                        <line number="9" hits="0"/>
+                    </lines>
+                </class>
+            </classes>
+        </package>
+        <package name="com.test" line-rate="0.6" branch-rate="0.4">
+            <classes>
+                <class name="TestHelper" filename="test/TestHelper.java" line-rate="0.6" branch-rate="0.4">
+                    <methods>
+                        <method name="setup" signature="()V" line-rate="1.0" branch-rate="1.0">
+                            <lines>
+                                <line number="1" hits="1"/>
+                                <line number="2" hits="1"/>
+                            </lines>
+                        </method>
+                        <method name="cleanup" signature="()V" line-rate="0.0" branch-rate="0.0">
+                            <lines>
+                                <line number="10" hits="0"/>
+                                <line number="11" hits="0"/>
+                                <line number="12" hits="0"/>
+                            </lines>
+                        </method>
+                    </methods>
+                    <lines>
+                        <line number="1" hits="1"/>
+                        <line number="2" hits="1"/>
+                        <line number="10" hits="0"/>
+                        <line number="11" hits="0"/>
+                        <line number="12" hits="0"/>
+                    </lines>
+                </class>
+            </classes>
+        </package>
+    </packages>
+</coverage>
