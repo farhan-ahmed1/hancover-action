@@ -60,6 +60,9 @@ jobs:
 
       - name: Test action with real coverage data (self-test)
         uses: ./
+        env:
+          COVERAGE_GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         with:
           files: coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -170,6 +173,9 @@ jobs:
 
       - name: Run HanCover Action
         uses: ./
+        env:
+          COVERAGE_GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         with:
           files: |
             coverage/jest/lcov.info
