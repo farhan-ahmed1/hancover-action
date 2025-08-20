@@ -29,7 +29,8 @@ end_of_record
         expect(project.files[0].functions.covered).toBe(1);
         expect(project.files[0].functions.total).toBe(1);
 
-        const packages = groupPackages(project.files);
+        const groupingResult = groupPackages(project.files);
+        const packages = groupingResult.pkgRows;
         expect(packages).toHaveLength(1);
         expect(packages[0].name).toBe('src');
 

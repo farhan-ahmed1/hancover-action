@@ -48,17 +48,18 @@ describe('Group Coverage', () => {
     });
 
     it('should compute group summaries correctly', () => {
-        const packages = groupPackages(sampleFiles);
+        const result = groupPackages(sampleFiles);
+        const packages = result.pkgRows;
         
         expect(packages).toHaveLength(2);
         
-        const appsGroup = packages.find(p => p.name === 'apps');
+        const appsGroup = packages.find((p: any) => p.name === 'apps');
         expect(appsGroup).toBeDefined();
         expect(appsGroup!.files).toHaveLength(2);
         expect(appsGroup!.totals.lines.covered).toBe(4);
         expect(appsGroup!.totals.lines.total).toBe(5);
         
-        const packagesGroup = packages.find(p => p.name === 'packages');
+        const packagesGroup = packages.find((p: any) => p.name === 'packages');
         expect(packagesGroup).toBeDefined();
         expect(packagesGroup!.files).toHaveLength(1);
         expect(packagesGroup!.totals.lines.covered).toBe(1);

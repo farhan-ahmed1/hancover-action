@@ -5,6 +5,7 @@ import { groupPackages } from './group.js';
 import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
 import { getCoverageData, saveCoverageData } from './coverage-data.js';
+import { loadConfig } from './config.js';
 import { execSync } from 'child_process';
 
 export async function runEnhancedCoverage() {
@@ -23,9 +24,13 @@ export async function runEnhancedCoverage() {
         const prProject = await parseAnyCoverage(prFiles[0]);
         core.info(`Parsed ${prProject.files.length} files from PR coverage`);
         
-        // Step 2: Smart package grouping
-        const prPackages = groupPackages(prProject.files);
-        core.info(`Grouped into ${prPackages.length} packages`);
+        // Step 2: Smart package grouping with config support
+        const config = loadConfig();
+        const groupingResult = groupPackages(prProject.files, config);
+        const prPackages = groupingResult.pkgRows;
+        const topLevelPackages = groupingResult.topLevelRows;
+        
+        core.info(`Grouped into ${prPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
         
         // Step 3: Get changed lines from git diff
         let changedLinesByFile: ChangedLinesByFile = {};
@@ -63,7 +68,8 @@ export async function runEnhancedCoverage() {
             try {
                 core.info('Parsing baseline coverage from files...');
                 const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
-                const mainPackages = groupPackages(mainProject.files);
+                const mainGroupingResult = groupPackages(mainProject.files, config);
+                const mainPackages = mainGroupingResult.pkgRows;
                 
                 // Calculate main branch coverage percentage
                 mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
@@ -80,6 +86,7 @@ export async function runEnhancedCoverage() {
         const comment = await renderComment({
             prProject,
             prPackages,
+            topLevelPackages,
             deltaCoverage,
             mainBranchCoverage,
             minThreshold: inputs.minThreshold

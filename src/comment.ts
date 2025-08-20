@@ -4,19 +4,22 @@ import { ProjectCov, PkgCov } from './schema.js';
 import { DeltaCoverage } from './changes.js';
 import { pct } from './group.js';
 import { getHealthIcon } from './badges.js';
+import { loadConfig } from './config.js';
 
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 
 export interface CommentData {
     prProject: ProjectCov;
     prPackages: PkgCov[];
+    topLevelPackages?: PkgCov[];  // New: top-level summary
     deltaCoverage?: DeltaCoverage;
     mainBranchCoverage?: number | null;
     minThreshold?: number;
 }
 
 export async function renderComment(data: CommentData): Promise<string> {
-    const { prProject, prPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, topLevelPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const config = loadConfig();
     
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
@@ -53,7 +56,8 @@ export async function renderComment(data: CommentData): Promise<string> {
     const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
     
     // Generate table sections
-    const projectTable = renderProjectTable(prPackages, minThreshold);
+    const topLevelTable = topLevelPackages ? renderTopLevelSummaryTable(topLevelPackages, minThreshold) : '';
+    const projectTable = renderProjectTable(prPackages, minThreshold, config);
     const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
     
     // Calculate overall coverage for display
@@ -83,6 +87,8 @@ ${badgeSection}
 
 ${overallCoverage} | ${coverageStats}${coverageChangeSentence}
 
+${topLevelTable ? `${topLevelTable}\n` : ''}
+
 <details>
 <summary><b>Detailed Coverage by Package</b></summary>
 
@@ -98,12 +104,14 @@ _Minimum pass threshold is ${minThreshold.toFixed(1)}%_
 `;
 }
 
-function renderProjectTable(packages: PkgCov[], minThreshold: number): string {
+function renderTopLevelSummaryTable(packages: PkgCov[], minThreshold: number): string {
     if (packages.length === 0) {
-        return '_No coverage data available_';
+        return '';
     }
     
-    let table = `| Package | Statements | Branches | Functions | Health |
+    let table = `### Top-level Packages (Summary)
+
+| Package | Statements | Branches | Functions | Health |
 |---|---:|---:|---:|:---:|
 `;
     
@@ -133,6 +141,106 @@ function renderProjectTable(packages: PkgCov[], minThreshold: number): string {
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
     
     return table;
+}
+
+function renderProjectTable(packages: PkgCov[], minThreshold: number, config?: any): string {
+    if (packages.length === 0) {
+        return '_No coverage data available_';
+    }
+    
+    const resolvedConfig = config || loadConfig();
+    
+    let table = `| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    
+    // Package rows with potential file expansion
+    for (const pkg of packages) {
+        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        
+        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
+        
+        // Check if this package should have an expandable file table
+        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
+        if (shouldExpand) {
+            table += renderExpandableFileTable(pkg, minThreshold);
+        }
+    }
+    
+    // Summary row
+    const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+    const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+    const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
+    const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
+    const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
+    const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
+    
+    const summaryLinesPct = pct(totalLinesCovered, totalLines);
+    const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
+    const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
+    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
+    
+    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    
+    return table;
+}
+
+/**
+ * Determine if a package should have an expandable file table
+ */
+function shouldExpandPackage(pkg: PkgCov, config: any): boolean {
+    // Check explicit config first
+    if (config?.ui?.expandFilesFor?.includes(pkg.name)) {
+        return true;
+    }
+    
+    // Default: expand packages with >= 2 files but not too many (to avoid spam)
+    return pkg.files.length >= 2 && pkg.files.length <= 20;
+}
+
+/**
+ * Render an expandable <details> block with file-level coverage
+ */
+function renderExpandableFileTable(pkg: PkgCov, minThreshold: number): string {
+    if (pkg.files.length <= 1) {
+        return '';
+    }
+    
+    let fileTable = `
+<details>
+<summary>Files in <code>${pkg.name}</code></summary>
+
+| File | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    
+    // Sort files by name for consistent ordering
+    const sortedFiles = [...pkg.files].sort((a, b) => a.path.localeCompare(b.path));
+    
+    for (const file of sortedFiles) {
+        const linesPct = pct(file.lines.covered, file.lines.total);
+        const branchesPct = pct(file.branches.covered, file.branches.total);
+        const functionsPct = pct(file.functions.covered, file.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        
+        fileTable += `| ${file.path} | ${linesPct.toFixed(1)}% (${file.lines.covered}/${file.lines.total}) | ${branchesPct.toFixed(1)}% (${file.branches.covered}/${file.branches.total}) | ${functionsPct.toFixed(1)}% (${file.functions.covered}/${file.functions.total}) | ${health} |\n`;
+    }
+    
+    // Add package total row
+    const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+    const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+    const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+    const health = getHealthIcon(linesPct, minThreshold);
+    
+    fileTable += `| **Total** | **${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total})** | **${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total})** | **${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total})** | **${health}** |
+
+</details>
+`;
+    
+    return fileTable;
 }
 
 function renderDeltaTable(deltaCoverage: DeltaCoverage, minThreshold: number): string {
