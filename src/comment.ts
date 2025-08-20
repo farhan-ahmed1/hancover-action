@@ -236,22 +236,10 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
                 per_page: 100
             });
 
-            core.info(`Found ${comments.length} total comments on PR #${pull_number}`);
-            
             const coverageComments = comments.filter(comment => {
                 const body = comment.body || '';
-                const hasMarker = body.includes(COVERAGE_COMMENT_MARKER);
-                const hasCoverageReport = body.includes('## Coverage Report');
-                const hasBothMarkers = hasMarker || hasCoverageReport;
-                
-                if (hasBothMarkers) {
-                    core.info(`Comment ${comment.id} matches: marker=${hasMarker}, report=${hasCoverageReport}`);
-                }
-                
-                return hasBothMarkers;
+                return body.includes(COVERAGE_COMMENT_MARKER) || body.includes('## Coverage Report');
             });
-            
-            core.info(`Found ${coverageComments.length} coverage comments with marker`);
             
             if (coverageComments.length > 1) {
                 core.warning(`Found multiple coverage comments (${coverageComments.length}), using the latest one`);
@@ -260,39 +248,28 @@ export async function upsertStickyComment(md: string, mode: 'update' | 'new' = '
             const existingComment = coverageComments[coverageComments.length - 1]; // Use the latest one
 
             if (existingComment) {
-                core.info(`Updating existing comment ID: ${existingComment.id}`);
-                core.info(`Current comment body length: ${existingComment.body?.length || 0} chars`);
-                core.info(`New comment body length: ${md.length} chars`);
-                
                 // Update existing comment
-                const updateResult = await octokit.rest.issues.updateComment({
+                await octokit.rest.issues.updateComment({
                     owner,
                     repo,
                     comment_id: existingComment.id,
                     body: md,
                 });
                 
-                core.info(`Successfully updated comment. New body length: ${updateResult.data.body?.length || 0} chars`);
-                core.info(`Comment URL: ${updateResult.data.html_url}`);
+                core.info(`Updated existing coverage comment (ID: ${existingComment.id})`);
                 return;
-            } else {
-                core.info('No existing coverage comment found, will create new one');
             }
         }
 
         // Create new comment (either mode is 'new' or no existing comment found)
-        core.info(`Creating new coverage comment (mode: ${mode})`);
-        core.info(`Comment body length: ${md.length} chars`);
-        
-        const createResult = await octokit.rest.issues.createComment({
+        await octokit.rest.issues.createComment({
             owner,
             repo,
             issue_number: pull_number,
             body: md,
         });
         
-        core.info(`Created new coverage comment with ID: ${createResult.data.id}`);
-        core.info(`Comment URL: ${createResult.data.html_url}`);
+        core.info('Created new coverage comment');
 
     } catch (error) {
         core.error(`Failed to upsert comment: ${error}`);

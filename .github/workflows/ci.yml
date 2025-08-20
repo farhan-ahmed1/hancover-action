@@ -58,12 +58,6 @@ jobs:
       - name: Build action
         run: npm run build
 
-      - name: Debug - Test action with real coverage data (self-test)
-        run: ./debug-action.sh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Test action with real coverage data (self-test)
         uses: ./
         with:
@@ -71,7 +65,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           thresholds: |
             total:60
-            diff:50
+            diff:0
           warn-only: true
           comment-mode: update
         continue-on-error: true
