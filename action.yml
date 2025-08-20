@@ -40,6 +40,9 @@ inputs:
   groups:
     description: "YAML configuration for custom package grouping"
     required: false
+  thresholds:
+    description: "Coverage thresholds (e.g., 'total:80\\ndiff:75')"
+    required: false
 
 outputs:
   coverage-pct:

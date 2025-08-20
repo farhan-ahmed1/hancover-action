@@ -49,7 +49,14 @@ export async function runEnhancedCoverage() {
         let deltaCoverage;
         
         // First try to get baseline coverage from gist
+        core.info('Attempting to fetch baseline coverage from gist...');
         mainBranchCoverage = await getCoverageData();
+        
+        if (mainBranchCoverage !== null) {
+            core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
+        } else {
+            core.info('❌ No baseline coverage available from gist');
+        }
         
         // If no gist coverage available, try baseline files
         if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
@@ -67,8 +74,6 @@ export async function runEnhancedCoverage() {
             } catch (error) {
                 core.warning(`Failed to process baseline coverage: ${error}`);
             }
-        } else if (mainBranchCoverage !== null) {
-            core.info(`Using baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
         
         // Step 7: Render the comprehensive comment

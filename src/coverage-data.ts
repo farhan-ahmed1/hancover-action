@@ -16,6 +16,13 @@ export async function getCoverageData(): Promise<number | null> {
         const gistId = core.getInput('gist-id');
         const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
         
+        // Debug logging
+        core.info('Debug - All inputs:');
+        core.info(`  - gist-id input: "${gistId}"`);
+        core.info(`  - github-token input: "${token ? '[PRESENT]' : '[MISSING]'}"`);
+        core.info(`  - ENV INPUT_GIST-ID: "${process.env['INPUT_GIST-ID'] || '[MISSING]'}"`);
+        core.info(`  - ENV GITHUB_TOKEN: "${process.env.GITHUB_TOKEN ? '[PRESENT]' : '[MISSING]'}"`);
+        
         if (!gistId) {
             core.info('No gist-id provided, skipping baseline coverage fetch');
             return null;
@@ -31,6 +38,8 @@ export async function getCoverageData(): Promise<number | null> {
         
         if (coverage === null) {
             core.warning('No coverage data found in gist');
+        } else {
+            core.info(`✅ Successfully fetched coverage: ${coverage.toFixed(1)}%`);
         }
         
         return coverage;

@@ -48324,12 +48324,17 @@ async function renderComment(data) {
     const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
     // Generate changes badge if main branch coverage is available
     let changesBadge = '';
+    lib_core.info(`Checking for changes badge: mainBranchCoverage = ${mainBranchCoverage}`);
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
         const prefix = delta >= 0 ? '+' : '';
         const value = `${prefix}${delta.toFixed(1)}%`;
         const color = delta >= 0 ? 'brightgreen' : 'red';
         changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
+        lib_core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
+    }
+    else {
+        lib_core.info('❌ No changes badge - missing baseline coverage data');
     }
     let deltaBadge = '';
     if (deltaCoverage && deltaCoverage.packages.length > 0) {
@@ -48546,6 +48551,12 @@ async function getCoverageData() {
     try {
         const gistId = lib_core.getInput('gist-id');
         const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+        // Debug logging
+        lib_core.info('Debug - All inputs:');
+        lib_core.info(`  - gist-id input: "${gistId}"`);
+        lib_core.info(`  - github-token input: "${token ? '[PRESENT]' : '[MISSING]'}"`);
+        lib_core.info(`  - ENV INPUT_GIST-ID: "${process.env['INPUT_GIST-ID'] || '[MISSING]'}"`);
+        lib_core.info(`  - ENV GITHUB_TOKEN: "${process.env.GITHUB_TOKEN ? '[PRESENT]' : '[MISSING]'}"`);
         if (!gistId) {
             lib_core.info('No gist-id provided, skipping baseline coverage fetch');
             return null;
@@ -48558,6 +48569,9 @@ async function getCoverageData() {
         const coverage = await fetchCoverageFromGist(token, gistId);
         if (coverage === null) {
             lib_core.warning('No coverage data found in gist');
+        }
+        else {
+            lib_core.info(`✅ Successfully fetched coverage: ${coverage.toFixed(1)}%`);
         }
         return coverage;
     }
@@ -48704,7 +48718,14 @@ async function runEnhancedCoverage() {
         let mainBranchCoverage = null;
         let deltaCoverage;
         // First try to get baseline coverage from gist
+        lib_core.info('Attempting to fetch baseline coverage from gist...');
         mainBranchCoverage = await getCoverageData();
+        if (mainBranchCoverage !== null) {
+            lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
+        }
+        else {
+            lib_core.info('❌ No baseline coverage available from gist');
+        }
         // If no gist coverage available, try baseline files
         if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
@@ -48720,9 +48741,6 @@ async function runEnhancedCoverage() {
             catch (error) {
                 lib_core.warning(`Failed to process baseline coverage: ${error}`);
             }
-        }
-        else if (mainBranchCoverage !== null) {
-            lib_core.info(`Using baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
         // Step 7: Render the comprehensive comment
         const comment = await renderComment({
