@@ -48486,7 +48486,7 @@ function formatDelta(delta) {
 }
 function shield(label, value, color) {
     const e = encodeURIComponent;
-    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${e(color)}`;
+    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${color}`;
 }
 function colorForPct(p) {
     return p >= 90 ? 'brightgreen' : p >= 80 ? 'green' : p >= 70 ? 'yellowgreen' : p >= 60 ? 'yellow' : p >= 50 ? 'orange' : 'red';
