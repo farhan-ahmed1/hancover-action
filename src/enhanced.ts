@@ -50,7 +50,7 @@ export async function runEnhancedCoverage() {
         
         // First try to get baseline coverage from gist
         core.info('Attempting to fetch baseline coverage from gist...');
-        mainBranchCoverage = await getCoverageData(inputs.gistId);
+        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.githubToken);
         
         if (mainBranchCoverage !== null) {
             core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
@@ -133,7 +133,7 @@ export async function runEnhancedCoverage() {
         
         if (isMainBranch) {
             try {
-                await saveCoverageData(projectLinesPct, inputs.gistId);
+                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.githubToken);
                 core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
             } catch (error) {
                 core.warning(`Failed to save coverage data: ${error}`);

@@ -11,7 +11,7 @@ export interface CoverageData {
 /**
  * Get coverage data from GitHub Gist
  */
-export async function getCoverageData(gistId?: string): Promise<number | null> {
+export async function getCoverageData(gistId?: string, githubToken?: string): Promise<number | null> {
     try {
         // Use provided gistId or fall back to environment inputs
         let resolvedGistId: string | undefined = gistId || 
@@ -25,7 +25,10 @@ export async function getCoverageData(gistId?: string): Promise<number | null> {
             resolvedGistId = undefined;
         }
         
-        const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+        const token = githubToken || 
+                     core.getInput('github-token') || 
+                     process.env['INPUT_GITHUB-TOKEN'] || 
+                     process.env.GITHUB_TOKEN;
         
         core.info(`Gist ID resolution: "${resolvedGistId || 'NOT_FOUND'}"`);
         
@@ -58,7 +61,7 @@ export async function getCoverageData(gistId?: string): Promise<number | null> {
 /**
  * Save coverage data to GitHub Gist only
  */
-export async function saveCoverageData(coverage: number, gistId?: string): Promise<void> {
+export async function saveCoverageData(coverage: number, gistId?: string, githubToken?: string): Promise<void> {
     let resolvedGistId: string | undefined = gistId || core.getInput('gist-id');
     
     // Handle empty strings
@@ -66,7 +69,10 @@ export async function saveCoverageData(coverage: number, gistId?: string): Promi
         resolvedGistId = undefined;
     }
     
-    const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    const token = githubToken || 
+                 core.getInput('github-token') || 
+                 process.env['INPUT_GITHUB-TOKEN'] || 
+                 process.env.GITHUB_TOKEN;
     
     if (!resolvedGistId) {
         core.info('No gist-id provided, skipping coverage data save');
