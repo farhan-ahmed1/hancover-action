@@ -63,5 +63,6 @@ index abc123..def456 100644
 
         const result = parseGitDiff(gitDiff);
         expect(result['src/file1.ts']).toEqual(new Set([11, 12, 13]));
-    });
+    })
+    ;
 });

@@ -1,6 +1,7 @@
 # HanCover - Coverage Reports for PRs
 
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
+![CodeQL](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/codeql.yml/badge.svg)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/96e4dc85e2b5c6a2e7f7cdcdc576eb6c/raw/coverage-badge.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
@@ -52,9 +53,6 @@ jobs:
 Enable change badges by setting up a GitHub Gist for baseline storage:
 
 ```yaml
-Enable change badges by setting up a GitHub Gist for baseline storage:
-
-```yaml
 - name: Coverage Report with Changes
   uses: farhan-ahmed1/hancover-action@v1
   with:
@@ -67,10 +65,6 @@ Enable change badges by setting up a GitHub Gist for baseline storage:
 **Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
 
 ## Example Output
-```
-
-**📋 Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
-## 📊 Example Output
 
 With the Gist setup, your PR comments will include both badges:
 
@@ -137,10 +131,10 @@ HanCover is designed with security as a top priority:
 **Security best practices:**
 ```yaml
 # Pin to specific versions
-uses: farhan-ahmed1/hancover-action@v1.0.0
+uses: farhan-ahmed1/hancover-action@v1.0.0 ✅ 
 
 # Avoid using branches or tags
-uses: farhan-ahmed1/hancover-action@main
+uses: farhan-ahmed1/hancover-action@main ❌
 ```
 
 Report security issues: See [SECURITY.md](SECURITY.md)

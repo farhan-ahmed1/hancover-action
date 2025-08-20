@@ -28,8 +28,13 @@ export async function renderComment(data: CommentData): Promise<string> {
     
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
-        const prefix = delta >= 0 ? '+' : '';
-        const value = `${prefix}${delta.toFixed(1)}%`;
+        let value: string;
+        if (delta >= 0) {
+            value = `+${delta.toFixed(1)}%`;
+        } else {
+            // Use Unicode minus sign (−) instead of hyphen-minus (-) to avoid separator conflicts
+            value = `−${Math.abs(delta).toFixed(1)}%`;
+        }
         const color = delta >= 0 ? 'brightgreen' : 'red';
         changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
         core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
@@ -201,7 +206,7 @@ function formatDelta(delta: number): string {
 
 function shield(label: string, value: string, color: string): string {
     const e = encodeURIComponent;
-    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${e(color)}`;
+    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${color}`;
 }
 
 function colorForPct(p: number): string {
