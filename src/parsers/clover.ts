@@ -281,8 +281,12 @@ function sanitizeFilePath(filePath: string): string {
     // Remove null bytes and control characters
     let sanitized = filePath.replace(/[\x00-\x1f\x7f-\x9f]/g, '');
     
-    // Resolve path traversal attempts
-    sanitized = sanitized.replace(/\.\.\//g, '').replace(/\.\.\\/g, '');
+    // Remove all path traversal attempts (../ and ..\) repeatedly until gone
+    let prev;
+    do {
+        prev = sanitized;
+        sanitized = sanitized.replace(/\.\.\//g, '').replace(/\.\.\\/g, '');
+    } while (sanitized !== prev);
     
     // Normalize path separators
     sanitized = sanitized.replace(/\\/g, '/');
