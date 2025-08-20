@@ -3,7 +3,7 @@ import { parseLcovFile, parseLCOV } from '../../src/parsers/lcov.js';
 
 describe('LCOV Parser - Core Functionality', () => {
     it('should parse a small LCOV file correctly', () => {
-        const result = parseLcovFile('test/fixtures/lcov.small.info');
+        const result = parseLcovFile('test/fixtures/lcov/lcov.small.info');
         
         expect(result.files).toHaveLength(1);
         expect(result.files[0]).toEqual({
@@ -21,7 +21,7 @@ describe('LCOV Parser - Core Functionality', () => {
     });
 
     it('should parse complex LCOV file with multiple files and full coverage data', () => {
-        const result = parseLcovFile('test/fixtures/lcov.sample.info');
+        const result = parseLcovFile('test/fixtures/lcov/lcov.sample.info');
         
         expect(result.files).toHaveLength(3);
         
@@ -100,7 +100,7 @@ end_of_record`;
     });
 
     it('should handle empty LCOV files', () => {
-        const result = parseLcovFile('test/fixtures/lcov.empty.info');
+        const result = parseLcovFile('test/fixtures/lcov/lcov.empty.info');
         expect(result.files).toHaveLength(0);
         expect(result.totals).toEqual({
             lines: { covered: 0, total: 0 },

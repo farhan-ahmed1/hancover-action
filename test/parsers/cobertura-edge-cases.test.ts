@@ -26,7 +26,7 @@ describe('Cobertura Parser - Edge Cases & Robustness', () => {
         });
 
         it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseCoberturaFile('test/fixtures/cobertura.malicious.xml');
+            const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.malicious.xml');
             
             expect(result.files).toHaveLength(2);
             
@@ -476,7 +476,7 @@ describe('Cobertura Parser - Edge Cases & Robustness', () => {
 
     describe('Empty/Null Handling', () => {
         it('should handle completely empty coverage', () => {
-            const result = parseCoberturaFile('test/fixtures/cobertura.empty.xml');
+            const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.empty.xml');
             expect(result.files).toHaveLength(0);
             expect(result.totals).toEqual({
                 lines: { covered: 0, total: 0 },

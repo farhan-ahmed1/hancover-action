@@ -4,25 +4,25 @@ import { parseAnyCoverage, parseAnyCoverageContent } from '../../src/parsers/ind
 describe('Parser Auto-Detection', () => {
     describe('File-based Auto-detection', () => {
         it('should auto-detect LCOV files', async () => {
-            const result = await parseAnyCoverage('test/fixtures/lcov.small.info');
+            const result = await parseAnyCoverage('test/fixtures/lcov/lcov.small.info');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('sample/file/path');
         });
 
         it('should auto-detect Clover XML files', async () => {
-            const result = await parseAnyCoverage('test/fixtures/clover.small.xml');
+            const result = await parseAnyCoverage('test/fixtures/clover/clover.small.xml');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('src/example.js');
             expect(result.files[0].package).toBe('src');
         });
 
         it('should auto-detect Cobertura XML files', async () => {
-            const result = await parseAnyCoverage('test/fixtures/cobertura.small.xml');
+            const result = await parseAnyCoverage('test/fixtures/cobertura/cobertura.small.xml');
             expect(result.files.length).toBeGreaterThan(0);
         });
 
         it('should handle empty files gracefully', async () => {
-            const result = await parseAnyCoverage('test/fixtures/clover.empty.xml');
+            const result = await parseAnyCoverage('test/fixtures/clover/clover.empty.xml');
             expect(result.files).toHaveLength(0);
             expect(result.totals).toEqual({
                 lines: { covered: 0, total: 0 },
@@ -196,52 +196,52 @@ end_of_record`;
 
         it('should handle files with .lcov extension explicitly', async () => {
             // Test the .lcov extension detection path
-            const result = await parseAnyCoverage('test/fixtures/test.lcov');
+            const result = await parseAnyCoverage('test/fixtures/lcov/test.lcov');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('sample/file/path');
         });
 
         it('should handle files with non-standard extensions using content detection', async () => {
             // Test fallback content detection for a .cov file
-            const result = await parseAnyCoverage('test/fixtures/test.cov');
+            const result = await parseAnyCoverage('test/fixtures/lcov/test.cov');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('sample/file/path');
         });
 
         it('should handle XML files that trigger Clover detection', async () => {
-            const result = await parseAnyCoverage('test/fixtures/clover.small.xml');
+            const result = await parseAnyCoverage('test/fixtures/clover/clover.small.xml');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].package).toBe('src');
         });
 
         it('should handle XML files with DOCTYPE declarations', async () => {
             // Create a temporary file path that triggers XML detection
-            const result = await parseAnyCoverage('test/fixtures/cobertura.small.xml');
+            const result = await parseAnyCoverage('test/fixtures/cobertura/cobertura.small.xml');
             expect(result.files.length).toBeGreaterThan(0);
         });
 
         it('should handle XML files that look like Clover but default to Cobertura', async () => {
             // Test XML files that don't clearly match either format
-            const result = await parseAnyCoverage('test/fixtures/cobertura.empty.xml');
+            const result = await parseAnyCoverage('test/fixtures/cobertura/cobertura.empty.xml');
             expect(result.files).toHaveLength(0);
         });
 
         it('should handle malicious XML files gracefully', async () => {
             // Test with malicious content that might cause parsing errors
-            const result = await parseAnyCoverage('test/fixtures/clover.malicious.xml');
+            const result = await parseAnyCoverage('test/fixtures/clover/clover.malicious.xml');
             // Should not throw, might return empty results
             expect(result).toBeDefined();
         });
 
         it('should handle malicious LCOV files gracefully', async () => {
-            const result = await parseAnyCoverage('test/fixtures/lcov.malicious.info');
+            const result = await parseAnyCoverage('test/fixtures/lcov/lcov.malicious.info');
             // Should not throw, might return empty results
             expect(result).toBeDefined();
         });
 
         it('should handle files that trigger fallback content sniffing for XML', async () => {
             // Use an XML file that doesn't clearly match either format
-            const result = await parseAnyCoverage('test/fixtures/xml-no-indicators.xml');
+            const result = await parseAnyCoverage('test/fixtures/common/xml-no-indicators.xml');
             expect(result).toBeDefined();
             // Should default to Cobertura and likely return empty results
             expect(result.files).toHaveLength(0);
@@ -249,27 +249,27 @@ end_of_record`;
 
         it('should handle files that trigger fallback content sniffing for LCOV', async () => {
             // Use an existing LCOV file to test fallback detection
-            const result = await parseAnyCoverage('test/fixtures/lcov.sample.info');
+            const result = await parseAnyCoverage('test/fixtures/lcov/lcov.sample.info');
             expect(result).toBeDefined();
         });
 
         it('should handle fallback detection with TN: marker', async () => {
             // Test fallback content detection for LCOV with TN: marker
-            const result = await parseAnyCoverage('test/fixtures/test-tn.txt');
+            const result = await parseAnyCoverage('test/fixtures/common/test-tn.txt');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('src/test.js');
         });
 
         it('should handle fallback detection for Cobertura with DOCTYPE reference', async () => {
             // Test fallback content detection that triggers Cobertura path
-            const result = await parseAnyCoverage('test/fixtures/doctype-reference.txt');
+            const result = await parseAnyCoverage('test/fixtures/common/doctype-reference.txt');
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('src/test.js');
         });
 
         it('should default to Cobertura for XML files with no clear indicators', async () => {
             // This should trigger the default Cobertura path for XML files (line with parseCoberturaFile)
-            const result = await parseAnyCoverage('test/fixtures/xml-no-indicators.xml');
+            const result = await parseAnyCoverage('test/fixtures/common/xml-no-indicators.xml');
             expect(result).toBeDefined();
             // Will likely return empty results since it's not valid Cobertura
             expect(result.files).toHaveLength(0);
@@ -277,7 +277,7 @@ end_of_record`;
 
         it('should detect Clover in fallback content detection', async () => {
             // This should trigger the Clover detection path in fallback logic
-            const result = await parseAnyCoverage('test/fixtures/xml-clover-like.txt');
+            const result = await parseAnyCoverage('test/fixtures/common/xml-clover-like.txt');
             expect(result).toBeDefined();
             // Will likely return empty results since it's not valid Clover
             expect(result.files).toHaveLength(0);
@@ -285,7 +285,7 @@ end_of_record`;
 
         it('should default to LCOV for unrecognized content', async () => {
             // This should trigger the final LCOV fallback path using truly unrecognized content
-            const result = await parseAnyCoverage('test/fixtures/unrecognized.txt');
+            const result = await parseAnyCoverage('test/fixtures/common/unrecognized.txt');
             expect(result).toBeDefined();
             // Will return empty results since it's not valid LCOV
             expect(result.files).toHaveLength(0);
@@ -303,7 +303,7 @@ end_of_record`;
 
         it('should handle fallback Cobertura detection', async () => {
             // Use existing empty XML file to test fallback Cobertura detection
-            const result = await parseAnyCoverage('test/fixtures/cobertura.empty.xml');
+            const result = await parseAnyCoverage('test/fixtures/cobertura/cobertura.empty.xml');
             expect(result).toBeDefined();
             expect(result.files).toHaveLength(0); // Empty coverage XML should return no files
         });

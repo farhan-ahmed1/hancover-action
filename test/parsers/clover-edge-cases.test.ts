@@ -22,7 +22,7 @@ describe('Clover Parser - Edge Cases & Robustness', () => {
         });
 
         it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseCloverFile('test/fixtures/clover.malicious.xml');
+            const result = parseCloverFile('test/fixtures/clover/clover.malicious.xml');
             
             expect(result.files).toHaveLength(2);
             

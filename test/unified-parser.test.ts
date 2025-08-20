@@ -3,7 +3,7 @@ import { parseAnyCoverage, parseAnyCoverageContent } from '../src/parsers/index.
 
 describe('Unified Parser', () => {
     it('should auto-detect and parse LCOV files', async () => {
-        const result = await parseAnyCoverage('test/fixtures/lcov.small.info');
+        const result = await parseAnyCoverage('test/fixtures/lcov/lcov.small.info');
         
         expect(result.files).toHaveLength(1);
         expect(result.files[0].path).toBe('sample/file/path');
@@ -12,7 +12,7 @@ describe('Unified Parser', () => {
     });
 
     it('should auto-detect and parse Cobertura files', async () => {
-        const result = await parseAnyCoverage('test/fixtures/cobertura.sample.xml');
+        const result = await parseAnyCoverage('test/fixtures/cobertura/cobertura.sample.xml');
         
         expect(result.files).toHaveLength(2);
         expect(result.files[0].path).toBe('src/utils.js');

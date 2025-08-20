@@ -50,7 +50,7 @@ describe('Cobertura Parser - Core Functionality', () => {
     });
 
     it('should parse Cobertura from sample fixture', async () => {
-        const result = parseCoberturaFile('test/fixtures/cobertura.sample.xml');
+        const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.sample.xml');
         
         expect(result.files).toHaveLength(2);
         expect(result.files[0].path).toBe('src/utils.js');
@@ -66,7 +66,7 @@ describe('Cobertura Parser - Core Functionality', () => {
     });
 
     it('should parse complex Cobertura from fixture', async () => {
-        const result = parseCoberturaFile('test/fixtures/cobertura.complex.xml');
+        const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.complex.xml');
         
         expect(result.files).toHaveLength(3);
         
