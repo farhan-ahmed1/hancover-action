@@ -48339,8 +48339,14 @@ async function renderComment(data) {
     lib_core.info(`Checking for changes badge: mainBranchCoverage = ${mainBranchCoverage}`);
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
-        const prefix = delta >= 0 ? '+' : '-';
-        const value = `${prefix}${Math.abs(delta).toFixed(1)}%`;
+        let value;
+        if (delta >= 0) {
+            value = `+${delta.toFixed(1)}%`;
+        }
+        else {
+            // Use Unicode minus sign (−) instead of hyphen-minus (-) to avoid separator conflicts
+            value = `−${Math.abs(delta).toFixed(1)}%`;
+        }
         const color = delta >= 0 ? 'brightgreen' : 'red';
         changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
         lib_core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
