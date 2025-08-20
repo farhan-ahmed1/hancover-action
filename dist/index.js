@@ -45597,24 +45597,33 @@ const InputsSchema = object({
     minThreshold: coerce_number().optional().default(50),
     coverageDataPath: schemas_string().optional().default('.github/coverage-data.json'),
     gistId: schemas_string().optional(),
-    githubToken: schemas_string().optional()
+    gistToken: schemas_string().optional()
 });
 function readInputs() {
+    // Helper to read env with fallback between hyphenated and underscored names
+    const env = (names) => {
+        for (const n of names) {
+            const v = process.env[n];
+            if (v !== undefined)
+                return v;
+        }
+        return undefined;
+    };
     const raw = {
-        files: (process.env['INPUT_FILES'] ?? '').trim(),
-        baseRef: process.env['INPUT_BASE-REF'],
-        thresholds: process.env['INPUT_THRESHOLDS'],
-        warnOnly: (process.env['INPUT_WARN-ONLY'] ?? 'false') === 'true',
-        commentMode: (process.env['INPUT_COMMENT-MODE'] ?? 'update'),
-        groups: process.env['INPUT_GROUPS'],
-        maxBytesPerFile: Number(process.env['INPUT_MAX-BYTES-PER-FILE'] ?? 52428800),
-        maxTotalBytes: Number(process.env['INPUT_MAX-TOTAL-BYTES'] ?? 209715200),
-        timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
-        strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
-        baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
-        gistId: process.env['INPUT_GIST-ID'] || undefined,
-        githubToken: process.env['INPUT_GITHUB-TOKEN'] || process.env.GITHUB_TOKEN || undefined
+        files: (process.env.INPUT_FILES ?? '').trim(),
+        baseRef: env(['INPUT_BASE-REF', 'INPUT_BASE_REF']),
+        thresholds: env(['INPUT_THRESHOLDS']),
+        warnOnly: (env(['INPUT_WARN-ONLY', 'INPUT_WARN_ONLY']) ?? 'false') === 'true',
+        commentMode: (env(['INPUT_COMMENT-MODE', 'INPUT_COMMENT_MODE']) ?? 'update'),
+        groups: env(['INPUT_GROUPS']),
+        maxBytesPerFile: Number(env(['INPUT_MAX-BYTES-PER-FILE', 'INPUT_MAX_BYTES_PER_FILE']) ?? 52428800),
+        maxTotalBytes: Number(env(['INPUT_MAX-TOTAL-BYTES', 'INPUT_MAX_TOTAL_BYTES']) ?? 209715200),
+        timeoutSeconds: Number(env(['INPUT_TIMEOUT-SECONDS', 'INPUT_TIMEOUT_SECONDS']) ?? 120),
+        strict: (env(['INPUT_STRICT']) ?? 'false') === 'true',
+        baselineFiles: env(['INPUT_BASELINE-FILES', 'INPUT_BASELINE_FILES']),
+        minThreshold: Number(env(['INPUT_MIN-THRESHOLD', 'INPUT_MIN_THRESHOLD']) ?? 50),
+        gistId: env(['INPUT_GIST-ID', 'INPUT_GIST_ID']) || process.env.COVERAGE_GIST_ID || undefined,
+        gistToken: env(['INPUT_GIST-TOKEN', 'INPUT_GIST_TOKEN']) || process.env.GIST_TOKEN || undefined
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -45630,7 +45639,7 @@ function readInputs() {
         baselineFiles: raw.baselineFiles,
         minThreshold: raw.minThreshold,
         gistId: raw.gistId,
-        githubToken: raw.githubToken
+        gistToken: raw.gistToken
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const baselineFiles = raw.baselineFiles
@@ -48550,22 +48559,22 @@ async function upsertStickyComment(md, mode = 'update') {
 /**
  * Get coverage data from GitHub Gist
  */
-async function getCoverageData(gistId, githubToken) {
+async function getCoverageData(gistId, gistToken) {
     try {
         // Use provided gistId or fall back to environment inputs
         let resolvedGistId = gistId ||
             lib_core.getInput('gist-id') ||
             lib_core.getInput('gistId') ||
-            process.env['INPUT_GIST-ID'] ||
-            process.env['INPUT_GISTID'];
+            process.env.INPUT_GIST_ID ||
+            process.env.INPUT_GISTID ||
+            process.env.COVERAGE_GIST_ID;
         // Handle empty strings
         if (resolvedGistId && resolvedGistId.trim() === '') {
             resolvedGistId = undefined;
         }
-        const token = githubToken ||
-            lib_core.getInput('github-token') ||
-            process.env['INPUT_GITHUB-TOKEN'] ||
-            process.env.GITHUB_TOKEN;
+        const token = gistToken ||
+            lib_core.getInput('gist-token') ||
+            process.env.GIST_TOKEN;
         lib_core.info(`Gist ID resolution: "${resolvedGistId || 'NOT_FOUND'}"`);
         if (!resolvedGistId) {
             lib_core.info('No gist-id provided, skipping baseline coverage fetch');
@@ -48593,16 +48602,17 @@ async function getCoverageData(gistId, githubToken) {
 /**
  * Save coverage data to GitHub Gist only
  */
-async function saveCoverageData(coverage, gistId, githubToken) {
-    let resolvedGistId = gistId || lib_core.getInput('gist-id');
+async function saveCoverageData(coverage, gistId, gistToken) {
+    let resolvedGistId = gistId ||
+        lib_core.getInput('gist-id') ||
+        process.env.COVERAGE_GIST_ID;
     // Handle empty strings
     if (resolvedGistId && resolvedGistId.trim() === '') {
         resolvedGistId = undefined;
     }
-    const token = githubToken ||
-        lib_core.getInput('github-token') ||
-        process.env['INPUT_GITHUB-TOKEN'] ||
-        process.env.GITHUB_TOKEN;
+    const token = gistToken ||
+        lib_core.getInput('gist-token') ||
+        process.env.GIST_TOKEN;
     if (!resolvedGistId) {
         lib_core.info('No gist-id provided, skipping coverage data save');
         return;
@@ -48736,7 +48746,7 @@ async function runEnhancedCoverage() {
         let deltaCoverage;
         // First try to get baseline coverage from gist
         lib_core.info('Attempting to fetch baseline coverage from gist...');
-        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.githubToken);
+        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.gistToken);
         if (mainBranchCoverage !== null) {
             lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
@@ -48808,7 +48818,7 @@ async function runEnhancedCoverage() {
             process.env.GITHUB_REF === 'refs/heads/master';
         if (isMainBranch) {
             try {
-                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.githubToken);
+                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.gistToken);
                 lib_core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
             }
             catch (error) {
