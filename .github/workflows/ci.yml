@@ -185,5 +185,3 @@ jobs:
             - name: "Components"  
               include: ["src/components/**"]
           warn-only: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          comment-mode: none
