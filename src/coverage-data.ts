@@ -11,18 +11,25 @@ export interface CoverageData {
 /**
  * Get coverage data from GitHub Gist
  */
-export async function getCoverageData(): Promise<number | null> {
+export async function getCoverageData(gistId?: string): Promise<number | null> {
     try {
-        // Try multiple ways to get the gist-id
-        const gistId = core.getInput('gist-id') || 
-                      core.getInput('gistId') || 
-                      process.env['INPUT_GIST-ID'] || 
-                      process.env['INPUT_GISTID'];
+        // Use provided gistId or fall back to environment inputs
+        let resolvedGistId: string | undefined = gistId || 
+                            core.getInput('gist-id') || 
+                            core.getInput('gistId') || 
+                            process.env['INPUT_GIST-ID'] || 
+                            process.env['INPUT_GISTID'];
+        
+        // Handle empty strings
+        if (resolvedGistId && resolvedGistId.trim() === '') {
+            resolvedGistId = undefined;
+        }
+        
         const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
         
-        core.info(`Gist ID resolution: "${gistId || 'NOT_FOUND'}"`);
+        core.info(`Gist ID resolution: "${resolvedGistId || 'NOT_FOUND'}"`);
         
-        if (!gistId) {
+        if (!resolvedGistId) {
             core.info('No gist-id provided, skipping baseline coverage fetch');
             return null;
         }
@@ -32,8 +39,8 @@ export async function getCoverageData(): Promise<number | null> {
             return null;
         }
 
-        core.info(`Fetching coverage data from gist: ${gistId}`);
-        const coverage = await fetchCoverageFromGist(token, gistId);
+        core.info(`Fetching coverage data from gist: ${resolvedGistId}`);
+        const coverage = await fetchCoverageFromGist(token, resolvedGistId);
         
         if (coverage === null) {
             core.warning('No coverage data found in gist');
@@ -51,11 +58,17 @@ export async function getCoverageData(): Promise<number | null> {
 /**
  * Save coverage data to GitHub Gist only
  */
-export async function saveCoverageData(coverage: number): Promise<void> {
-    const gistId = core.getInput('gist-id');
+export async function saveCoverageData(coverage: number, gistId?: string): Promise<void> {
+    let resolvedGistId: string | undefined = gistId || core.getInput('gist-id');
+    
+    // Handle empty strings
+    if (resolvedGistId && resolvedGistId.trim() === '') {
+        resolvedGistId = undefined;
+    }
+    
     const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
     
-    if (!gistId) {
+    if (!resolvedGistId) {
         core.info('No gist-id provided, skipping coverage data save');
         return;
     }
@@ -73,8 +86,8 @@ export async function saveCoverageData(coverage: number): Promise<void> {
     };
 
     try {
-        core.info(`Updating coverage data in gist: ${gistId}`);
-        await updateCoverageInGist(token, gistId, data);
+        core.info(`Updating coverage data in gist: ${resolvedGistId}`);
+        await updateCoverageInGist(token, resolvedGistId, data);
         core.info(`Coverage data saved: ${coverage.toFixed(1)}%`);
     } catch (error) {
         core.error(`Failed to save coverage data to gist: ${error}`);

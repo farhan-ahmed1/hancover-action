@@ -40,7 +40,7 @@ export function readInputs(): ActionInputs {
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
         minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
-        gistId: process.env['INPUT_GIST-ID']
+        gistId: process.env['INPUT_GIST-ID'] || undefined
     };
 
     const parsed = InputsSchema.parse({
