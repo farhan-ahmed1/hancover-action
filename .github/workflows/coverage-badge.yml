@@ -30,8 +30,9 @@ jobs:
       - name: Update Coverage Data & Generate Badges
         id: coverage
         uses: ./
+        env:
+          COVERAGE_GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         with:
           files: coverage/lcov.info
-          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
-          gist-token: ${{ secrets.GIST_TOKEN }}
           warn-only: true
