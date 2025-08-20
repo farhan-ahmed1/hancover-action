@@ -47994,17 +47994,105 @@ function parseAnyCoverageContent(content, hint) {
 
 // EXTERNAL MODULE: external "path"
 var external_path_ = __nccwpck_require__(6928);
+;// CONCATENATED MODULE: ./src/config.ts
+
+
+
+const DEFAULT_CONFIG = {
+    groups: [],
+    fallback: {
+        smartDepth: 'auto',
+        promoteThreshold: 0.8
+    },
+    ui: {
+        expandFilesFor: [],
+        maxDeltaRows: 10,
+        minPassThreshold: 50
+    }
+};
+function loadConfig(cwd = process.cwd()) {
+    const configPath = external_path_.join(cwd, '.coverage-report.json');
+    try {
+        if (!external_fs_.existsSync(configPath)) {
+            lib_core.debug('No .coverage-report.json found, using smart defaults');
+            return DEFAULT_CONFIG;
+        }
+        const rawConfig = JSON.parse(external_fs_.readFileSync(configPath, 'utf8'));
+        lib_core.info(`Loaded config from ${configPath}`);
+        // Merge with defaults
+        const config = {
+            groups: rawConfig.groups || DEFAULT_CONFIG.groups,
+            fallback: {
+                ...DEFAULT_CONFIG.fallback,
+                ...rawConfig.fallback
+            },
+            ui: {
+                ...DEFAULT_CONFIG.ui,
+                ...rawConfig.ui
+            }
+        };
+        lib_core.debug(`Config: ${JSON.stringify(config, null, 2)}`);
+        return config;
+    }
+    catch (error) {
+        lib_core.warning(`Failed to load config from ${configPath}: ${error}. Using defaults.`);
+        return DEFAULT_CONFIG;
+    }
+}
+/**
+ * Check if a file path matches any of the given glob patterns
+ * For now, we'll use simple glob matching with * and **
+ */
+function matchesPatterns(filePath, patterns) {
+    const normalizedPath = external_path_.posix.normalize(filePath);
+    return patterns.some(pattern => {
+        // Convert simple glob pattern to regex
+        let regexPattern = pattern
+            .replace(/\*\*/g, '§DOUBLE_STAR§') // Temporary placeholder
+            .replace(/\*/g, '[^/]*') // * matches any characters except /
+            .replace(/§DOUBLE_STAR§/g, '.*') // ** matches any number of directories
+            .replace(/\?/g, '[^/]'); // ? matches any single character except /
+        const regex = new RegExp(`^${regexPattern}$`);
+        const matches = regex.test(normalizedPath);
+        return matches;
+    });
+}
+
 ;// CONCATENATED MODULE: ./src/group.ts
 
+
+
 /**
- * Smart package grouping with heuristics:
- * 1. Compute top-level groups = first path segment under repo root
- * 2. If one top-level group holds ≥80% of files, promote one level deeper for that group
- * 3. For monorepo layouts (packages/*, apps/*), treat each workspace directory as its own package
+ * Enhanced package grouping with config support:
+ * 1. Apply base grouping (smart defaults)
+ * 2. Apply overlay rules from config
+ * 3. Return both detailed packages and top-level summary
  */
-function groupPackages(files) {
-    if (files.length === 0)
-        return [];
+function groupPackages(files, config) {
+    if (files.length === 0) {
+        return { pkgRows: [], topLevelRows: [] };
+    }
+    const resolvedConfig = config || loadConfig();
+    lib_core.debug(`Grouping ${files.length} files with config: ${JSON.stringify(resolvedConfig, null, 2)}`);
+    // Step 1: Base grouping (smart defaults)
+    const basePackages = applyBaseGrouping(files, resolvedConfig);
+    // Step 2: Apply overlay rules from config
+    const overlayPackages = applyOverlayRules(basePackages, files, resolvedConfig);
+    // Step 3: Compute top-level summary (always based on first path segment)
+    const topLevelPackages = computeTopLevelSummary(files);
+    // Sort both results
+    overlayPackages.sort((a, b) => a.name.localeCompare(b.name));
+    topLevelPackages.sort((a, b) => a.name.localeCompare(b.name));
+    lib_core.info(`Grouped into ${overlayPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
+    return {
+        pkgRows: overlayPackages,
+        topLevelRows: topLevelPackages
+    };
+}
+/**
+ * Apply base grouping logic (the original smart grouping)
+ */
+function applyBaseGrouping(files, config) {
     // Step 1: Compute top-level groups
     const topLevelGroups = new Map();
     const rootFiles = [];
@@ -48025,13 +48113,15 @@ function groupPackages(files) {
     if (rootFiles.length > 0) {
         topLevelGroups.set('root', rootFiles);
     }
-    // Step 2: Check if one group dominates (≥80% of files)
+    // Step 2: Check if one group dominates (≥promoteThreshold% of files)
     const totalFiles = files.length;
     let dominantGroup = null;
-    for (const [groupName, groupFiles] of topLevelGroups) {
-        if (groupFiles.length / totalFiles >= 0.8) {
-            dominantGroup = groupName;
-            break;
+    if (config.fallback.smartDepth === 'auto') {
+        for (const [groupName, groupFiles] of topLevelGroups) {
+            if (groupFiles.length / totalFiles >= (config.fallback.promoteThreshold ?? 0.8)) {
+                dominantGroup = groupName;
+                break;
+            }
         }
     }
     // Step 3: Build final package structure
@@ -48062,8 +48152,74 @@ function groupPackages(files) {
             packages.push(createPackage(groupName, groupFiles));
         }
     }
-    // Sort packages by name
-    packages.sort((a, b) => a.name.localeCompare(b.name));
+    return packages;
+}
+/**
+ * Apply overlay rules from config to reassign files
+ */
+function applyOverlayRules(basePackages, allFiles, config) {
+    if (config.groups.length === 0) {
+        return basePackages;
+    }
+    // Track which files have been claimed by overlay rules
+    const claimedFiles = new Set();
+    const overlayPackages = [];
+    // Process overlay rules in order
+    for (const rule of config.groups) {
+        const matchingFiles = [];
+        for (const file of allFiles) {
+            if (claimedFiles.has(file.path))
+                continue;
+            // Check if file matches include patterns
+            const matches = matchesPatterns(file.path, rule.patterns);
+            // Check if file should be excluded
+            const excluded = rule.exclude ? matchesPatterns(file.path, rule.exclude) : false;
+            if (matches && !excluded) {
+                matchingFiles.push(file);
+                claimedFiles.add(file.path);
+            }
+        }
+        if (matchingFiles.length > 0) {
+            overlayPackages.push(createPackage(rule.name, matchingFiles));
+            lib_core.debug(`Overlay rule '${rule.name}' matched ${matchingFiles.length} files`);
+        }
+    }
+    // Add remaining unclaimed files using base grouping
+    const unclaimedFiles = allFiles.filter(f => !claimedFiles.has(f.path));
+    if (unclaimedFiles.length > 0) {
+        const remainingBase = applyBaseGrouping(unclaimedFiles, config);
+        overlayPackages.push(...remainingBase);
+    }
+    return overlayPackages;
+}
+/**
+ * Compute top-level summary based on first path segment only
+ */
+function computeTopLevelSummary(files) {
+    const topLevelGroups = new Map();
+    const rootFiles = [];
+    for (const file of files) {
+        const normalizedPath = external_path_.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        if (segments.length === 0) {
+            rootFiles.push(file);
+            continue;
+        }
+        const topLevel = segments[0];
+        if (!topLevelGroups.has(topLevel)) {
+            topLevelGroups.set(topLevel, []);
+        }
+        topLevelGroups.get(topLevel).push(file);
+    }
+    // Add root files if any
+    if (rootFiles.length > 0) {
+        topLevelGroups.set('root', rootFiles);
+    }
+    // Convert to packages
+    const packages = [];
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        packages.push(createPackage(groupName, groupFiles));
+    }
     return packages;
 }
 function shouldPromoteDeeper(files) {
@@ -48121,12 +48277,18 @@ function rollup(files) {
 }
 // Legacy function for backwards compatibility
 function groupCoverage(bundle) {
-    const packages = groupPackages(bundle.files);
+    const { pkgRows } = groupPackages(bundle.files);
     const result = new Map();
-    for (const pkg of packages) {
+    for (const pkg of pkgRows) {
         result.set(pkg.name, pkg.files);
     }
     return result;
+}
+/**
+ * Simple wrapper that returns just the detailed packages (for backwards compatibility)
+ */
+function groupPackagesLegacy(files) {
+    return groupPackages(files).pkgRows;
 }
 
 ;// CONCATENATED MODULE: ./src/changes.ts
@@ -48328,9 +48490,11 @@ function getHealthIcon(percentage, threshold = 50) {
 
 
 
+
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 async function renderComment(data) {
-    const { prProject, prPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const { prProject, prPackages, topLevelPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const config = loadConfig();
     // Generate badges
     const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
     const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
@@ -48363,7 +48527,8 @@ async function renderComment(data) {
     // Badge section
     const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
     // Generate table sections
-    const projectTable = renderProjectTable(prPackages, minThreshold);
+    const topLevelTable = topLevelPackages ? renderTopLevelSummaryTable(topLevelPackages, minThreshold) : '';
+    const projectTable = renderProjectTable(prPackages, minThreshold, config);
     const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
     // Calculate overall coverage for display
     const overallCoverage = `**Overall Coverage:** ${projectLinesPct.toFixed(1)}%`;
@@ -48392,6 +48557,8 @@ ${badgeSection}
 
 ${overallCoverage} | ${coverageStats}${coverageChangeSentence}
 
+${topLevelTable ? `${topLevelTable}\n` : ''}
+
 <details>
 <summary><b>Detailed Coverage by Package</b></summary>
 
@@ -48406,10 +48573,44 @@ ${deltaTable ? `\n${deltaTable}` : ''}
 _Minimum pass threshold is ${minThreshold.toFixed(1)}%_
 `;
 }
-function renderProjectTable(packages, minThreshold) {
+function renderTopLevelSummaryTable(packages, minThreshold) {
+    if (packages.length === 0) {
+        return '';
+    }
+    let table = `### Top-level Packages (Summary)
+
+| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Package rows
+    for (const pkg of packages) {
+        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
+    }
+    // Only add summary row if there are multiple top-level packages
+    if (packages.length > 1) {
+        const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+        const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+        const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
+        const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
+        const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
+        const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
+        const summaryLinesPct = pct(totalLinesCovered, totalLines);
+        const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
+        const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
+        const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
+        table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    }
+    return table;
+}
+function renderProjectTable(packages, minThreshold, config) {
     if (packages.length === 0) {
         return '_No coverage data available_';
     }
+    const resolvedConfig = config || loadConfig();
     let table = `| Package | Statements | Branches | Functions | Health |
 |---|---:|---:|---:|:---:|
 `;
@@ -48433,7 +48634,60 @@ function renderProjectTable(packages, minThreshold) {
     const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
     const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    return table;
+    // Add expandable file tables after the main table
+    let expandableTables = '';
+    for (const pkg of packages) {
+        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
+        if (shouldExpand) {
+            expandableTables += renderExpandableFileTable(pkg, minThreshold);
+        }
+    }
+    return table + expandableTables;
+}
+/**
+ * Determine if a package should have an expandable file table
+ */
+function shouldExpandPackage(pkg, config) {
+    // Check explicit config first
+    if (config?.ui?.expandFilesFor?.includes(pkg.name)) {
+        return true;
+    }
+    // Default: expand packages with >= 2 files but not too many (to avoid spam)
+    return pkg.files.length >= 2 && pkg.files.length <= 20;
+}
+/**
+ * Render an expandable <details> block with file-level coverage
+ */
+function renderExpandableFileTable(pkg, minThreshold) {
+    if (pkg.files.length <= 1) {
+        return '';
+    }
+    let fileTable = `
+<details>
+<summary><b>Files in <code>${pkg.name}</code></b></summary>
+
+| File | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Sort files by name for consistent ordering
+    const sortedFiles = [...pkg.files].sort((a, b) => a.path.localeCompare(b.path));
+    for (const file of sortedFiles) {
+        const linesPct = pct(file.lines.covered, file.lines.total);
+        const branchesPct = pct(file.branches.covered, file.branches.total);
+        const functionsPct = pct(file.functions.covered, file.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        fileTable += `| ${file.path} | ${linesPct.toFixed(1)}% (${file.lines.covered}/${file.lines.total}) | ${branchesPct.toFixed(1)}% (${file.branches.covered}/${file.branches.total}) | ${functionsPct.toFixed(1)}% (${file.functions.covered}/${file.functions.total}) | ${health} |\n`;
+    }
+    // Add package total row
+    const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+    const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+    const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+    const health = getHealthIcon(linesPct, minThreshold);
+    fileTable += `| **Total** | **${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total})** | **${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total})** | **${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total})** | **${health}** |
+
+</details>
+`;
+    return fileTable;
 }
 function renderDeltaTable(deltaCoverage, minThreshold) {
     if (deltaCoverage.packages.length === 0) {
@@ -48719,6 +48973,7 @@ var external_child_process_ = __nccwpck_require__(5317);
 
 
 
+
 async function runEnhancedCoverage() {
     try {
         const inputs = readInputs();
@@ -48731,9 +48986,12 @@ async function runEnhancedCoverage() {
         // For now, use the first coverage file (could be enhanced to merge multiple)
         const prProject = await parseAnyCoverage(prFiles[0]);
         lib_core.info(`Parsed ${prProject.files.length} files from PR coverage`);
-        // Step 2: Smart package grouping
-        const prPackages = groupPackages(prProject.files);
-        lib_core.info(`Grouped into ${prPackages.length} packages`);
+        // Step 2: Smart package grouping with config support
+        const config = loadConfig();
+        const groupingResult = groupPackages(prProject.files, config);
+        const prPackages = groupingResult.pkgRows;
+        const topLevelPackages = groupingResult.topLevelRows;
+        lib_core.info(`Grouped into ${prPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
         // Step 3: Get changed lines from git diff
         let changedLinesByFile = {};
         try {
@@ -48764,7 +49022,8 @@ async function runEnhancedCoverage() {
             try {
                 lib_core.info('Parsing baseline coverage from files...');
                 const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
-                const mainPackages = groupPackages(mainProject.files);
+                const mainGroupingResult = groupPackages(mainProject.files, config);
+                const mainPackages = mainGroupingResult.pkgRows;
                 // Calculate main branch coverage percentage
                 mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
                 lib_core.info(`Main branch coverage from files: ${mainBranchCoverage.toFixed(1)}%`);
@@ -48779,6 +49038,7 @@ async function runEnhancedCoverage() {
         const comment = await renderComment({
             prProject,
             prPackages,
+            topLevelPackages,
             deltaCoverage,
             mainBranchCoverage,
             minThreshold: inputs.minThreshold

@@ -1,0 +1,22 @@
+{
+    "groups": [
+        {
+            "name": "src/parsers",
+            "patterns": ["src/parsers/**"]
+        },
+        {
+            "name": "src",
+            "patterns": ["src/**"],
+            "exclude": ["src/parsers/**"]
+        }
+    ],
+    "fallback": {
+        "smartDepth": "auto",
+        "promoteThreshold": 0.8
+    },
+    "ui": {
+        "expandFilesFor": ["src/parsers"],
+        "maxDeltaRows": 10,
+        "minPassThreshold": 50
+    }
+}
