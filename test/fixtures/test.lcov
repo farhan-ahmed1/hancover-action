@@ -1,0 +1,10 @@
+SF:sample/file/path
+FN:1,sample_function
+FNH:1
+FNF:1
+FNDA:1,sample_function
+DA:1,1
+DA:2,0
+LH:1
+LF:2
+end_of_record
