@@ -28,8 +28,8 @@ export async function renderComment(data: CommentData): Promise<string> {
     
     if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
         const delta = projectLinesPct - mainBranchCoverage;
-        const prefix = delta >= 0 ? '+' : '';
-        const value = `${prefix}${delta.toFixed(1)}%`;
+        const prefix = delta >= 0 ? '+' : '-';
+        const value = `${prefix}${Math.abs(delta).toFixed(1)}%`;
         const color = delta >= 0 ? 'brightgreen' : 'red';
         changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
         core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
