@@ -50,19 +50,19 @@ end_of_record
         expect(comment).toContain('Detailed Coverage by Package');
     });
 
-    //     test('can parse git diff', () => {
-    //         const gitDiff = `diff --git a/src/file1.ts b/src/file1.ts
-    // index abc123..def456 100644
-    // --- a/src/file1.ts
-    // +++ b/src/file1.ts
-    // @@ -10,0 +11,3 @@ export function example() {
-    // +  const newLine1 = true;
-    // +  const newLine2 = false;
-    // +  return newLine1 && newLine2;
-    // `;
+    test('can parse git diff', () => {
+        const gitDiff = `diff --git a/src/file1.ts b/src/file1.ts
+index abc123..def456 100644
+--- a/src/file1.ts
++++ b/src/file1.ts
+@@ -10,0 +11,3 @@ export function example() {
++  const newLine1 = true;
++  const newLine2 = false;
++  return newLine1 && newLine2;
+`;
 
-    //         const result = parseGitDiff(gitDiff);
-    //         expect(result['src/file1.ts']).toEqual(new Set([11, 12, 13]));
-    //     })
+        const result = parseGitDiff(gitDiff);
+        expect(result['src/file1.ts']).toEqual(new Set([11, 12, 13]));
+    })
     ;
 });
