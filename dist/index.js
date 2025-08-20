@@ -48549,14 +48549,13 @@ async function upsertStickyComment(md, mode = 'update') {
  */
 async function getCoverageData() {
     try {
-        const gistId = lib_core.getInput('gist-id');
+        // Try multiple ways to get the gist-id
+        const gistId = lib_core.getInput('gist-id') ||
+            lib_core.getInput('gistId') ||
+            process.env['INPUT_GIST-ID'] ||
+            process.env['INPUT_GISTID'];
         const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
-        // Debug logging
-        lib_core.info('Debug - All inputs:');
-        lib_core.info(`  - gist-id input: "${gistId}"`);
-        lib_core.info(`  - github-token input: "${token ? '[PRESENT]' : '[MISSING]'}"`);
-        lib_core.info(`  - ENV INPUT_GIST-ID: "${process.env['INPUT_GIST-ID'] || '[MISSING]'}"`);
-        lib_core.info(`  - ENV GITHUB_TOKEN: "${process.env.GITHUB_TOKEN ? '[PRESENT]' : '[MISSING]'}"`);
+        lib_core.info(`Gist ID resolution: "${gistId || 'NOT_FOUND'}"`);
         if (!gistId) {
             lib_core.info('No gist-id provided, skipping baseline coverage fetch');
             return null;
