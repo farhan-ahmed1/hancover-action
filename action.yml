@@ -62,6 +62,16 @@ inputs:
     description: "Enable enhanced coverage reporting with smart grouping and delta tables"
     required: false
     default: "false"
+  gist-id:
+    description: "GitHub Gist ID for storing and retrieving baseline coverage data"
+    required: false
+  gist-id:
+    description: "GitHub Gist ID for storing coverage data (enables dynamic badges)"
+    required: false
+  coverage-data-path:
+    description: "Path to store coverage data JSON file (default: .github/coverage-data.json)"
+    required: false
+    default: ".github/coverage-data.json"
 
 outputs:
   total_coverage:

@@ -45595,7 +45595,8 @@ const InputsSchema = object({
     strict: schemas_boolean().optional().default(false),
     baselineFiles: schemas_string().optional(),
     minThreshold: coerce_number().optional().default(50),
-    coverageDataPath: schemas_string().optional().default('.github/coverage-data.json')
+    coverageDataPath: schemas_string().optional().default('.github/coverage-data.json'),
+    gistId: schemas_string().optional()
 });
 function readInputs() {
     const raw = {
@@ -45610,7 +45611,8 @@ function readInputs() {
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
+        gistId: process.env['INPUT_GIST-ID']
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -45624,7 +45626,8 @@ function readInputs() {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold
+        minThreshold: raw.minThreshold,
+        gistId: raw.gistId
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const baselineFiles = raw.baselineFiles
@@ -48533,9 +48536,135 @@ async function upsertStickyComment(md, mode = 'update') {
     }
 }
 
+;// CONCATENATED MODULE: ./src/coverage-data.ts
+
+
+/**
+ * Get coverage data from GitHub Gist
+ */
+async function getCoverageData() {
+    try {
+        const gistId = lib_core.getInput('gist-id');
+        const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+        if (!gistId) {
+            lib_core.info('No gist-id provided, skipping baseline coverage fetch');
+            return null;
+        }
+        if (!token) {
+            lib_core.warning('No GitHub token provided, cannot fetch from gist');
+            return null;
+        }
+        lib_core.info(`Fetching coverage data from gist: ${gistId}`);
+        const coverage = await fetchCoverageFromGist(token, gistId);
+        if (coverage === null) {
+            lib_core.warning('No coverage data found in gist');
+        }
+        return coverage;
+    }
+    catch (error) {
+        lib_core.warning(`Failed to get coverage data from gist: ${error}`);
+        return null;
+    }
+}
+/**
+ * Save coverage data to GitHub Gist only
+ */
+async function saveCoverageData(coverage) {
+    const gistId = lib_core.getInput('gist-id');
+    const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    if (!gistId) {
+        lib_core.info('No gist-id provided, skipping coverage data save');
+        return;
+    }
+    if (!token) {
+        lib_core.warning('No GitHub token provided, cannot save to gist');
+        return;
+    }
+    const data = {
+        coverage,
+        timestamp: new Date().toISOString(),
+        branch: github.context.ref.replace('refs/heads/', ''),
+        commit: github.context.sha
+    };
+    try {
+        lib_core.info(`Updating coverage data in gist: ${gistId}`);
+        await updateCoverageInGist(token, gistId, data);
+        lib_core.info(`Coverage data saved: ${coverage.toFixed(1)}%`);
+    }
+    catch (error) {
+        lib_core.error(`Failed to save coverage data to gist: ${error}`);
+        throw error;
+    }
+}
+/**
+ * Fetch coverage data from GitHub Gist
+ */
+async function fetchCoverageFromGist(token, gistId) {
+    try {
+        const octokit = github.getOctokit(token);
+        const { data } = await octokit.rest.gists.get({
+            gist_id: gistId
+        });
+        const coverageFile = data.files?.['coverage.json'];
+        if (coverageFile?.content) {
+            const coverageData = JSON.parse(coverageFile.content);
+            lib_core.info(`Fetched coverage from gist: ${coverageData.coverage.toFixed(1)}%`);
+            return coverageData.coverage;
+        }
+        return null;
+    }
+    catch (error) {
+        lib_core.debug(`Failed to fetch coverage from gist: ${error}`);
+        return null;
+    }
+}
+/**
+ * Update coverage data in GitHub Gist
+ */
+async function updateCoverageInGist(token, gistId, data) {
+    try {
+        const octokit = github.getOctokit(token);
+        await octokit.rest.gists.update({
+            gist_id: gistId,
+            files: {
+                'coverage.json': {
+                    content: JSON.stringify(data, null, 2)
+                },
+                'coverage-badge.json': {
+                    content: JSON.stringify({
+                        schemaVersion: 1,
+                        label: 'coverage',
+                        message: `${data.coverage.toFixed(1)}%`,
+                        color: coverage_data_getColorForPercentage(data.coverage)
+                    }, null, 2)
+                }
+            }
+        });
+        lib_core.info(`Coverage data updated in gist: ${gistId}`);
+    }
+    catch (error) {
+        lib_core.error(`Failed to update coverage in gist: ${error}`);
+        throw error;
+    }
+}
+function coverage_data_getColorForPercentage(percentage) {
+    if (percentage >= 90)
+        return 'brightgreen';
+    if (percentage >= 80)
+        return 'green';
+    if (percentage >= 70)
+        return 'yellowgreen';
+    if (percentage >= 60)
+        return 'yellow';
+    if (percentage >= 50)
+        return 'orange';
+    return 'red';
+}
+
 // EXTERNAL MODULE: external "child_process"
 var external_child_process_ = __nccwpck_require__(5317);
 ;// CONCATENATED MODULE: ./src/enhanced.ts
+
 
 
 
@@ -48571,20 +48700,29 @@ async function runEnhancedCoverage() {
         // Step 4: Compute code changes coverage
         const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
         lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
-        // Step 5: Parse baseline coverage if available (auto-detect format)
+        // Step 5: Parse baseline coverage from gist or baseline files
         let mainBranchCoverage = null;
         let deltaCoverage;
-        if (inputs.baselineFiles && inputs.baselineFiles.length > 0) {
+        // First try to get baseline coverage from gist
+        mainBranchCoverage = await getCoverageData();
+        // If no gist coverage available, try baseline files
+        if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
             try {
-                lib_core.info('Parsing baseline coverage...');
+                lib_core.info('Parsing baseline coverage from files...');
                 const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
                 const mainPackages = groupPackages(mainProject.files);
+                // Calculate main branch coverage percentage
+                mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
+                lib_core.info(`Main branch coverage from files: ${mainBranchCoverage.toFixed(1)}%`);
                 deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);
                 lib_core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
             }
             catch (error) {
                 lib_core.warning(`Failed to process baseline coverage: ${error}`);
             }
+        }
+        else if (mainBranchCoverage !== null) {
+            lib_core.info(`Using baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
         // Step 7: Render the comprehensive comment
         const comment = await renderComment({
@@ -48630,6 +48768,18 @@ async function runEnhancedCoverage() {
             }
         }
         lib_core.info('Enhanced coverage analysis completed successfully');
+        // Step 10: Save coverage data to gist if we're on main branch
+        const isMainBranch = process.env.GITHUB_REF === 'refs/heads/main' ||
+            process.env.GITHUB_REF === 'refs/heads/master';
+        if (isMainBranch) {
+            try {
+                await saveCoverageData(projectLinesPct);
+                lib_core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
+            }
+            catch (error) {
+                lib_core.warning(`Failed to save coverage data: ${error}`);
+            }
+        }
     }
     catch (error) {
         lib_core.setFailed(`Enhanced coverage analysis failed: ${error}`);

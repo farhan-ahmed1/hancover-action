@@ -27,43 +27,11 @@ jobs:
       - name: Build action
         run: npm run build
 
-      - name: Generate coverage with HanCover Action
+      - name: Update Coverage Data & Generate Badges
         id: coverage
         uses: ./
         with:
           files: coverage/lcov.info
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+          github-token: ${{ secrets.GIST_TOKEN }}
           warn-only: true
-
-      - name: Update coverage badge
-        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: ${{ secrets.COVERAGE_GIST_ID }}
-          filename: hancover-coverage.json
-          label: coverage
-          message: ${{ steps.coverage.outputs.coverage-pct }}%
-          color: >
-            ${{
-              steps.coverage.outputs.coverage-pct >= 90 && 'brightgreen' ||
-              steps.coverage.outputs.coverage-pct >= 80 && 'green' ||
-              steps.coverage.outputs.coverage-pct >= 70 && 'yellowgreen' ||
-              steps.coverage.outputs.coverage-pct >= 60 && 'orange' ||
-              'red'
-            }}
-
-      - name: Update changes badge
-        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
-        with:
-          auth: ${{ secrets.GIST_TOKEN }}
-          gistID: ${{ secrets.COVERAGE_GIST_ID }}
-          filename: hancover-changes.json
-          label: changes
-          message: ${{ steps.coverage.outputs.changes-coverage-pct }}%
-          color: >
-            ${{
-              steps.coverage.outputs.changes-coverage-pct >= 90 && 'brightgreen' ||
-              steps.coverage.outputs.changes-coverage-pct >= 80 && 'green' ||
-              steps.coverage.outputs.changes-coverage-pct >= 70 && 'yellowgreen' ||
-              steps.coverage.outputs.changes-coverage-pct >= 60 && 'orange' ||
-              'red'
-            }}

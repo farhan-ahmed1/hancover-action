@@ -15,7 +15,8 @@ const InputsSchema = z.object({
     strict: z.boolean().optional().default(false),
     baselineFiles: z.string().optional(),
     minThreshold: z.coerce.number().optional().default(50),
-    coverageDataPath: z.string().optional().default('.github/coverage-data.json')
+    coverageDataPath: z.string().optional().default('.github/coverage-data.json'),
+    gistId: z.string().optional()
 });
 
 // ActionInputs exposes `groups` as a parsed GroupsConfig (not raw string)
@@ -38,7 +39,8 @@ export function readInputs(): ActionInputs {
         timeoutSeconds: Number(process.env['INPUT_TIMEOUT-SECONDS'] ?? 120),
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
-        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50)
+        minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
+        gistId: process.env['INPUT_GIST-ID']
     };
 
     const parsed = InputsSchema.parse({
@@ -53,7 +55,8 @@ export function readInputs(): ActionInputs {
         timeoutSeconds: raw.timeoutSeconds,
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
-        minThreshold: raw.minThreshold
+        minThreshold: raw.minThreshold,
+        gistId: raw.gistId
     });
 
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
