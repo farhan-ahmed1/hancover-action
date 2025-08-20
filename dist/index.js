@@ -45596,7 +45596,8 @@ const InputsSchema = object({
     baselineFiles: schemas_string().optional(),
     minThreshold: coerce_number().optional().default(50),
     coverageDataPath: schemas_string().optional().default('.github/coverage-data.json'),
-    gistId: schemas_string().optional()
+    gistId: schemas_string().optional(),
+    githubToken: schemas_string().optional()
 });
 function readInputs() {
     const raw = {
@@ -45612,7 +45613,8 @@ function readInputs() {
         strict: (process.env['INPUT_STRICT'] ?? 'false') === 'true',
         baselineFiles: process.env['INPUT_BASELINE-FILES'],
         minThreshold: Number(process.env['INPUT_MIN-THRESHOLD'] ?? 50),
-        gistId: process.env['INPUT_GIST-ID'] || undefined
+        gistId: process.env['INPUT_GIST-ID'] || undefined,
+        githubToken: process.env['INPUT_GITHUB-TOKEN'] || process.env.GITHUB_TOKEN || undefined
     };
     const parsed = InputsSchema.parse({
         files: raw.files || '',
@@ -45627,7 +45629,8 @@ function readInputs() {
         strict: raw.strict,
         baselineFiles: raw.baselineFiles,
         minThreshold: raw.minThreshold,
-        gistId: raw.gistId
+        gistId: raw.gistId,
+        githubToken: raw.githubToken
     });
     const files = (raw.files || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const baselineFiles = raw.baselineFiles
@@ -48547,7 +48550,7 @@ async function upsertStickyComment(md, mode = 'update') {
 /**
  * Get coverage data from GitHub Gist
  */
-async function getCoverageData(gistId) {
+async function getCoverageData(gistId, githubToken) {
     try {
         // Use provided gistId or fall back to environment inputs
         let resolvedGistId = gistId ||
@@ -48559,7 +48562,10 @@ async function getCoverageData(gistId) {
         if (resolvedGistId && resolvedGistId.trim() === '') {
             resolvedGistId = undefined;
         }
-        const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+        const token = githubToken ||
+            lib_core.getInput('github-token') ||
+            process.env['INPUT_GITHUB-TOKEN'] ||
+            process.env.GITHUB_TOKEN;
         lib_core.info(`Gist ID resolution: "${resolvedGistId || 'NOT_FOUND'}"`);
         if (!resolvedGistId) {
             lib_core.info('No gist-id provided, skipping baseline coverage fetch');
@@ -48587,13 +48593,16 @@ async function getCoverageData(gistId) {
 /**
  * Save coverage data to GitHub Gist only
  */
-async function saveCoverageData(coverage, gistId) {
+async function saveCoverageData(coverage, gistId, githubToken) {
     let resolvedGistId = gistId || lib_core.getInput('gist-id');
     // Handle empty strings
     if (resolvedGistId && resolvedGistId.trim() === '') {
         resolvedGistId = undefined;
     }
-    const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+    const token = githubToken ||
+        lib_core.getInput('github-token') ||
+        process.env['INPUT_GITHUB-TOKEN'] ||
+        process.env.GITHUB_TOKEN;
     if (!resolvedGistId) {
         lib_core.info('No gist-id provided, skipping coverage data save');
         return;
@@ -48727,7 +48736,7 @@ async function runEnhancedCoverage() {
         let deltaCoverage;
         // First try to get baseline coverage from gist
         lib_core.info('Attempting to fetch baseline coverage from gist...');
-        mainBranchCoverage = await getCoverageData(inputs.gistId);
+        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.githubToken);
         if (mainBranchCoverage !== null) {
             lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
@@ -48799,7 +48808,7 @@ async function runEnhancedCoverage() {
             process.env.GITHUB_REF === 'refs/heads/master';
         if (isMainBranch) {
             try {
-                await saveCoverageData(projectLinesPct, inputs.gistId);
+                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.githubToken);
                 lib_core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
             }
             catch (error) {
