@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:security": "vitest run test/security.test.ts",
+    "coverage": "vitest run --coverage",
     "audit": "npm audit --audit-level high",
     "audit:fix": "npm audit fix",
     "security:check": "./scripts/security-audit.sh",
