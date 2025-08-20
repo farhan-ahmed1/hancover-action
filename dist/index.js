@@ -48590,18 +48590,20 @@ function renderTopLevelSummaryTable(packages, minThreshold) {
         const health = getHealthIcon(linesPct, minThreshold);
         table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
     }
-    // Summary row
-    const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
-    const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
-    const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
-    const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
-    const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
-    const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
-    const summaryLinesPct = pct(totalLinesCovered, totalLines);
-    const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
-    const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
-    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
-    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    // Only add summary row if there are multiple top-level packages
+    if (packages.length > 1) {
+        const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+        const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+        const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
+        const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
+        const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
+        const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
+        const summaryLinesPct = pct(totalLinesCovered, totalLines);
+        const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
+        const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
+        const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
+        table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    }
     return table;
 }
 function renderProjectTable(packages, minThreshold, config) {
@@ -48612,18 +48614,13 @@ function renderProjectTable(packages, minThreshold, config) {
     let table = `| Package | Statements | Branches | Functions | Health |
 |---|---:|---:|---:|:---:|
 `;
-    // Package rows with potential file expansion
+    // Package rows
     for (const pkg of packages) {
         const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
         const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
         const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
         const health = getHealthIcon(linesPct, minThreshold);
         table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
-        // Check if this package should have an expandable file table
-        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
-        if (shouldExpand) {
-            table += renderExpandableFileTable(pkg, minThreshold);
-        }
     }
     // Summary row
     const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
@@ -48637,7 +48634,15 @@ function renderProjectTable(packages, minThreshold, config) {
     const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
     const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
     table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    return table;
+    // Add expandable file tables after the main table
+    let expandableTables = '';
+    for (const pkg of packages) {
+        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
+        if (shouldExpand) {
+            expandableTables += renderExpandableFileTable(pkg, minThreshold);
+        }
+    }
+    return table + expandableTables;
 }
 /**
  * Determine if a package should have an expandable file table
