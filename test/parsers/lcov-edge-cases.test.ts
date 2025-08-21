@@ -3,8 +3,8 @@ import { parseLcovFile, parseLCOV } from '../../src/parsers/lcov.js';
 
 describe('LCOV Parser - Edge Cases & Robustness', () => {
     describe('Security & Malformed Input', () => {
-        it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseLcovFile('test/fixtures/lcov/lcov.malicious.info');
+        it('should sanitize file paths to prevent directory traversal', async () => {
+            const result = await parseLcovFile('test/fixtures/lcov/lcov.malicious.info');
             
             expect(result.files).toHaveLength(2);
             
@@ -49,8 +49,8 @@ describe('LCOV Parser - Edge Cases & Robustness', () => {
     });
 
     describe('Data Validation & Edge Cases', () => {
-        it('should handle very large line numbers safely', () => {
-            const result = parseLcovFile('test/fixtures/lcov/lcov.complex.info');
+        it('should handle very large line numbers safely', async () => {
+            const result = await parseLcovFile('test/fixtures/lcov/lcov.complex.info');
             
             // Find the edge cases file
             const edgeCasesFile = result.files.find(f => f.path === 'src/edge-cases.js');
@@ -253,8 +253,8 @@ end_of_record`;
     });
 
     describe('Error Handling', () => {
-        it('should provide meaningful error messages for file read failures', () => {
-            expect(() => parseLcovFile('nonexistent/file.info')).toThrow(/Failed to read LCOV file/);
+        it('should provide meaningful error messages for file read failures', async () => {
+            await expect(parseLcovFile('nonexistent/file.info')).rejects.toThrow(/Failed to read LCOV file/);
         });
 
         it('should handle malformed records gracefully', () => {

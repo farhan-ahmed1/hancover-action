@@ -25,8 +25,8 @@ describe('Cobertura Parser - Edge Cases & Robustness', () => {
             expect(() => parseCobertura(maliciousXml)).toThrow(/Cobertura XML security validation failed/);
         });
 
-        it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.malicious.xml');
+        it('should sanitize file paths to prevent directory traversal', async () => {
+            const result = await parseCoberturaFile('test/fixtures/cobertura/cobertura.malicious.xml');
             
             expect(result.files).toHaveLength(2);
             
@@ -475,8 +475,8 @@ describe('Cobertura Parser - Edge Cases & Robustness', () => {
     });
 
     describe('Empty/Null Handling', () => {
-        it('should handle completely empty coverage', () => {
-            const result = parseCoberturaFile('test/fixtures/cobertura/cobertura.empty.xml');
+        it('should handle completely empty coverage', async () => {
+            const result = await parseCoberturaFile('test/fixtures/cobertura/cobertura.empty.xml');
             expect(result.files).toHaveLength(0);
             expect(result.totals).toEqual({
                 lines: { covered: 0, total: 0 },
@@ -577,8 +577,8 @@ describe('Cobertura Parser - Edge Cases & Robustness', () => {
             });
         });
 
-        it('should handle file read errors gracefully', () => {
-            expect(() => parseCoberturaFile('nonexistent.xml')).toThrow(/Failed to read Cobertura file/);
+        it('should handle file read errors gracefully', async () => {
+            await expect(parseCoberturaFile('nonexistent.xml')).rejects.toThrow(/Failed to read Cobertura file/);
         });
     });
 });

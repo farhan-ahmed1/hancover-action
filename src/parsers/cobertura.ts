@@ -1,5 +1,4 @@
 import { XMLParser } from 'fast-xml-parser';
-import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { validateXmlSecurity } from '../fs-limits.js';
 import { parseXMLWithStreaming, StreamingParseOptions } from '../streaming-parser.js';
@@ -255,18 +254,6 @@ export async function parseCoberturaFile(filePath: string, options?: StreamingPa
             streamingOptions.timeoutMs
         );
         
-        return parseCobertura(xmlContent);
-    } catch (error) {
-        throw new Error(`Failed to read Cobertura file ${filePath}: ${error}`);
-    }
-}
-
-/**
- * Synchronous version for backward compatibility (not recommended for large files)
- */
-export function parseCoberturaFileSync(filePath: string): ProjectCov {
-    try {
-        const xmlContent = readFileSync(filePath, 'utf8');
         return parseCobertura(xmlContent);
     } catch (error) {
         throw new Error(`Failed to read Cobertura file ${filePath}: ${error}`);

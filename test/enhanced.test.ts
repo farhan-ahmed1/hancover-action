@@ -208,7 +208,7 @@ index abc123..def456 100644
 
             await runEnhancedCoverage();
 
-            expect(mockInfo).toHaveBeenCalledWith('Parsing PR coverage...');
+            expect(mockInfo).toHaveBeenCalledWith('🚀 Starting enhanced coverage analysis with performance optimizations...');
             expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
             expect(mockSetOutput).toHaveBeenCalledWith('coverage-pct', '85.0');
             expect(mockSetOutput).toHaveBeenCalledWith('changes-coverage-pct', '100.0');

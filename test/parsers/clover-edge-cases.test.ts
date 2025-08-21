@@ -21,8 +21,8 @@ describe('Clover Parser - Edge Cases & Robustness', () => {
             expect(() => parseClover(maliciousXml)).toThrow(/XML content contains potentially dangerous constructs/);
         });
 
-        it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseCloverFile('test/fixtures/clover/clover.malicious.xml');
+        it('should sanitize file paths to prevent directory traversal', async () => {
+            const result = await parseCloverFile('test/fixtures/clover/clover.malicious.xml');
             
             expect(result.files).toHaveLength(2);
             

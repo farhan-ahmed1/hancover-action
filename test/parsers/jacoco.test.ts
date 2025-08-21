@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { parseJaCoCo, parseJaCoCoFile } from '../../src/parsers/jacoco.js';
 
 describe('JaCoCo Parser - Core Functionality', () => {
-    it('should parse a small JaCoCo XML file correctly', () => {
-        const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.small.xml');
+    it('should parse a small JaCoCo XML file correctly', async () => {
+        const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.small.xml');
         
         expect(result.files).toHaveLength(1);
         expect(result.files[0]).toEqual({
@@ -21,8 +21,8 @@ describe('JaCoCo Parser - Core Functionality', () => {
         });
     });
 
-    it('should parse complex JaCoCo XML with multiple files and packages', () => {
-        const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.complex.xml');
+    it('should parse complex JaCoCo XML with multiple files and packages', async () => {
+        const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.complex.xml');
         
         expect(result.files).toHaveLength(3);
         
@@ -132,8 +132,8 @@ describe('JaCoCo Parser - Core Functionality', () => {
         });
     });
 
-    it('should handle empty JaCoCo XML correctly', () => {
-        const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.empty.xml');
+    it('should handle empty JaCoCo XML correctly', async () => {
+        const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.empty.xml');
         
         expect(result.files).toHaveLength(0);
         expect(result.totals).toEqual({
@@ -143,8 +143,8 @@ describe('JaCoCo Parser - Core Functionality', () => {
         });
     });
 
-    it('should handle JaCoCo XML with no coverage correctly', () => {
-        const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.no-coverage.xml');
+    it('should handle JaCoCo XML with no coverage correctly', async () => {
+        const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.no-coverage.xml');
         
         expect(result.files).toHaveLength(1);
         expect(result.files[0]).toEqual({

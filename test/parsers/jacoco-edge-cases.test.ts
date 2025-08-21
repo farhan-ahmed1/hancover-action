@@ -15,8 +15,8 @@ describe('JaCoCo Parser - Edge Cases & Robustness', () => {
             expect(() => parseJaCoCo(maliciousXml)).toThrow(/security validation failed/);
         });
 
-        it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
+        it('should sanitize file paths to prevent directory traversal', async () => {
+            const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
             
             // Find the file that had directory traversal attempt
             const maliciousFile = result.files.find(f => f.path.includes('passwd'));
@@ -37,8 +37,8 @@ describe('JaCoCo Parser - Edge Cases & Robustness', () => {
     });
 
     describe('Data Validation & Edge Cases', () => {
-        it('should handle very large line numbers safely', () => {
-            const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
+        it('should handle very large line numbers safely', async () => {
+            const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
             
             // Find the file with large numbers
             const bigDataFile = result.files.find(f => f.path.includes('BigData'));
@@ -50,8 +50,8 @@ describe('JaCoCo Parser - Edge Cases & Robustness', () => {
             expect(bigDataFile!.lines.total).toBe(1); // Line-level parsing shows 1 total line
         });
 
-        it('should handle malformed line numbers gracefully', () => {
-            const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.malformed.xml');
+        it('should handle malformed line numbers gracefully', async () => {
+            const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.malformed.xml');
             
             expect(result.files).toHaveLength(1);
             expect(result.files[0].path).toBe('com/example/BadClass.java');
@@ -134,8 +134,8 @@ describe('JaCoCo Parser - Edge Cases & Robustness', () => {
             expect(result.files[0].branches.total).toBe(2000000);
         });
 
-        it('should handle Unicode file paths', () => {
-            const result = parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
+        it('should handle Unicode file paths', async () => {
+            const result = await parseJaCoCoFile('test/fixtures/jacoco/jacoco.edge-cases.xml');
             
             // Find the Unicode test file
             const unicodeFile = result.files.find(f => f.path.includes('CalculatorTest'));
@@ -266,8 +266,8 @@ describe('JaCoCo Parser - Edge Cases & Robustness', () => {
             expect(() => parseJaCoCo(invalidXml)).toThrow(/Failed to parse JaCoCo XML/);
         });
 
-        it('should handle file read errors gracefully', () => {
-            expect(() => parseJaCoCoFile('/nonexistent/file.xml')).toThrow(/Failed to read JaCoCo file/);
+        it('should handle file read errors gracefully', async () => {
+            await expect(parseJaCoCoFile('/nonexistent/file.xml')).rejects.toThrow(/Failed to read JaCoCo file/);
         });
 
         it('should handle completely empty XML', () => {

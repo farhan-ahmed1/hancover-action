@@ -1,4 +1,3 @@
-import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { enforceFileSizeLimits } from '../fs-limits.js';
 import { withFileTimeout, globalTimeoutManager } from '../timeout-utils.js';
@@ -342,23 +341,6 @@ export async function parseLcovFile(filePath: string, timeoutMs?: number): Promi
         globalProgressReporter.report('LCOV parsing complete', 100);
         
         return result;
-    } catch (error) {
-        throw new Error(`Failed to read LCOV file ${filePath}: ${error}`);
-    }
-}
-
-/**
- * Synchronous version for backward compatibility (not recommended for large files)
- */
-export function parseLcovFileSync(filePath: string): ProjectCov {
-    try {
-        const data = readFileSync(filePath, 'utf8');
-        
-        // Security: Check file size before processing
-        const stats = require('fs').statSync(filePath);
-        enforceFileSizeLimits(stats.size);
-        
-        return parseLCOV(data);
     } catch (error) {
         throw new Error(`Failed to read LCOV file ${filePath}: ${error}`);
     }

@@ -349,12 +349,12 @@ end_of_record`;
 
         it('should handle XML file reading errors gracefully', async () => {
             // Test error handling by using a non-existent file with .xml extension
-            await expect(parseAnyCoverage('test/fixtures/non-existent.xml')).rejects.toThrow('Failed to auto-detect XML coverage format');
+            await expect(parseAnyCoverage('test/fixtures/non-existent.xml')).rejects.toThrow(/Failed to auto-detect XML coverage format/);
         });
 
         it('should handle fallback file reading errors gracefully', async () => {
             // Test error handling by using a non-existent file with non-standard extension
-            await expect(parseAnyCoverage('test/fixtures/non-existent.unknown')).rejects.toThrow('Failed to auto-detect coverage format');
+            await expect(parseAnyCoverage('test/fixtures/non-existent.unknown')).rejects.toThrow(/Failed to auto-detect coverage format/);
         });
 
         it('should handle fallback Cobertura detection', async () => {

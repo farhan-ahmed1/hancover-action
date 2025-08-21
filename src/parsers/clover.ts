@@ -1,5 +1,4 @@
 import { XMLParser } from 'fast-xml-parser';
-import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { validateXmlSecurity } from '../fs-limits.js';
 import { parseXMLWithStreaming, StreamingParseOptions } from '../streaming-parser.js';
@@ -271,18 +270,6 @@ export async function parseCloverFile(filePath: string, options?: StreamingParse
             streamingOptions.timeoutMs
         );
         
-        return parseClover(xmlContent);
-    } catch (error) {
-        throw new Error(`Failed to read Clover file ${filePath}: ${error}`);
-    }
-}
-
-/**
- * Synchronous version for backward compatibility (not recommended for large files)
- */
-export function parseCloverFileSync(filePath: string): ProjectCov {
-    try {
-        const xmlContent = readFileSync(filePath, 'utf8');
         return parseClover(xmlContent);
     } catch (error) {
         throw new Error(`Failed to read Clover file ${filePath}: ${error}`);
