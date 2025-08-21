@@ -74,7 +74,8 @@ Configuration for complex projects with multiple packages.
 
 ## File-Based Alternative
 
-For repositories that prefer not to use external Gists, see the file-based configuration in [Enhanced with Badges](./enhanced-with-badges.yml) which stores baseline data in the repository itself.
+For repositories that prefer not to use external Gists, see the file-based configuration in
+[Enhanced with Badges](./enhanced-with-badges.yml) which stores baseline data in the repository itself.
 
 ## Custom Package Grouping
 
