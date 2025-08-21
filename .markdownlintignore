@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+coverage/
+
+# Generated files
+CHANGELOG.md
+
+# License files (often have specific formatting requirements)
+LICENSE
