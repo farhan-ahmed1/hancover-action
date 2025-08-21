@@ -3,7 +3,7 @@ import { parseClover, parseCloverFile } from '../../src/parsers/clover.js';
 
 describe('Clover Parser - Core Functionality', () => {
     it('should parse a small Clover XML file correctly', () => {
-        const result = parseCloverFile('test/fixtures/clover.small.xml');
+        const result = parseCloverFile('test/fixtures/clover/clover.small.xml');
         
         expect(result.files).toHaveLength(1);
         expect(result.files[0]).toEqual({
@@ -22,7 +22,7 @@ describe('Clover Parser - Core Functionality', () => {
     });
 
     it('should parse complex Clover XML with multiple files and packages', () => {
-        const result = parseCloverFile('test/fixtures/clover.sample.xml');
+        const result = parseCloverFile('test/fixtures/clover/clover.sample.xml');
         
         expect(result.files).toHaveLength(3);
         
@@ -104,7 +104,7 @@ describe('Clover Parser - Core Functionality', () => {
     });
 
     it('should handle empty Clover XML correctly', () => {
-        const result = parseCloverFile('test/fixtures/clover.empty.xml');
+        const result = parseCloverFile('test/fixtures/clover/clover.empty.xml');
         expect(result.files).toHaveLength(0);
         expect(result.totals).toEqual({
             lines: { covered: 0, total: 0 },

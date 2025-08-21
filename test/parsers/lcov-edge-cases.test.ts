@@ -4,7 +4,7 @@ import { parseLcovFile, parseLCOV } from '../../src/parsers/lcov.js';
 describe('LCOV Parser - Edge Cases & Robustness', () => {
     describe('Security & Malformed Input', () => {
         it('should sanitize file paths to prevent directory traversal', () => {
-            const result = parseLcovFile('test/fixtures/lcov.malicious.info');
+            const result = parseLcovFile('test/fixtures/lcov/lcov.malicious.info');
             
             expect(result.files).toHaveLength(2);
             
@@ -50,7 +50,7 @@ describe('LCOV Parser - Edge Cases & Robustness', () => {
 
     describe('Data Validation & Edge Cases', () => {
         it('should handle very large line numbers safely', () => {
-            const result = parseLcovFile('test/fixtures/lcov.complex.info');
+            const result = parseLcovFile('test/fixtures/lcov/lcov.complex.info');
             
             // Find the edge cases file
             const edgeCasesFile = result.files.find(f => f.path === 'src/edge-cases.js');
