@@ -182,7 +182,6 @@ The action automatically detects the format based on file content and structure.
 - **[Monorepo Setup](./examples/monorepo-setup.yml)** - Complex project configuration
 
 ### Reference
-- **[Token Flow Guide](./docs/TOKEN-FLOW.md)** - GitHub tokens and authentication
 - **[Security Policy](./SECURITY.md)** - Security best practices and reporting
 - **[Contributing Guide](./CONTRIBUTING.md)** - Contributing to the project
 

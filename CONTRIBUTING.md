@@ -45,8 +45,9 @@ npm run build
 ## Testing
 
 - Use Vitest for testing
-- Add test fixtures in `test/fixtures/`
+- Add test fixtures in `test/fixtures/` for new coverage formats
 - Test both happy paths and error cases
+- Test with various file sizes (remember 50MB per file, 200MB total limits)
 - Aim for good coverage of new code
 
 ## Pull Request Guidelines
@@ -54,8 +55,9 @@ npm run build
 1. **Keep PRs focused**: One feature/fix per PR
 2. **Write good commit messages**: Use conventional commits format
 3. **Add tests**: Include tests for new functionality
-4. **Update docs**: Update README.md if needed
-5. **Check CI**: Ensure all checks pass
+4. **Update docs**: Update README.md, API reference, or examples if needed
+5. **Add fixtures**: Include test fixtures for new coverage formats
+6. **Check CI**: Ensure all checks pass
 
 ## Reporting Issues
 

@@ -296,7 +296,7 @@ See [Configuration Guide](./CONFIGURATION.md) for detailed examples.
 
 - Review [Configuration Guide](./CONFIGURATION.md) for advanced features
 - Check out [example workflows](../examples/) for different scenarios
-- Read [Token Flow Guide](./TOKEN-FLOW.md) to understand how authentication works
+- See [API Reference](./API-REFERENCE.md) for complete input/output documentation
 
 ## Getting Help
 

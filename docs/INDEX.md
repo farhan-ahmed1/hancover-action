@@ -11,7 +11,6 @@ Welcome to the HanCover Action documentation. This index helps you find the righ
 ### Configuration & Customization  
 - **[Configuration Guide](./CONFIGURATION.md)** - Advanced package grouping and report customization
 - **[API Reference](./API-REFERENCE.md)** - Complete input/output reference and configuration options
-- **[Token Flow Guide](./TOKEN-FLOW.md)** - Understanding GitHub tokens and authentication
 
 ### Example Workflows
 - **[Basic PR Coverage](../examples/basic-pr-coverage.yml)** - Simple coverage comments
@@ -46,14 +45,13 @@ Welcome to the HanCover Action documentation. This index helps you find the righ
 ### Troubleshoot Issues
 - **Common problems**: Check [Setup Guide troubleshooting](./SETUP-GUIDE.md#troubleshooting)
 - **Action not working**: Review [README troubleshooting](../README.md#troubleshooting)  
-- **Gist/badge issues**: See [Token Flow Guide](./TOKEN-FLOW.md)
 - **Still stuck**: Open an [issue](https://github.com/farhan-ahmed1/hancover-action/issues)
 
 ### Understand How It Works
-- **Authentication flow**: [Token Flow Guide](./TOKEN-FLOW.md)
 - **Security considerations**: [Security Policy](../SECURITY.md)
-- **Supported formats**: [README coverage formats](../README.md#configuration-reference)
+- **Supported formats**: [README coverage formats](../README.md#supported-coverage-formats)
 - **Package grouping logic**: [Configuration Guide](./CONFIGURATION.md)
+- **Input/output reference**: [API Reference](./API-REFERENCE.md)
 
 ## Documentation
 
@@ -61,7 +59,7 @@ Welcome to the HanCover Action documentation. This index helps you find the righ
 ✅ **[README.md](../README.md)** - Main overview and quick start guide  
 ✅ **[Setup Guide](./SETUP-GUIDE.md)** - Complete setup instructions  
 ✅ **[Configuration Guide](./CONFIGURATION.md)** - Advanced configuration options  
-✅ **[Token Flow Guide](./TOKEN-FLOW.md)** - Authentication and token setup  
+✅ **[API Reference](./API-REFERENCE.md)** - Complete input/output reference  
 ✅ **[Example Workflows](../examples/)** - Ready-to-use workflow examples  
 
 ## Contributing to Documentation
