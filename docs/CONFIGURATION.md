@@ -234,35 +234,6 @@ The action validates your configuration and will provide helpful error messages:
 ⚠️  Configuration Warning: Group "Backend" excludes all matched files
 ```
 
-## Migration from Legacy Configuration
-
-If you're upgrading from an older version, here's how to migrate:
-
-### Old Format (deprecated)
-```yaml
-# In workflow file
-with:
-  package-groups: |
-    src/parsers
-    src/core
-```
-
-### New Format (recommended)
-```json
-{
-  "groups": [
-    {
-      "name": "Parsers",
-      "patterns": ["src/parsers/**"]
-    },
-    {
-      "name": "Core",
-      "patterns": ["src/core/**"]
-    }
-  ]
-}
-```
-
 ## Troubleshooting
 
 ### No packages appear in report
@@ -427,10 +398,6 @@ Overall Coverage: 63.0% | Lines Covered: 852/1353
     ]
 }
 ```
-
-## Backwards Compatibility
-
-All existing coverage reports will continue to work without any changes. The new features are completely opt-in and non-breaking.
 
 ## Security
 

@@ -10,6 +10,7 @@ Welcome to the HanCover Action documentation. This index helps you find the righ
 
 ### Configuration & Customization  
 - **[Configuration Guide](./CONFIGURATION.md)** - Advanced package grouping and report customization
+- **[API Reference](./API-REFERENCE.md)** - Complete input/output reference and configuration options
 - **[Token Flow Guide](./TOKEN-FLOW.md)** - Understanding GitHub tokens and authentication
 
 ### Example Workflows
@@ -40,7 +41,7 @@ Welcome to the HanCover Action documentation. This index helps you find the righ
 ### Customize Coverage Reports
 - **Basic grouping**: Add `.coverage-report.json` - see [Configuration Guide](./CONFIGURATION.md)
 - **Monorepo/complex projects**: See [Monorepo Setup](../examples/monorepo-setup.yml)
-- **Custom thresholds**: Use `min-threshold` and `thresholds` inputs - see [README](../README.md#configuration-reference)
+- **Custom thresholds**: Use `min-threshold` and `thresholds` inputs - see [API Reference](./API-REFERENCE.md)
 
 ### Troubleshoot Issues
 - **Common problems**: Check [Setup Guide troubleshooting](./SETUP-GUIDE.md#troubleshooting)
