@@ -1,23 +1,96 @@
-title: Feature Request
+name: Feature Request
+description: Suggest a new feature or enhancement for HanCover Action
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
 
-about: Suggest an idea for this project
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out this form to help us understand your request.
 
-labels: feature request
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: Is your feature request related to a problem? Please describe.
+      placeholder: I'm frustrated when... / It would be helpful if... / Currently there's no way to...
+    validations:
+      required: true
 
----
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: I would like the action to...
+    validations:
+      required: true
 
-**Is your feature request related to a problem? Please describe.**
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: What category does this feature fall into?
+      options:
+        - Coverage reporting
+        - Badge generation
+        - Comment formatting
+        - New coverage format support
+        - Configuration options
+        - Performance improvement
+        - Security enhancement
+        - Documentation
+        - Other
+    validations:
+      required: true
 
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...] 
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or features you've considered
+      placeholder: I considered... / Alternative approaches might be...
 
-**Describe the solution you'd like**
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe your specific use case and how this feature would help
+      placeholder: In my project, I need to... / This would help because...
+    validations:
+      required: true
 
-A clear and concise description of what you want to happen.
+  - type: checkboxes
+    id: complexity
+    attributes:
+      label: Implementation Complexity
+      description: How complex do you think this feature might be?
+      options:
+        - label: Simple configuration change
+        - label: New input/output parameter
+        - label: New coverage format support
+        - label: Major feature addition
+        - label: Breaking change
+        - label: I'm not sure
 
-**Describe alternatives you've considered**
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Provide examples of how this feature would work (configuration, output, etc.)
+      placeholder: |
+        ```yaml
+        # Example configuration
+        with:
+          new-feature: true
+        ```
+      render: yaml
 
-A clear and concise description of any alternative solutions or features you've considered.
-
-**Additional context**
-
-Add any other context or screenshots about the feature request here.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or references about the feature request
+      placeholder: Links to similar features, mockups, etc.
