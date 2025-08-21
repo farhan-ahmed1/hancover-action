@@ -12,17 +12,26 @@ export async function runEnhancedCoverage() {
     try {
         const inputs = readInputs();
         
-        // Step 1: Parse PR coverage (auto-detect LCOV or Cobertura)
-        core.info('Parsing PR coverage...');
+        // Step 1: Parse PR coverage with performance enhancements
+        core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
         const prFiles = inputs.files;
         
         if (!prFiles || prFiles.length === 0) {
             throw new Error('No coverage files provided');
         }
+
+        // Configure streaming options based on input timeouts
+        const streamingOptions = {
+            timeoutMs: inputs.timeoutSeconds * 1000,
+            maxMemoryUsage: 10 * 1024 * 1024, // 10MB threshold for streaming
+            chunkSize: 64 * 1024 // 64KB chunks
+        };
+
+        core.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`);
         
         // For now, use the first coverage file (could be enhanced to merge multiple)
-        const prProject = await parseAnyCoverage(prFiles[0]);
-        core.info(`Parsed ${prProject.files.length} files from PR coverage`);
+        const prProject = await parseAnyCoverage(prFiles[0], streamingOptions);
+        core.info(`✅ Parsed ${prProject.files.length} files from PR coverage`);
         
         // Step 2: Smart package grouping with config support
         const config = loadConfig();
