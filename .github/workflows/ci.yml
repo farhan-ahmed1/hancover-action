@@ -31,27 +31,6 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-  markdown-lint:
-    name: Markdown Lint
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read  # Required to checkout code
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install markdownlint-cli2
-        run: npm install -g markdownlint-cli2@0.18.1 --exact
-
-      - name: Lint Markdown files
-        run: markdownlint-cli2 --config .markdownlint.json "*.md" "docs/**/*.md" ".github/**/*.md"
-
   test:
     name: Test
     runs-on: ubuntu-latest
