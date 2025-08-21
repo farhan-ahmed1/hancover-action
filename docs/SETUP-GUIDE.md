@@ -170,7 +170,7 @@ Example:
 
 If you prefer not to use GitHub Gists, you can store baseline coverage data in your repository:
 
-**Step 1: Update Your PR Workflow**
+### Step 1: Update Your PR Workflow
 
 ```yaml
 - name: Coverage Report with File-Based Detection

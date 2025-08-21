@@ -235,7 +235,7 @@ This configuration:
 
 The action validates your configuration and will provide helpful error messages:
 
-```
+```text
 ❌ Configuration Error: Group "Frontend" has empty patterns array
 ❌ Configuration Error: Pattern "src/**" matches no files
 ⚠️  Configuration Warning: Group "Backend" excludes all matched files
@@ -307,7 +307,7 @@ The coverage report now includes:
 
 ### Example Output Structure
 
-```
+```text
 ## Coverage Report
 
 [Coverage Badge] [Changes Badge] [Delta Badge]
@@ -341,7 +341,7 @@ Overall Coverage: 63.0% | Lines Covered: 852/1353
 </details>
 ```
 
-## Common Use Cases
+## Configuration Examples
 
 ### Separating Parsers from Main Code
 

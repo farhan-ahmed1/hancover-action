@@ -1,6 +1,7 @@
 # HanCover Action Documentation Index
 
-Welcome to the HanCover Action documentation. This index helps you find the right information based on what you're trying to accomplish.
+Welcome to the HanCover Action documentation. This index helps you find the right information based on what
+you're trying to accomplish.
 
 ## Quick Navigation
 

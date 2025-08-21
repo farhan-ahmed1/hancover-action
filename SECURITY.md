@@ -6,7 +6,9 @@ If you discover a security vulnerability in HanCover Action, please report it pr
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report security issues via [GitHub's private vulnerability reporting](https://github.com/farhan-ahmed1/hancover-action/security/advisories/new) or email <security@farhanlabs.com> with:
+Instead, please report security issues via
+[GitHub's private vulnerability reporting](https://github.com/farhan-ahmed1/hancover-action/security/advisories/new)
+or email <security@farhanlabs.com> with:
 
 - Description of the vulnerability
 - Steps to reproduce

@@ -5,7 +5,8 @@
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/96e4dc85e2b5c6a2e7f7cdcdc576eb6c/raw/coverage-badge.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
-A GitHub Action that generates coverage reports for Pull Requests with change detection, dynamic badges, and support for multiple coverage formats.
+A GitHub Action that generates coverage reports for Pull Requests with change detection, dynamic badges, and
+support for multiple coverage formats.
 
 ## Features
 
@@ -58,19 +59,19 @@ This creates PR comments with coverage tables and health indicators.
 
 For coverage badges and change tracking, additional setup is required using GitHub Gists.
 
-**Step 1: Create a GitHub Gist**
+#### Step 1: Create a GitHub Gist
 
 1. Go to [gist.github.com](https://gist.github.com)
 2. Create a **public** gist with filename `coverage.json` and content: `{"coverage": 0}`
 3. Note the Gist ID from the URL
 
-**Step 2: Add Repository Secrets**
+#### Step 2: Add Repository Secrets
 
 1. Go to repository Settings → Secrets and variables → Actions
 2. Add `COVERAGE_GIST_ID` with your gist ID
 3. Add `GIST_TOKEN` with a [personal access token](https://github.com/settings/tokens) having `gist` scope
 
-**Step 3: Update Workflow**
+#### Step 3: Update Workflow
 
 ```yaml
 - name: Coverage Report with Change Detection
@@ -130,7 +131,7 @@ Replace `USERNAME` with your GitHub username and `GIST_ID` with your gist ID.
 
 Clean, organized coverage reports in Pull Request comments:
 
-```
+```text
 Coverage Report
 
 Overall Coverage: 87.1% | Lines Covered: 1523/1749
@@ -268,19 +269,19 @@ Report security issues via [SECURITY.md](SECURITY.md).
 
 ### Common Issues
 
-**No coverage files found**
+#### No coverage files found
 
 - Verify coverage files are generated before running the action
 - Check file paths match the `files` input pattern
 - Ensure test command runs with coverage enabled
 
-**Failed to update gist**
+#### Failed to update gist
 
 - Verify `GIST_TOKEN` has `gist` scope permissions
 - Ensure the gist exists and is public
 - Check the gist ID is correct
 
-**Action fails on coverage threshold**
+#### Action fails on coverage threshold
 
 - Review coverage requirements in `min-threshold`
 - Use `warn-only: true` to prevent workflow failure
