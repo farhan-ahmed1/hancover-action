@@ -42,6 +42,7 @@ Create `.coverage-report.json` in your repository root to override defaults:
 ### Configuration Options
 
 #### `groups` (array, optional)
+
 Defines custom package groupings that override smart defaults.
 
 | Property | Type | Description | Required |
@@ -51,11 +52,13 @@ Defines custom package groupings that override smart defaults.
 | `exclude` | string[] | Glob patterns to exclude from this group | ❌ |
 
 **Processing Rules:**
+
 - Groups are processed in order
 - Files are assigned to the first matching group
 - Excluded patterns take precedence over included patterns
 
 #### `ui` (object, optional)
+
 Controls visual presentation of coverage data.
 
 | Property | Type | Description | Default |
@@ -63,6 +66,7 @@ Controls visual presentation of coverage data.
 | `expandFilesFor` | string[] | Package names to show expanded file listings | `[]` |
 
 #### `fallback` (object, optional)
+
 Controls smart default behavior when no custom groups are defined.
 
 | Property | Type | Description | Default |
@@ -71,6 +75,7 @@ Controls smart default behavior when no custom groups are defined.
 | `promoteThreshold` | number | Threshold (0-1) for promoting to deeper grouping | `0.8` |
 
 **Smart Depth Options:**
+
 - `"auto"`: Promotes one level deeper if single directory contains ≥80% of files
 - `"top"`: Always groups by first path segment only  
 - `"two"`: Always shows two levels deep
@@ -204,6 +209,7 @@ Control automatic grouping behavior:
 ```
 
 This configuration:
+
 - Always shows two directory levels (`src/components/`, `src/utils/`)
 - Promotes to deeper grouping when 70%+ of files are in one directory
 
@@ -220,6 +226,7 @@ This configuration:
 ```
 
 This configuration:
+
 - Shows file-level details for "Core Components" and "Critical Services"
 - Shows up to 15 packages in delta comparison table
 - Requires 75% coverage for "pass" health indicators
@@ -237,16 +244,19 @@ The action validates your configuration and will provide helpful error messages:
 ## Troubleshooting
 
 ### No packages appear in report
+
 - Check that your `patterns` match actual files in your coverage data
 - Verify patterns use correct glob syntax (`**` for recursive matching)
 - Enable debug output with `ACTIONS_STEP_DEBUG=true`
 
 ### Groups not showing expected files
+
 - Remember that groups are processed in order
 - Use `exclude` patterns to remove files from previous matches
 - Test patterns against your actual file structure
 
 ### File expansion not working
+
 - Ensure package names in `expandFilesFor` exactly match group names
 - Check that packages actually contain multiple files
 
@@ -277,7 +287,7 @@ The action validates your configuration and will provide helpful error messages:
 
 ### Glob Pattern Examples
 
-| Pattern | Matches | 
+| Pattern | Matches |
 |---------|---------|
 | `src/**` | All files under `src/` recursively |
 | `src/*` | Files directly in `src/` (not subdirectories) |

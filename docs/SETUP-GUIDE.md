@@ -5,28 +5,34 @@ This guide provides step-by-step instructions for setting up HanCover Action in 
 ## Choose Your Setup
 
 ### Option 1: Basic PR Coverage (5 minutes)
+
 Get started quickly with coverage reports in PRs, but without change detection or badges.
 
 **What you get:**
+
 - Coverage tables in PR comments
 - Package-based organization  
 - Health indicators based on thresholds
 - Sticky comments that update on each push
 
 **What you don't get:**
+
 - Coverage badges
 - Change tracking vs main branch
 - Dynamic README badges
 
 **Setup:**
+
 1. Copy [basic-pr-coverage.yml](../examples/basic-pr-coverage.yml) to `.github/workflows/pr-coverage.yml`
 2. Adjust the `files` path to match your coverage output
 3. Set your desired `min-threshold`
 
 ### Option 2: Enhanced with Change Detection (15 minutes)
+
 Full-featured setup with badges, change tracking, and dynamic README badges.
 
 **What you get:**
+
 - Everything from Option 1, plus:
 - Coverage badges in PR comments
 - Change indicators (showing +/- vs main branch)
@@ -34,6 +40,7 @@ Full-featured setup with badges, change tracking, and dynamic README badges.
 - Baseline storage via GitHub Gist
 
 **Setup:**
+
 1. [Create a GitHub Gist](#creating-a-github-gist)
 2. [Setup repository secrets](#setting-up-repository-secrets)  
 3. [Add workflow files](#adding-workflow-files)
@@ -63,6 +70,7 @@ Full-featured setup with badges, change tracking, and dynamic README badges.
 | `GIST_TOKEN` | `ghp_xxxxxxxxxxxx` | Personal access token with `gist` scope |
 
 **To create a personal access token:**
+
 1. Go to [GitHub Settings](https://github.com/settings/tokens) → Developer settings → Personal access tokens → Tokens (classic)
 2. Click "Generate new token (classic)"
 3. Give it a descriptive name like "Coverage Gist Token"
@@ -74,6 +82,7 @@ Full-featured setup with badges, change tracking, and dynamic README badges.
 Create these two workflow files in your repository:
 
 **1. PR Coverage Workflow** (`.github/workflows/coverage-pr.yml`):
+
 ```yaml
 name: PR Coverage with Change Detection
 on:
@@ -107,6 +116,7 @@ jobs:
 ```
 
 **2. Main Branch Workflow** (`.github/workflows/coverage-main.yml`):
+
 ```yaml
 name: Update Coverage Baseline
 on:
@@ -146,10 +156,12 @@ Add this badge to your README.md file:
 ```
 
 Replace:
+
 - `USERNAME` with your GitHub username
 - `GIST_ID` with your gist ID
 
 Example:
+
 ```markdown
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/abc123def456789/raw/coverage-badge.json)
 ```
@@ -159,6 +171,7 @@ Example:
 If you prefer not to use GitHub Gists, you can store baseline coverage data in your repository:
 
 **Step 1: Update Your PR Workflow**
+
 ```yaml
 - name: Coverage Report with File-Based Detection
   uses: farhan-ahmed1/hancover-action@v1
@@ -220,26 +233,31 @@ jobs:
 The action automatically detects your coverage format. Just update the `files` path:
 
 ### JavaScript/TypeScript (Jest, Vitest)
+
 ```yaml
 files: coverage/lcov.info
 ```
 
 ### .NET Projects
+
 ```yaml
 files: coverage/**/coverage.cobertura.xml
 ```
 
 ### Java Projects (Maven)
+
 ```yaml
 files: target/site/jacoco/jacoco.xml
 ```
 
 ### Python Projects
+
 ```yaml
 files: coverage.xml
 ```
 
 ### Multiple Files
+
 ```yaml
 files: |
   packages/*/coverage/lcov.info
@@ -274,20 +292,24 @@ See [Configuration Guide](./CONFIGURATION.md) for detailed examples.
 ## Troubleshooting
 
 ### "No coverage files found"
+
 - Check that your test command generates coverage files
 - Verify the `files` path matches your coverage output location
 - Use glob patterns if files are in multiple locations
 
 ### "Failed to update gist"  
+
 - Ensure your personal access token has `gist` scope
 - Verify the gist exists and is public
 - Double-check the gist ID in your repository secrets
 
 ### "Action fails on coverage threshold"
+
 - Lower the `min-threshold` value or improve test coverage
 - Use `warn-only: true` to prevent build failures while fixing coverage
 
 ### Coverage badges not updating
+
 - Check that the main branch workflow is running successfully
 - Verify the gist contains `coverage-badge.json` file
 - Badge updates may take a few minutes to propagate

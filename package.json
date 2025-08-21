@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "lint:md": "markdownlint-cli2 --config .markdownlint.json \"*.md\" \"docs/**/*.md\" \".github/**/*.md\"",
-    "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\"",
+    "lint:md:fix": "markdownlint-cli2 --fix --config .markdownlint.json \"*.md\" \"docs/**/*.md\" \".github/**/*.md\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:security": "vitest run test/security.test.ts",
