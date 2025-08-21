@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
 
-// Mock dependencies
+// Mock dependencies before importing index
 vi.mock('@actions/core');
 vi.mock('../src/enhanced.js', () => ({
     runEnhancedCoverage: vi.fn()
@@ -9,19 +9,10 @@ vi.mock('../src/enhanced.js', () => ({
 
 const mockSetFailed = vi.mocked(core.setFailed);
 
-// Mock the run function directly
-async function mockRun() {
-    const { runEnhancedCoverage } = await import('../src/enhanced.js');
-    try {
-        await runEnhancedCoverage();
-    } catch (e: any) {
-        core.setFailed(e?.message ?? String(e));
-    }
-}
-
 describe('index', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.resetModules(); // Reset module cache to ensure fresh imports
     });
 
     afterEach(() => {
@@ -32,7 +23,11 @@ describe('index', () => {
         const { runEnhancedCoverage } = await import('../src/enhanced.js');
         vi.mocked(runEnhancedCoverage).mockResolvedValue(undefined);
 
-        await mockRun();
+        // Import and run the actual index module
+        await import('../src/index.js');
+
+        // Give a small delay for the async execution
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(runEnhancedCoverage).toHaveBeenCalledTimes(1);
         expect(mockSetFailed).not.toHaveBeenCalled();
@@ -43,7 +38,11 @@ describe('index', () => {
         const error = new Error('Coverage processing failed');
         vi.mocked(runEnhancedCoverage).mockRejectedValue(error);
 
-        await mockRun();
+        // Import and run the actual index module
+        await import('../src/index.js');
+
+        // Give a small delay for the async execution
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(runEnhancedCoverage).toHaveBeenCalledTimes(1);
         expect(mockSetFailed).toHaveBeenCalledWith('Coverage processing failed');
@@ -53,7 +52,11 @@ describe('index', () => {
         const { runEnhancedCoverage } = await import('../src/enhanced.js');
         vi.mocked(runEnhancedCoverage).mockRejectedValue('String error');
 
-        await mockRun();
+        // Import and run the actual index module
+        await import('../src/index.js');
+
+        // Give a small delay for the async execution  
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(runEnhancedCoverage).toHaveBeenCalledTimes(1);
         expect(mockSetFailed).toHaveBeenCalledWith('String error');
@@ -63,7 +66,11 @@ describe('index', () => {
         const { runEnhancedCoverage } = await import('../src/enhanced.js');
         vi.mocked(runEnhancedCoverage).mockRejectedValue(null);
 
-        await mockRun();
+        // Import and run the actual index module
+        await import('../src/index.js');
+
+        // Give a small delay for the async execution
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(runEnhancedCoverage).toHaveBeenCalledTimes(1);
         expect(mockSetFailed).toHaveBeenCalledWith('null');
@@ -74,7 +81,11 @@ describe('index', () => {
         const errorObject = { code: 'UNKNOWN_ERROR' };
         vi.mocked(runEnhancedCoverage).mockRejectedValue(errorObject);
 
-        await mockRun();
+        // Import and run the actual index module
+        await import('../src/index.js');
+
+        // Give a small delay for the async execution
+        await new Promise(resolve => setTimeout(resolve, 10));
 
         expect(runEnhancedCoverage).toHaveBeenCalledTimes(1);
         expect(mockSetFailed).toHaveBeenCalledWith('[object Object]');

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { groupPackages } from '../src/group.js';
 import { loadConfig, matchesPatterns } from '../src/config.js';
 import { FileCov } from '../src/schema.js';
@@ -35,46 +35,109 @@ describe('Config System', () => {
         }
     ];
 
-    it('should match patterns correctly', () => {
-        expect(matchesPatterns('src/parsers/lcov.ts', ['src/parsers/**'])).toBe(true);
-        expect(matchesPatterns('src/comment.ts', ['src/**'])).toBe(true);
-        expect(matchesPatterns('src/parsers/lcov.ts', ['src/**'])).toBe(true);
-        expect(matchesPatterns('test/example.ts', ['src/**'])).toBe(false);
+    beforeEach(() => {
+        vi.resetAllMocks();
     });
 
-    it('should load and apply config correctly', () => {
-        // This test will use the actual .coverage-report.json file in the repo
-        const config = loadConfig();
-        const result = groupPackages(testFiles, config);
-        
-        expect(result.pkgRows).toHaveLength(2);
-        
-        // Should have separate src/parsers group
-        const parsersGroup = result.pkgRows.find(p => p.name === 'src/parsers');
-        expect(parsersGroup).toBeDefined();
-        expect(parsersGroup!.files).toHaveLength(2);
-        
-        // Should have src group (excluding parsers)
-        const srcGroup = result.pkgRows.find(p => p.name === 'src');
-        expect(srcGroup).toBeDefined();
-        expect(srcGroup!.files).toHaveLength(2);
-        
-        // Verify file assignments
-        expect(parsersGroup!.files.map(f => f.path)).toEqual(
-            expect.arrayContaining(['src/parsers/lcov.ts', 'src/parsers/clover.ts'])
-        );
-        expect(srcGroup!.files.map(f => f.path)).toEqual(
-            expect.arrayContaining(['src/comment.ts', 'src/group.ts'])
-        );
+    describe('Pattern Matching', () => {
+        it('should match patterns correctly with basic wildcards', () => {
+            expect(matchesPatterns('src/parsers/lcov.ts', ['src/parsers/**'])).toBe(true);
+            expect(matchesPatterns('src/comment.ts', ['src/**'])).toBe(true);
+            expect(matchesPatterns('src/parsers/lcov.ts', ['src/**'])).toBe(true);
+            expect(matchesPatterns('test/example.ts', ['src/**'])).toBe(false);
+        });
+
+        it('should handle single star wildcard correctly', () => {
+            expect(matchesPatterns('src/file.ts', ['src/*.ts'])).toBe(true);
+            expect(matchesPatterns('src/nested/file.ts', ['src/*.ts'])).toBe(false);
+            expect(matchesPatterns('src/file.js', ['src/*.ts'])).toBe(false);
+            expect(matchesPatterns('other/file.ts', ['src/*.ts'])).toBe(false);
+        });
+
+        it('should handle question mark wildcard correctly', () => {
+            expect(matchesPatterns('src/a.ts', ['src/?.ts'])).toBe(true);
+            expect(matchesPatterns('src/ab.ts', ['src/?.ts'])).toBe(false);
+            expect(matchesPatterns('src/test/a.ts', ['src/?.ts'])).toBe(false);
+        });
+
+        it('should handle complex patterns', () => {
+            expect(matchesPatterns('src/parsers/test.ts', ['src/*/test.ts'])).toBe(true);
+            expect(matchesPatterns('src/utils/helper.ts', ['src/*/helper.ts'])).toBe(true);
+            expect(matchesPatterns('src/deep/nested/file.ts', ['src/*/nested/*.ts'])).toBe(true);
+        });
+
+        it('should handle edge cases with path normalization', () => {
+            expect(matchesPatterns('./src/file.ts', ['src/**'])).toBe(true);
+            expect(matchesPatterns('src//file.ts', ['src/**'])).toBe(true);
+            expect(matchesPatterns('src/../src/file.ts', ['src/**'])).toBe(true);
+        });
+
+        it('should handle empty patterns array', () => {
+            expect(matchesPatterns('src/file.ts', [])).toBe(false);
+        });
+
+        it('should handle multiple patterns', () => {
+            const patterns = ['src/**', 'test/**', 'lib/**'];
+            expect(matchesPatterns('src/file.ts', patterns)).toBe(true);
+            expect(matchesPatterns('test/file.ts', patterns)).toBe(true);
+            expect(matchesPatterns('lib/file.ts', patterns)).toBe(true);
+            expect(matchesPatterns('docs/file.ts', patterns)).toBe(false);
+        });
     });
 
-    it('should create top-level summary correctly', () => {
-        const config = loadConfig();
-        const result = groupPackages(testFiles, config);
-        
-        // Top-level should just be 'src' (first path segment)
-        expect(result.topLevelRows).toHaveLength(1);
-        expect(result.topLevelRows[0].name).toBe('src');
-        expect(result.topLevelRows[0].files).toHaveLength(4);
+    describe('Config Loading', () => {
+        it('should load and apply config correctly', () => {
+            // This test will use the actual .coverage-report.json file in the repo
+            const config = loadConfig();
+            const result = groupPackages(testFiles, config);
+            
+            expect(result.pkgRows).toHaveLength(2);
+            
+            // Should have separate src/parsers group
+            const parsersGroup = result.pkgRows.find(p => p.name === 'src/parsers');
+            expect(parsersGroup).toBeDefined();
+            expect(parsersGroup!.files).toHaveLength(2);
+            
+            // Should have src group (excluding parsers)
+            const srcGroup = result.pkgRows.find(p => p.name === 'src');
+            expect(srcGroup).toBeDefined();
+            expect(srcGroup!.files).toHaveLength(2);
+            
+            // Verify file assignments
+            expect(parsersGroup!.files.map(f => f.path)).toEqual(
+                expect.arrayContaining(['src/parsers/lcov.ts', 'src/parsers/clover.ts'])
+            );
+            expect(srcGroup!.files.map(f => f.path)).toEqual(
+                expect.arrayContaining(['src/comment.ts', 'src/group.ts'])
+            );
+        });
+
+        it('should return default config when file does not exist', () => {
+            // Test with a directory that doesn't have a config file
+            const config = loadConfig('/tmp/nonexistent');
+            
+            expect(config).toEqual({
+                groups: [],
+                fallback: {
+                    smartDepth: 'auto',
+                    promoteThreshold: 0.8
+                },
+                ui: {
+                    expandFilesFor: [],
+                    maxDeltaRows: 10,
+                    minPassThreshold: 50
+                }
+            });
+        });
+
+        it('should create top-level summary correctly', () => {
+            const config = loadConfig();
+            const result = groupPackages(testFiles, config);
+            
+            // Top-level should just be 'src' (first path segment)
+            expect(result.topLevelRows).toHaveLength(1);
+            expect(result.topLevelRows[0].name).toBe('src');
+            expect(result.topLevelRows[0].files).toHaveLength(4);
+        });
     });
 });
