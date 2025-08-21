@@ -48849,22 +48849,28 @@ function jacoco_parseJaCoCo(xmlContent) {
                     };
                 }
                 const file = filesMap[normalizedPath];
-                // Parse methods for detailed function coverage (only if not processed by sourcefile)
-                if (cls.method && !processedFiles.has(normalizedPath)) {
+                // Parse methods for detailed function coverage - prefer class method details over counters
+                if (cls.method) {
                     const methods = Array.isArray(cls.method)
                         ? cls.method
                         : [cls.method];
-                    file.functions.total = 0; // Reset to count from methods
-                    file.functions.covered = 0;
+                    // Count methods from classes (this is more accurate than counter data)
+                    let classFunctionTotal = 0;
+                    let classFunctionCovered = 0;
                     for (const method of methods) {
                         if (!method || !method['@_name'])
                             continue;
-                        file.functions.total++;
+                        classFunctionTotal++;
                         // Check if method is covered by looking at its counters
                         const methodCounters = extractCounters(method.counter);
                         if (methodCounters.method.covered > 0) {
-                            file.functions.covered++;
+                            classFunctionCovered++;
                         }
+                    }
+                    // Use class method data if we found methods
+                    if (classFunctionTotal > 0) {
+                        file.functions.total = classFunctionTotal;
+                        file.functions.covered = classFunctionCovered;
                     }
                 }
                 // Use class counters as fallback if no method data exists
