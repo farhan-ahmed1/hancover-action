@@ -47,7 +47,7 @@ jobs:
           cache: 'npm'
 
       - name: Install markdownlint-cli2
-        run: npm install -g markdownlint-cli2
+        run: npm install -g markdownlint-cli2@0.18.1
 
       - name: Lint Markdown files
         run: markdownlint-cli2 --config .markdownlint.json "*.md" "docs/**/*.md" ".github/**/*.md"
