@@ -37,7 +37,7 @@
     "@vercel/ncc": "0.38.3",
     "@vitest/coverage-v8": "3.2.4",
     "eslint": "9.33.0",
-    "markdownlint-cli2": "^0.13.0",
+    "markdownlint-cli2": "^0.18.1",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
   }
