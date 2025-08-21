@@ -1,31 +1,104 @@
-title: Bug Report
+name: Bug Report
+description: Report a bug or issue with HanCover Action
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
 
-about: Create a report to help us improve
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out this form to help us investigate.
 
-labels: bug
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug...
+    validations:
+      required: true
 
----
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Set up workflow with...
+        2. Run action with...
+        3. See error...
+    validations:
+      required: true
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: Describe expected behavior...
+    validations:
+      required: true
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow File
+      description: Your workflow file content (please remove any sensitive information)
+      placeholder: |
+        ```yaml
+        name: Coverage
+        on: ...
+        jobs: ...
+        ```
+      render: yaml
+    validations:
+      required: true
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+  - type: input
+    id: version
+    attributes:
+      label: HanCover Action Version
+      description: Which version of the action are you using?
+      placeholder: v1.0.0
+    validations:
+      required: true
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+  - type: dropdown
+    id: coverage-format
+    attributes:
+      label: Coverage Format
+      description: Which coverage format are you using?
+      options:
+        - LCOV (.info)
+        - Cobertura (.xml)
+        - JaCoCo (.xml)
+        - Clover (.xml)
+        - Multiple formats
+        - Unknown/Other
+    validations:
+      required: true
 
-**Environment (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+  - type: textarea
+    id: logs
+    attributes:
+      label: Action Logs/Error Output
+      description: Please paste the relevant error output or action logs
+      placeholder: Paste error logs here...
+      render: text
 
-**Additional context**
-Add any other context about the problem here.
+  - type: input
+    id: os
+    attributes:
+      label: Runner OS
+      description: What OS is your GitHub Actions runner using?
+      placeholder: ubuntu-latest, windows-latest, macos-latest
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (screenshots, sample coverage files, etc.)
+      placeholder: Any additional context...

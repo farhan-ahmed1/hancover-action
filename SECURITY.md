@@ -6,7 +6,9 @@ If you discover a security vulnerability in HanCover Action, please report it pr
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to security@farhanlabs.com with:
+Instead, please report security issues via
+[GitHub's private vulnerability reporting](https://github.com/farhan-ahmed1/hancover-action/security/advisories/new)
+or email <security@farhanlabs.com> with:
 
 - Description of the vulnerability
 - Steps to reproduce
@@ -29,13 +31,14 @@ HanCover Action implements several security best practices:
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x   | ✅         |
+| v1.x    | ✅         |
 
 ## Security Best Practices for Users
 
 When using HanCover Action:
 
 1. Use the minimal required permissions:
+
    ```yaml
    permissions:
      pull-requests: write
@@ -43,14 +46,16 @@ When using HanCover Action:
    ```
 
 2. Pin to specific versions:
+
    ```yaml
-   uses: farhan-ahmed/hancover-action@v0.1.0  # Not @main
+   uses: farhan-ahmed1/hancover-action@v1.0.0  # Not @main
    ```
 
 3. Review coverage file sources to ensure they come from trusted build processes
 
-4. Consider setting strict mode for production environments:
+4. Store sensitive tokens as repository secrets:
+
    ```yaml
    with:
-     strict: true
+     github-token: ${{ secrets.GIST_TOKEN }}  # Not hardcoded
    ```

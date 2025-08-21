@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/farhan-ahmed1/hancover-action#readme
+    about: Check the README and documentation for setup instructions and examples
+  - name: Security Issues
+    url: https://github.com/farhan-ahmed1/hancover-action/security/advisories/new
+    about: Report security vulnerabilities privately

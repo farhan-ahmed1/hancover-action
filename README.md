@@ -1,30 +1,33 @@
-# HanCover - Coverage Reports for PRs
+# HanCover Action
 
 ![GitHub CI](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/ci.yml/badge.svg)
 ![CodeQL](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/codeql.yml/badge.svg)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/96e4dc85e2b5c6a2e7f7cdcdc576eb6c/raw/coverage-badge.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
 
-A GitHub Action that generates comprehensive coverage reports with change detection for Pull Requests. Supports multiple coverage formats and provides dynamic badges showing coverage changes compared to the main branch.
+A GitHub Action that generates coverage reports for Pull Requests with change detection, dynamic badges, and
+support for multiple coverage formats.
 
 ## Features
 
-- **Multiple format support**: LCOV, Cobertura, JaCoCo, and Clover coverage files
-- **Change detection**: Automatic baseline comparison using GitHub Gists
-- **Dynamic badges**: Coverage and change badges that update automatically
-- **Smart analysis**: Package grouping, diff coverage, and delta calculations  
-- **Sticky comments**: Clean PR comments that update instead of spam
-- **Threshold checking**: Configurable coverage requirements
-- **Secure**: Minimal permissions, input validation, and safe parsing
+- **Multi-format support**: Automatically detects and parses LCOV, Cobertura, JaCoCo, and Clover coverage files
+- **Change tracking**: Compares PR coverage against main branch with visual delta indicators
+- **Smart PR comments**: Single sticky comment that updates with each push
+- **Dynamic badges**: Auto-updating coverage and change badges via GitHub Gists
+- **Package organization**: Intelligent grouping with customizable package structure
+- **Security focused**: Minimal permissions, input validation, and secure XML processing
 
-## Quick Start
+## Quick Setup
 
-### Basic Usage
+### Basic PR Coverage
+
+Add coverage reports to Pull Requests with this minimal setup:
 
 ```yaml
-name: Coverage
+name: PR Coverage
 on:
   pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   pull-requests: write
@@ -36,7 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+        with:
+          node-version: '20'
+          cache: 'npm'
       
       - run: npm ci
       - run: npm test -- --coverage
@@ -48,96 +53,241 @@ jobs:
           min-threshold: 80
 ```
 
-### With Change Detection (Recommended)
+This creates PR comments with coverage tables and health indicators.
 
-Enable change badges by setting up a GitHub Gist for baseline storage:
+### Enhanced Setup with Change Detection
+
+For coverage badges and change tracking, additional setup is required using GitHub Gists.
+
+#### Step 1: Create a GitHub Gist
+
+1. Go to [gist.github.com](https://gist.github.com)
+2. Create a **public** gist with filename `coverage.json` and content: `{"coverage": 0}`
+3. Note the Gist ID from the URL
+
+#### Step 2: Add Repository Secrets
+
+1. Go to repository Settings → Secrets and variables → Actions
+2. Add `COVERAGE_GIST_ID` with your gist ID
+3. Add `GIST_TOKEN` with a [personal access token](https://github.com/settings/tokens) having `gist` scope
+
+#### Step 3: Update Workflow
 
 ```yaml
-- name: Coverage Report with Changes
+- name: Coverage Report with Change Detection
   uses: farhan-ahmed1/hancover-action@v1
   with:
     files: coverage/lcov.info
     gist-id: ${{ secrets.COVERAGE_GIST_ID }}
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{ secrets.GIST_TOKEN }}
     min-threshold: 80
 ```
 
-**Setup Guide**: [Complete Gist Setup Instructions](./docs/COMPLETE-SETUP.md)
+**Step 4: Add Main Branch Workflow**
+Create `.github/workflows/coverage-main.yml`:
 
-## Example Output
+```yaml
+name: Update Coverage Baseline
+on:
+  push:
+    branches: [main]
 
-With the Gist setup, your PR comments will include both badges:
+permissions:
+  contents: read
 
-![Coverage](https://img.shields.io/badge/coverage-87.1%25-green) ![Changes](https://img.shields.io/badge/changes-+1.9%25-brightgreen)
+jobs:
+  update-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - name: Update Coverage Baseline
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+          github-token: ${{ secrets.GIST_TOKEN }}
+```
 
-**Overall Coverage:** 87.1% | **Lines Covered:** 1523/1749  
+**Step 5: Add Dynamic README Badge**
+Add this badge to your README for auto-updating coverage display:
 
-_Changes made in this PR increased coverage by 1.9 percentage points._
+```markdown
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/coverage-badge.json)
+```
 
-<details>
-<summary><b>Detailed Coverage by Package</b></summary>
+Replace `USERNAME` with your GitHub username and `GIST_ID` with your gist ID.
 
-| Package | Statements | Branches | Functions | Health |
-|---------|------------|----------|-----------|--------|
-| src/core | 95.2% (120/126) | 88.9% (24/27) | 100.0% (8/8) | ✅ |
-| src/utils | 78.3% (47/60) | 66.7% (4/6) | 85.7% (6/7) | ✅ |
-| **Summary** | **87.1% (167/192)** | **84.8% (28/33)** | **93.3% (14/15)** | **✅** |
+## What You Get
 
-</details>
+### Basic PR Comments
 
-## Configuration
+Clean, organized coverage reports in Pull Request comments:
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `files` | Coverage file patterns (e.g., `'coverage/lcov.info'`) | Yes | - |
-| `gist-id` | GitHub Gist ID for baseline storage (enables change badges) | No | - |
-| `github-token` | GitHub token for API access | No | `GITHUB_TOKEN` |
-| `min-threshold` | Minimum coverage threshold for health indicators | No | `50` |
-| `comment-mode` | `'update'` (sticky) or `'new'` | No | `'update'` |
-| `warn-only` | Don't fail on threshold violations | No | `false` |
-| `baseline-files` | Baseline coverage files (alternative to gist) | No | - |
-| `groups` | YAML configuration for custom package grouping | No | - |
+```text
+Coverage Report
 
-## Outputs
+Overall Coverage: 87.1% | Lines Covered: 1523/1749
 
-| Output | Description |
-|--------|-------------|
-| `coverage-pct` | Overall project coverage percentage |
-| `changes-coverage-pct` | Coverage percentage for code changes in this PR |
-| `coverage-delta` | Coverage change compared to main branch (when gist-id provided) |
+Package Coverage:
+┌─────────────┬───────────────┬──────────────┬───────────────┬────────┐
+│ Package     │ Statements    │ Branches     │ Functions     │ Health │
+├─────────────┼───────────────┼──────────────┼───────────────┼────────┤
+│ src/core    │ 95.2% (120/126) │ 88.9% (24/27) │ 100.0% (8/8) │   ✅   │
+│ src/utils   │ 78.3% (47/60)   │ 66.7% (4/6)  │ 85.7% (6/7)  │   ✅   │
+│ **Summary** │ **87.1% (167/192)** │ **84.8% (28/33)** │ **93.3% (14/15)** │ **✅** │
+└─────────────┴───────────────┴──────────────┴───────────────┴────────┘
 
-## Coverage Formats Supported
+Changes Coverage: 91.3% (42/46 lines)
+```
 
-- **LCOV** (`.info` files) - Jest, Vitest, Karma, etc.
-- **Cobertura** (`.xml` files) - .NET, Python, etc.  
-- **JaCoCo** (`.xml` files) - Java, Kotlin, Scala
-- **Clover** (`.xml` files) - PHP, JavaScript
+### Enhanced with Change Detection
+
+<!-- TODO: Add screenshot of enhanced PR comment with badges -->
+*[Screenshot placeholder: Enhanced PR comment with coverage badges and change indicators]*
+
+With change detection enabled:
+
+- Coverage and change badges at the top of PR comments
+- Delta indicators showing coverage changes vs main branch  
+- Collapsible detailed coverage tables
+- Auto-updating README badges
+
+<!-- TODO: Add screenshot of dynamic README badge -->
+*[Screenshot placeholder: Dynamic README badge that updates automatically]*
+
+## Supported Coverage Formats
+
+| Format | File Extensions | Common Tools |
+|--------|----------------|--------------|
+| **LCOV** | `.info` | Jest, Vitest, Karma, c8, nyc |
+| **Cobertura** | `.xml` | .NET, Python (coverage.py), Maven |
+| **JaCoCo** | `.xml` | Java, Kotlin, Scala |
+| **Clover** | `.xml` | PHP (PHPUnit), JavaScript |
+
+The action automatically detects the format based on file content and structure.
 
 ## Documentation
 
-- **[Complete Setup Guide](./docs/COMPLETE-SETUP.md)** - Step-by-step Gist setup for change badges
-- **[Token Flow Guide](./docs/TOKEN-FLOW.md)** - How authentication and data flow works
-- **[Coverage Badge Setup](./docs/COVERAGE-BADGE.md)** - Legacy badge setup documentation
+### Setup & Configuration
+
+- **[Setup Guide](./docs/SETUP-GUIDE.md)** - Complete setup instructions including file-based alternatives
+- **[Configuration Guide](./docs/CONFIGURATION.md)** - Advanced package grouping and report customization
+- **[API Reference](./docs/API-REFERENCE.md)** - Complete input/output reference and configuration options
+
+### Examples
+
+- **[Basic PR Coverage](./examples/basic-pr-coverage.yml)** - Simple coverage comments
+- **[Enhanced with Badges](./examples/enhanced-with-badges.yml)** - Full setup with change detection
+- **[Multi-format Support](./examples/multi-format.yml)** - Different coverage formats
+- **[Monorepo Setup](./examples/monorepo-setup.yml)** - Complex project configuration
+
+### Reference
+
+- **[Security Policy](./SECURITY.md)** - Security best practices and reporting
+- **[Contributing Guide](./CONTRIBUTING.md)** - Contributing to the project
+
+## Language Examples
+
+### JavaScript/TypeScript (Jest, Vitest)
+
+```yaml
+- run: npm test -- --coverage
+- uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: coverage/lcov.info
+```
+
+### .NET Projects
+
+```yaml
+- run: dotnet test --collect:"XPlat Code Coverage" --results-directory coverage
+- uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: coverage/**/coverage.cobertura.xml
+```
+
+### Java Projects (Maven)
+
+```yaml
+- run: mvn test jacoco:report
+- uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: target/site/jacoco/jacoco.xml
+```
+
+### Python Projects
+
+```yaml
+- run: |
+    pip install coverage
+    coverage run -m pytest
+    coverage xml
+- uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: coverage.xml
+```
+
+See [examples/](./examples/) for complete workflow files and advanced configurations.
 
 ## Security
 
-HanCover is designed with security as a top priority:
+HanCover Action follows security best practices:
 
 - **Minimal permissions**: Only requires `pull-requests: write` and `contents: read`
-- **Safe parsing**: XXE protection, input validation, and secure XML processing
-- **Size limits**: Built-in protections against large file attacks
-- **Supply chain security**: Signed releases, dependency scanning, and regular audits
+- **Input validation**: All inputs are validated and sanitized
+- **Size limits**: Built-in protections against large file attacks (50MB per file, 200MB total)
+- **Secure parsing**: XXE protection and safe XML processing
 
-**Security best practices:**
+### Best Practices
+
 ```yaml
 # Pin to specific versions
-uses: farhan-ahmed1/hancover-action@v1.0.0 ✅ 
+uses: farhan-ahmed1/hancover-action@v1.0.0  # ✅ Recommended
+uses: farhan-ahmed1/hancover-action@main    # ❌ Avoid
 
-# Avoid using branches or tags
-uses: farhan-ahmed1/hancover-action@main ❌
+# Use minimal permissions
+permissions:
+  pull-requests: write  # For PR comments
+  contents: read       # For repository access
+
+# Secure token management
+github-token: ${{ secrets.GIST_TOKEN }}     # ✅ Use secrets
+github-token: "ghp_your_token_here"         # ❌ Never hardcode
 ```
 
-Report security issues: See [SECURITY.md](SECURITY.md)
+Report security issues via [SECURITY.md](SECURITY.md).
+
+## Troubleshooting
+
+### Common Issues
+
+#### No coverage files found
+
+- Verify coverage files are generated before running the action
+- Check file paths match the `files` input pattern
+- Ensure test command runs with coverage enabled
+
+#### Failed to update gist
+
+- Verify `GIST_TOKEN` has `gist` scope permissions
+- Ensure the gist exists and is public
+- Check the gist ID is correct
+
+#### Action fails on coverage threshold
+
+- Review coverage requirements in `min-threshold`
+- Use `warn-only: true` to prevent workflow failure
+- See [API Reference](./docs/API-REFERENCE.md) for threshold configuration
+
+For additional help, see [Setup Guide troubleshooting](./docs/SETUP-GUIDE.md) or [open an issue](https://github.com/farhan-ahmed1/hancover-action/issues).
 
 ## License
 

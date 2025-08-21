@@ -1,0 +1,19 @@
+{
+  "default": true,
+  "MD003": { "style": "atx" },
+  "MD007": { "indent": 2 },
+  "MD013": {
+    "line_length": 120,
+    "headings": false,
+    "tables": false,
+    "code_blocks": false
+  },
+  "MD024": { "siblings_only": true },
+  "MD025": false,
+  "MD033": {
+    "allowed_elements": ["details", "summary", "br", "sub", "sup"]
+  },
+  "MD041": false,
+  "MD046": { "style": "fenced" },
+  "MD048": { "style": "backtick" }
+}

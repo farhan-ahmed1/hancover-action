@@ -1,8 +1,18 @@
-name: HanCover — Coverage Reports for PRs
+name: HanCover Action
 description: |
-  Generate comprehensive coverage reports with change detection for Pull Requests.
-  Supports LCOV, Cobertura, JaCoCo, and Clover formats. Posts sticky PR comments 
-  with coverage badges and change indicators. Uses GitHub Gists for baseline storage.
+  Generate comprehensive coverage reports for Pull Requests with intelligent change detection and dynamic badges.
+  
+  Features:
+  • Multi-format support: Automatically detects LCOV, Cobertura, JaCoCo, and Clover coverage files
+  • Smart PR comments: Single sticky comment that updates with each push - no spam
+  • Change tracking: Compares PR coverage against main branch with visual delta indicators  
+  • Dynamic badges: Auto-updating coverage and change badges via GitHub Gists or file storage
+  • Package organization: Intelligent grouping with customizable package structure
+  • Security focused: Minimal permissions, input validation, and secure parsing
+  • Security focused: Minimal permissions, input validation, and secure XML processing
+  • Threshold validation: Configurable coverage requirements with clear pass/fail indicators
+  
+  Perfect for JavaScript/TypeScript (Jest, Vitest), .NET, Java (Maven), Python, PHP, and monorepo projects.
 author: FarHan Labs
 branding:
   icon: 'shield'

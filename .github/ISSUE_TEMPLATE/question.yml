@@ -1,0 +1,77 @@
+name: Question or Support
+description: Ask a question or get help with setup
+title: "[Question]: "
+labels: ["question"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using HanCover Action? We're here to help!
+        
+        **Before asking:** Please check if your question is already answered in:
+        - [README](https://github.com/farhan-ahmed1/hancover-action#readme)
+        - [Setup Guide](https://github.com/farhan-ahmed1/hancover-action/blob/main/docs/SETUP-GUIDE.md)
+        - [API Reference](https://github.com/farhan-ahmed1/hancover-action/blob/main/docs/API-REFERENCE.md)
+        - [Existing issues](https://github.com/farhan-ahmed1/hancover-action/issues)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What would you like to know?
+      placeholder: How do I... / What does... / Why is...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      description: What is your question about?
+      options:
+        - Initial setup
+        - Gist configuration
+        - Coverage file formats
+        - Workflow configuration
+        - Badge setup
+        - Troubleshooting
+        - Monorepo usage
+        - Custom package grouping
+        - Thresholds and validation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What Have You Tried?
+      description: What have you already tried or what documentation have you checked?
+      placeholder: I tried... / I checked... / I followed the guide but...
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Current Workflow (if applicable)
+      description: Share your current workflow configuration if relevant
+      placeholder: |
+        ```yaml
+        # Your workflow here (remove sensitive info)
+        ```
+      render: yaml
+
+  - type: input
+    id: version
+    attributes:
+      label: HanCover Action Version
+      description: Which version are you using or planning to use?
+      placeholder: v1.0.0
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other details that might help us understand your question
+      placeholder: Project details, specific requirements, error messages, etc.

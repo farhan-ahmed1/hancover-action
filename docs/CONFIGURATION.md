@@ -1,70 +1,299 @@
 # Coverage Report Configuration
 
-This document explains how to configure the enhanced coverage reporting features introduced to better organize and display your coverage data.
+This guide explains how to customize coverage report organization and display using advanced configuration options.
 
-## Quick Start
+## Smart Defaults
 
-The action works perfectly without any configuration using smart defaults. However, you can create a `.coverage-report.json` file in your repository root to customize the behavior.
+HanCover Action works perfectly without configuration. It automatically:
 
-### Basic Configuration
+1. **Groups by first path segment**: `src/`, `test/`, `packages/`, etc.
+2. **Promotes deeper when logical**: If `src/` contains 80%+ of files, shows `src/components/`, `src/utils/`, etc.
+3. **Handles monorepos**: `packages/*/` becomes separate packages automatically
+
+## Custom Configuration
+
+Create `.coverage-report.json` in your repository root to override defaults:
+
+### Basic Example
 
 ```json
 {
-    "groups": [
-        {
-            "name": "src/parsers", 
-            "patterns": ["src/parsers/**"]
-        },
-        {
-            "name": "src",
-            "patterns": ["src/**"],
-            "exclude": ["src/parsers/**"]
-        }
-    ],
-    "ui": {
-        "expandFilesFor": ["src/parsers"]
+  "groups": [
+    {
+      "name": "Core Components",
+      "patterns": ["src/components/**"],
+      "exclude": ["src/components/legacy/**"]
+    },
+    {
+      "name": "Utilities", 
+      "patterns": ["src/utils/**", "src/helpers/**"]
+    },
+    {
+      "name": "Services",
+      "patterns": ["src/services/**", "src/api/**"]
     }
+  ],
+  "ui": {
+    "expandFilesFor": ["Core Components"]
+  }
 }
 ```
 
-## Configuration Options
+### Configuration Options
 
-### `groups` (optional)
-Defines custom package groupings that override the smart defaults.
+#### `groups` (array, optional)
 
-- **`name`**: Display name for the package group
-- **`patterns`**: Array of glob patterns to match files (supports `*` and `**`)
-- **`exclude`**: Array of glob patterns to exclude files (optional)
+Defines custom package groupings that override smart defaults.
 
-Rules are processed in order, and files are assigned to the first matching rule.
+| Property | Type | Description | Required |
+|----------|------|-------------|----------|
+| `name` | string | Display name for the package group | ✅ |
+| `patterns` | string[] | Glob patterns to match files (supports `*` and `**`) | ✅ |
+| `exclude` | string[] | Glob patterns to exclude from this group | ❌ |
 
-### `fallback` (optional)
-Controls the smart default behavior when no custom groups are defined.
+**Processing Rules:**
 
-- **`smartDepth`**: `"auto"` | `"top"` | `"two"` (default: `"auto"`)
-  - `"auto"`: Promotes one level deeper if a single directory contains ≥80% of files
-  - `"top"`: Always group by first path segment only
-  - `"two"`: Always show two levels deep
+- Groups are processed in order
+- Files are assigned to the first matching group
+- Excluded patterns take precedence over included patterns
 
-- **`promoteThreshold`**: Number between 0-1 (default: `0.8`)
-  - Threshold for promoting to deeper grouping in auto mode
+#### `ui` (object, optional)
 
-### `ui` (optional)
-Controls display and interaction features.
+Controls visual presentation of coverage data.
 
-- **`expandFilesFor`**: Array of package names that should show expandable file details
-- **`maxDeltaRows`**: Maximum number of packages to show in delta table before collapsing (default: `10`)
-- **`minPassThreshold`**: Minimum coverage percentage for "pass" health indicators (default: `50`)
+| Property | Type | Description | Default |
+|----------|------|-------------|---------|
+| `expandFilesFor` | string[] | Package names to show expanded file listings | `[]` |
 
-## Features
+#### `fallback` (object, optional)
 
-### Smart Defaults (No Config Required)
+Controls smart default behavior when no custom groups are defined.
 
-Without any configuration, the action automatically:
+| Property | Type | Description | Default |
+|----------|------|-------------|---------|
+| `smartDepth` | string | `"auto"` \| `"top"` \| `"two"` | `"auto"` |
+| `promoteThreshold` | number | Threshold (0-1) for promoting to deeper grouping | `0.8` |
 
-1. **Groups by first path segment**: `src`, `test`, `packages`, etc.
-2. **Promotes deeper when appropriate**: If `src/` contains ≥80% of files, shows `src/components`, `src/utils`, etc.
-3. **Handles monorepos naturally**: `packages/*/` becomes separate packages
+**Smart Depth Options:**
+
+- `"auto"`: Promotes one level deeper if single directory contains ≥80% of files
+- `"top"`: Always groups by first path segment only  
+- `"two"`: Always shows two levels deep
+
+## Common Use Cases
+
+### Monorepo with Multiple Packages
+
+```json
+{
+  "groups": [
+    {
+      "name": "UI Components",
+      "patterns": ["packages/ui/**", "packages/components/**"]
+    },
+    {
+      "name": "Utilities & Tools", 
+      "patterns": ["packages/utils/**", "packages/cli/**"]
+    },
+    {
+      "name": "Web Applications",
+      "patterns": ["apps/web/**", "apps/admin/**"]
+    },
+    {
+      "name": "API Services",
+      "patterns": ["apps/api/**", "apps/worker/**"]
+    }
+  ],
+  "ui": {
+    "expandFilesFor": ["UI Components", "API Services"]
+  }
+}
+```
+
+### Separating Test Code from Source
+
+```json
+{
+  "groups": [
+    {
+      "name": "Core Application",
+      "patterns": ["src/**"],
+      "exclude": ["src/**/*.test.*", "src/**/*.spec.*"]
+    },
+    {
+      "name": "Test Utilities", 
+      "patterns": ["src/**/*.test.*", "src/**/*.spec.*", "test/**"]
+    },
+    {
+      "name": "Build & Config",
+      "patterns": ["build/**", "config/**", "scripts/**"]
+    }
+  ]
+}
+```
+
+### Platform-Specific Grouping
+
+```json
+{
+  "groups": [
+    {
+      "name": "Mobile Platform",
+      "patterns": ["src/mobile/**", "src/react-native/**"]
+    },
+    {
+      "name": "Web Platform",
+      "patterns": ["src/web/**", "src/components/**"]
+    },
+    {
+      "name": "Shared Libraries",
+      "patterns": ["src/shared/**", "src/utils/**"]
+    }
+  ],
+  "ui": {
+    "expandFilesFor": ["Shared Libraries"]
+  }
+}
+```
+
+### Feature-Based Organization
+
+```json
+{
+  "groups": [
+    {
+      "name": "Authentication",
+      "patterns": ["src/auth/**", "src/login/**", "src/security/**"]
+    },
+    {
+      "name": "Data Layer",
+      "patterns": ["src/api/**", "src/database/**", "src/models/**"]
+    },
+    {
+      "name": "User Interface",
+      "patterns": ["src/components/**", "src/pages/**", "src/views/**"]
+    }
+  ]
+}
+```
+
+## Advanced Configuration
+
+### Using Workflow Configuration
+
+Instead of `.coverage-report.json`, you can specify configuration inline:
+
+```yaml
+- name: Coverage Report
+  uses: farhan-ahmed1/hancover-action@v1
+  with:
+    files: coverage/lcov.info
+    groups: |
+      - name: "Frontend"
+        patterns: ["src/components/**", "src/pages/**"]
+      - name: "Backend"  
+        patterns: ["src/api/**", "src/services/**"]
+```
+
+### Smart Depth Configuration
+
+Control automatic grouping behavior:
+
+```json
+{
+  "fallback": {
+    "smartDepth": "two",
+    "promoteThreshold": 0.7
+  }
+}
+```
+
+This configuration:
+
+- Always shows two directory levels (`src/components/`, `src/utils/`)
+- Promotes to deeper grouping when 70%+ of files are in one directory
+
+### UI Customization
+
+```json
+{
+  "ui": {
+    "expandFilesFor": ["Core Components", "Critical Services"],
+    "maxDeltaRows": 15,
+    "minPassThreshold": 75
+  }
+}
+```
+
+This configuration:
+
+- Shows file-level details for "Core Components" and "Critical Services"
+- Shows up to 15 packages in delta comparison table
+- Requires 75% coverage for "pass" health indicators
+
+## Configuration Validation
+
+The action validates your configuration and will provide helpful error messages:
+
+```text
+❌ Configuration Error: Group "Frontend" has empty patterns array
+❌ Configuration Error: Pattern "src/**" matches no files
+⚠️  Configuration Warning: Group "Backend" excludes all matched files
+```
+
+## Troubleshooting
+
+### No packages appear in report
+
+- Check that your `patterns` match actual files in your coverage data
+- Verify patterns use correct glob syntax (`**` for recursive matching)
+- Enable debug output with `ACTIONS_STEP_DEBUG=true`
+
+### Groups not showing expected files
+
+- Remember that groups are processed in order
+- Use `exclude` patterns to remove files from previous matches
+- Test patterns against your actual file structure
+
+### File expansion not working
+
+- Ensure package names in `expandFilesFor` exactly match group names
+- Check that packages actually contain multiple files
+
+## Reference
+
+### Complete Configuration Schema
+
+```json
+{
+  "groups": [
+    {
+      "name": "string",
+      "patterns": ["string[]"],
+      "exclude": ["string[]"]  // optional
+    }
+  ],
+  "ui": {
+    "expandFilesFor": ["string[]"],
+    "maxDeltaRows": "number",
+    "minPassThreshold": "number"
+  },
+  "fallback": {
+    "smartDepth": "auto" | "top" | "two", 
+    "promoteThreshold": "number"
+  }
+}
+```
+
+### Glob Pattern Examples
+
+| Pattern | Matches |
+|---------|---------|
+| `src/**` | All files under `src/` recursively |
+| `src/*` | Files directly in `src/` (not subdirectories) |
+| `**/*.test.js` | All test files ending in `.test.js` |
+| `packages/*/src/**` | All source files in any package |
+| `apps/{web,api}/**` | Files in `apps/web/` or `apps/api/` |
 
 ### Enhanced Report Structure
 
@@ -78,7 +307,7 @@ The coverage report now includes:
 
 ### Example Output Structure
 
-```
+```text
 ## Coverage Report
 
 [Coverage Badge] [Changes Badge] [Delta Badge]
@@ -112,7 +341,7 @@ Overall Coverage: 63.0% | Lines Covered: 852/1353
 </details>
 ```
 
-## Common Use Cases
+## Configuration Examples
 
 ### Separating Parsers from Main Code
 
@@ -179,10 +408,6 @@ Overall Coverage: 63.0% | Lines Covered: 852/1353
     ]
 }
 ```
-
-## Backwards Compatibility
-
-All existing coverage reports will continue to work without any changes. The new features are completely opt-in and non-breaking.
 
 ## Security
 
