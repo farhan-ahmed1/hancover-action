@@ -9,6 +9,13 @@ describe('Parser Auto-Detection', () => {
             expect(result.files[0].path).toBe('sample/file/path');
         });
 
+        it('should auto-detect JaCoCo XML files', async () => {
+            const result = await parseAnyCoverage('test/fixtures/jacoco/jacoco.small.xml');
+            expect(result.files).toHaveLength(1);
+            expect(result.files[0].path).toBe('src/Example.java');
+            expect(result.files[0].package).toBe('src');
+        });
+
         it('should auto-detect Clover XML files', async () => {
             const result = await parseAnyCoverage('test/fixtures/clover/clover.small.xml');
             expect(result.files).toHaveLength(1);
@@ -33,6 +40,23 @@ describe('Parser Auto-Detection', () => {
     });
 
     describe('Content-based Auto-detection', () => {
+        it('should auto-detect JaCoCo from content with hint', () => {
+            const jacocoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="test">
+    <package name="com/test">
+        <sourcefile name="Test.java">
+            <line nr="1" mi="0" ci="1" mb="0" cb="0"/>
+            <counter type="LINE" missed="0" covered="1"/>
+        </sourcefile>
+    </package>
+</report>`;
+            
+            const result = parseAnyCoverageContent(jacocoContent, 'jacoco');
+            expect(result.files).toHaveLength(1);
+            expect(result.files[0].path).toBe('com/test/Test.java');
+        });
+
         it('should auto-detect Clover from content with hint', () => {
             const cloverContent = `<?xml version="1.0" encoding="UTF-8"?>
 <coverage generator="clover">
@@ -79,7 +103,24 @@ end_of_record`;
             expect(result.files[0].path).toBe('src/test.js');
         });
 
-        it('should auto-detect Cobertura from content', () => {
+        it('should auto-detect JaCoCo from content without hint', () => {
+            const jacocoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="test">
+    <package name="com/test">
+        <sourcefile name="Test.java">
+            <line nr="1" mi="0" ci="1" mb="0" cb="0"/>
+            <counter type="LINE" missed="0" covered="1"/>
+        </sourcefile>
+    </package>
+</report>`;
+            
+            const result = parseAnyCoverageContent(jacocoContent);
+            expect(result.files).toHaveLength(1);
+            expect(result.files[0].path).toBe('com/test/Test.java');
+        });
+
+        it('should auto-detect Cobertura from content without hint', () => {
             const coberturaContent = `<?xml version="1.0" encoding="UTF-8"?>
 <coverage version="1.0" line-rate="0.66667" branch-rate="0.5">
     <packages>
@@ -101,7 +142,19 @@ end_of_record`;
             expect(result.files[0].path).toBe('src/example1.js');
         });
 
-        it('should distinguish between Clover and Cobertura XML', () => {
+        it('should distinguish between JaCoCo, Clover and Cobertura XML', () => {
+            // JaCoCo XML
+            const jacocoContent = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="test">
+    <package name="com/test">
+        <sourcefile name="Test.java">
+            <line nr="1" mi="0" ci="1" mb="0" cb="0"/>
+            <counter type="LINE" missed="0" covered="1"/>
+        </sourcefile>
+    </package>
+</report>`;
+            
             // Clover XML
             const cloverContent = `<?xml version="1.0" encoding="UTF-8"?>
 <coverage generator="clover">
@@ -130,10 +183,13 @@ end_of_record`;
     </packages>
 </coverage>`;
             
+            const jacocoResult = parseAnyCoverageContent(jacocoContent);
             const cloverResult = parseAnyCoverageContent(cloverContent);
             const coberturaResult = parseAnyCoverageContent(coberturaContent);
             
-            // Both should parse successfully but may have different structures
+            // All should parse successfully but may have different structures
+            expect(jacocoResult.files).toHaveLength(1);
+            expect(jacocoResult.files[0].path).toBe('com/test/Test.java');
             expect(cloverResult.files).toHaveLength(1);
             expect(coberturaResult.files).toHaveLength(1);
             

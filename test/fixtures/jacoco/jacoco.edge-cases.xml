@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="jacoco-edge-cases">
+    <sessioninfo id="test1" start="1609459200000" dump="1609459260000"/>
+    
+    <!-- Package with Unicode paths -->
+    <package name="com/example/测试">
+        <class name="com/example/测试/CalculatorTest" sourcefilename="CalculatorTest.java">
+            <method name="testAdd" desc="()V" line="10">
+                <counter type="INSTRUCTION" missed="0" covered="5"/>
+                <counter type="LINE" missed="0" covered="2"/>
+                <counter type="COMPLEXITY" missed="0" covered="1"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="0" covered="2"/>
+            <counter type="COMPLEXITY" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <sourcefile name="CalculatorTest.java">
+            <line nr="10" mi="0" ci="3" mb="0" cb="0"/>
+            <line nr="11" mi="0" ci="2" mb="0" cb="0"/>
+            <counter type="INSTRUCTION" missed="0" covered="5"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="0" covered="2"/>
+            <counter type="COMPLEXITY" missed="0" covered="1"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </sourcefile>
+        
+        <counter type="INSTRUCTION" missed="0" covered="5"/>
+        <counter type="BRANCH" missed="0" covered="0"/>
+        <counter type="LINE" missed="0" covered="2"/>
+        <counter type="COMPLEXITY" missed="0" covered="1"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+        <counter type="CLASS" missed="0" covered="1"/>
+    </package>
+    
+    <!-- Package with directory traversal attempts -->
+    <package name="../../../etc/passwd">
+        <class name="../../../etc/passwd/MaliciousClass" sourcefilename="../../../etc/passwd.java">
+            <method name="hack" desc="()V" line="1">
+                <counter type="INSTRUCTION" missed="5" covered="0"/>
+                <counter type="LINE" missed="1" covered="0"/>
+                <counter type="COMPLEXITY" missed="1" covered="0"/>
+                <counter type="METHOD" missed="1" covered="0"/>
+            </method>
+            <counter type="INSTRUCTION" missed="5" covered="0"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="1" covered="0"/>
+            <counter type="COMPLEXITY" missed="1" covered="0"/>
+            <counter type="METHOD" missed="1" covered="0"/>
+            <counter type="CLASS" missed="1" covered="0"/>
+        </class>
+        
+        <sourcefile name="../../../etc/passwd.java">
+            <line nr="1" mi="5" ci="0" mb="0" cb="0"/>
+            <counter type="INSTRUCTION" missed="5" covered="0"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="1" covered="0"/>
+            <counter type="COMPLEXITY" missed="1" covered="0"/>
+            <counter type="METHOD" missed="1" covered="0"/>
+            <counter type="CLASS" missed="1" covered="0"/>
+        </sourcefile>
+        
+        <counter type="INSTRUCTION" missed="5" covered="0"/>
+        <counter type="BRANCH" missed="0" covered="0"/>
+        <counter type="LINE" missed="1" covered="0"/>
+        <counter type="COMPLEXITY" missed="1" covered="0"/>
+        <counter type="METHOD" missed="1" covered="0"/>
+        <counter type="CLASS" missed="1" covered="0"/>
+    </package>
+    
+    <!-- Package with very large numbers -->
+    <package name="com/example/large">
+        <class name="com/example/large/BigData" sourcefilename="BigData.java">
+            <method name="processData" desc="()V" line="999999999">
+                <counter type="INSTRUCTION" missed="2147483647" covered="1000000000"/>
+                <counter type="LINE" missed="999999" covered="1000000"/>
+                <counter type="COMPLEXITY" missed="10000" covered="50000"/>
+                <counter type="METHOD" missed="0" covered="1"/>
+            </method>
+            <counter type="INSTRUCTION" missed="2147483647" covered="1000000000"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="999999" covered="1000000"/>
+            <counter type="COMPLEXITY" missed="10000" covered="50000"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </class>
+        
+        <sourcefile name="BigData.java">
+            <line nr="999999999" mi="2147483647" ci="1000000000" mb="0" cb="0"/>
+            <counter type="INSTRUCTION" missed="2147483647" covered="1000000000"/>
+            <counter type="BRANCH" missed="0" covered="0"/>
+            <counter type="LINE" missed="999999" covered="1000000"/>
+            <counter type="COMPLEXITY" missed="10000" covered="50000"/>
+            <counter type="METHOD" missed="0" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+        </sourcefile>
+        
+        <counter type="INSTRUCTION" missed="2147483647" covered="1000000000"/>
+        <counter type="BRANCH" missed="0" covered="0"/>
+        <counter type="LINE" missed="999999" covered="1000000"/>
+        <counter type="COMPLEXITY" missed="10000" covered="50000"/>
+        <counter type="METHOD" missed="0" covered="1"/>
+        <counter type="CLASS" missed="0" covered="1"/>
+    </package>
+    
+    <!-- Totals -->
+    <counter type="INSTRUCTION" missed="2147483652" covered="1000000005"/>
+    <counter type="BRANCH" missed="0" covered="0"/>
+    <counter type="LINE" missed="1000001" covered="1000002"/>
+    <counter type="COMPLEXITY" missed="20001" covered="50001"/>
+    <counter type="METHOD" missed="1" covered="3"/>
+    <counter type="CLASS" missed="1" covered="2"/>
+</report>

@@ -3,10 +3,11 @@ import { ProjectCov } from '../schema.js';
 import { parseLCOV, parseLcovFile } from './lcov.js';
 import { parseCobertura, parseCoberturaFile } from './cobertura.js';
 import { parseClover, parseCloverFile } from './clover.js';
+import { parseJaCoCo, parseJaCoCoFile } from './jacoco.js';
 
 /**
  * Auto-detect and parse any supported coverage format
- * Supports LCOV (.info), Cobertura (.xml), and Clover (.xml) formats
+ * Supports LCOV (.info), Cobertura (.xml), Clover (.xml), and JaCoCo (.xml) formats
  */
 export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
     // Auto-detect by file extension first
@@ -19,7 +20,12 @@ export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
         try {
             const head = readFileSync(filePath, 'utf8').substring(0, 500);
             
-            // Check for Clover XML markers first (more specific)
+            // Check for JaCoCo XML markers first (most specific)
+            if (head.includes('<report') && (head.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || head.includes('<package') && head.includes('<counter type='))) {
+                return parseJaCoCoFile(filePath);
+            }
+            
+            // Check for Clover XML markers (more specific than Cobertura)
             if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
                 return parseCloverFile(filePath);
             }
@@ -40,7 +46,12 @@ export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
     try {
         const head = readFileSync(filePath, 'utf8').substring(0, 500);
         
-        // Check for Clover XML markers first (most specific)
+        // Check for JaCoCo XML markers first (most specific)
+        if (head.includes('<report') && (head.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || head.includes('<package') && head.includes('<counter type='))) {
+            return parseJaCoCoFile(filePath);
+        }
+        
+        // Check for Clover XML markers (most specific)
         if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
             return parseCloverFile(filePath);
         }
@@ -65,7 +76,7 @@ export async function parseAnyCoverage(filePath: string): Promise<ProjectCov> {
 /**
  * Parse coverage data from raw content with format detection
  */
-export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobertura' | 'clover'): ProjectCov {
+export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobertura' | 'clover' | 'jacoco'): ProjectCov {
     if (hint === 'lcov') {
         return parseLCOV(content);
     }
@@ -78,7 +89,15 @@ export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobert
         return parseClover(content);
     }
     
+    if (hint === 'jacoco') {
+        return parseJaCoCo(content);
+    }
+    
     // Auto-detect from content
+    if (content.includes('<report') && (content.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || content.includes('<package') && content.includes('<counter type='))) {
+        return parseJaCoCo(content);
+    }
+    
     if (content.includes('<coverage')) {
         // Distinguish between Clover and Cobertura
         if (content.includes('<project') || content.includes('generator="clover')) {
@@ -96,3 +115,4 @@ export function parseAnyCoverageContent(content: string, hint?: 'lcov' | 'cobert
 export { parseLCOV, parseLcovFile } from './lcov.js';
 export { parseCobertura, parseCoberturaFile } from './cobertura.js';
 export { parseClover, parseCloverFile } from './clover.js';
+export { parseJaCoCo, parseJaCoCoFile } from './jacoco.js';
