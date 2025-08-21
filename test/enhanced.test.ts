@@ -3,7 +3,6 @@ import * as core from '@actions/core';
 import { parseLCOV } from '../src/parsers/lcov.js';
 import { groupPackages } from '../src/group.js';
 import { computeChangesCoverage, parseGitDiff } from '../src/changes.js';
-import { renderComment } from '../src/comment.js';
 import { runEnhancedCoverage } from '../src/enhanced.js';
 
 // Mock all dependencies for runEnhancedCoverage tests
@@ -29,6 +28,7 @@ import * as inputsModule from '../src/inputs.js';
 import * as parsersModule from '../src/parsers/index.js';
 import * as commentModule from '../src/comment.js';
 import * as coverageDataModule from '../src/coverage-data.js';
+import * as changesModule from '../src/changes.js';
 
 const mockExecSync = vi.mocked(childProcess.execSync);
 const mockLoadConfig = vi.mocked(configModule.loadConfig);
@@ -38,6 +38,7 @@ const mockRenderComment = vi.mocked(commentModule.renderComment);
 const mockUpsertStickyComment = vi.mocked(commentModule.upsertStickyComment);
 const mockGetCoverageData = vi.mocked(coverageDataModule.getCoverageData);
 const mockSaveCoverageData = vi.mocked(coverageDataModule.saveCoverageData);
+const mockComputeDeltaCoverage = vi.mocked(changesModule.computeDeltaCoverage);
 
 describe('Enhanced Coverage System', () => {
     afterEach(() => {
@@ -312,6 +313,306 @@ index abc123..def456 100644
 
             expect(mockSaveCoverageData).toHaveBeenCalledWith(85.0, 'test-gist', 'test-token');
             expect(mockInfo).toHaveBeenCalledWith('Saved coverage data to gist for main branch: 85.0%');
+        });
+
+        it('should save coverage data on master branch', async () => {
+            // Test master branch detection
+            process.env.GITHUB_REF = 'refs/heads/master';
+
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: [],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: 'test-gist',
+                gistToken: 'test-token'
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 75, total: 100 }, branches: { covered: 30, total: 40 }, functions: { covered: 6, total: 8 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 75, total: 100 }, branches: { covered: 30, total: 40 }, functions: { covered: 6, total: 8 } }
+            };
+            mockParseAnyCoverage.mockResolvedValue(mockProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+            mockSaveCoverageData.mockResolvedValue();
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockSaveCoverageData).toHaveBeenCalledWith(75.0, 'test-gist', 'test-token');
+            expect(mockInfo).toHaveBeenCalledWith('Saved coverage data to gist for main branch: 75.0%');
+        });
+
+        it('should handle errors when saving coverage data fails', async () => {
+            process.env.GITHUB_REF = 'refs/heads/main';
+
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: [],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: 'test-gist',
+                gistToken: 'test-token'
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 } }
+            };
+            mockParseAnyCoverage.mockResolvedValue(mockProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+            // Mock save to fail
+            mockSaveCoverageData.mockRejectedValue(new Error('Failed to save to gist'));
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockWarning).toHaveBeenCalledWith('Failed to save coverage data: Error: Failed to save to gist');
+            expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
+        });
+
+        it('should fetch baseline coverage from gist and set coverage delta output', async () => {
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: [],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: 'test-gist',
+                gistToken: 'test-token'
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 } }
+            };
+            mockParseAnyCoverage.mockResolvedValue(mockProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            // Mock gist coverage data available
+            mockGetCoverageData.mockResolvedValue(80.0);
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockInfo).toHaveBeenCalledWith('✅ Successfully fetched baseline coverage from gist: 80.0%');
+            expect(mockSetOutput).toHaveBeenCalledWith('coverage-delta', '5.0'); // 85.0 - 80.0
+            expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
+        });
+
+        it('should process baseline files when gist data is not available', async () => {
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: ['baseline-coverage/lcov.info'],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 } }
+            };
+
+            const mockMainProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 75, total: 100 }, branches: { covered: 35, total: 50 }, functions: { covered: 7, total: 10 }, coveredLineNumbers: new Set([1, 2]), package: 'src' }],
+                totals: { lines: { covered: 75, total: 100 }, branches: { covered: 35, total: 50 }, functions: { covered: 7, total: 10 } }
+            };
+
+            mockParseAnyCoverage.mockResolvedValueOnce(mockProject).mockResolvedValueOnce(mockMainProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            // Mock import changes to use computeDeltaCoverage
+            mockComputeDeltaCoverage.mockReturnValue({
+                packages: []
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockInfo).toHaveBeenCalledWith('❌ No baseline coverage available from gist');
+            expect(mockInfo).toHaveBeenCalledWith('Parsing baseline coverage from files...');
+            expect(mockInfo).toHaveBeenCalledWith('Main branch coverage from files: 75.0%');
+            expect(mockSetOutput).toHaveBeenCalledWith('coverage-delta', '10.0'); // 85.0 - 75.0
+        });
+
+        it('should handle baseline file processing errors', async () => {
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: ['baseline-coverage/lcov.info'],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 85, total: 100 }, branches: { covered: 40, total: 50 }, functions: { covered: 8, total: 10 } }
+            };
+
+            mockParseAnyCoverage.mockResolvedValueOnce(mockProject).mockRejectedValueOnce(new Error('Failed to parse baseline'));
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 0, total: 0 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockWarning).toHaveBeenCalledWith('Failed to process baseline coverage: Error: Failed to parse baseline');
+            expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
+        });
+
+        it('should handle threshold failures with warnOnly mode', async () => {
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: [],
+                minThreshold: 90, // High threshold to trigger failure
+                warnOnly: true, // Enable warn-only mode
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 40, total: 100 }, branches: { covered: 20, total: 50 }, functions: { covered: 4, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 40, total: 100 }, branches: { covered: 20, total: 50 }, functions: { covered: 4, total: 10 } }
+            };
+            mockParseAnyCoverage.mockResolvedValue(mockProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 2, total: 10 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockWarning).toHaveBeenCalledWith('Project coverage 40.0% is below threshold 90%');
+            expect(mockWarning).toHaveBeenCalledWith('Changes coverage 20.0% is below threshold 90%');
+            expect(mockSetFailed).not.toHaveBeenCalled();
+            expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
+        });
+
+        it('should handle threshold failures without warnOnly mode', async () => {
+            mockReadInputs.mockReturnValue({
+                files: ['coverage/lcov.info'],
+                baselineFiles: [],
+                minThreshold: 90, // High threshold to trigger failure
+                warnOnly: false, // Disable warn-only mode
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            const mockProject = {
+                files: [{ path: 'src/example.ts', lines: { covered: 40, total: 100 }, branches: { covered: 20, total: 50 }, functions: { covered: 4, total: 10 }, coveredLineNumbers: new Set([1, 2, 3]), package: 'src' }],
+                totals: { lines: { covered: 40, total: 100 }, branches: { covered: 20, total: 50 }, functions: { covered: 4, total: 10 } }
+            };
+            mockParseAnyCoverage.mockResolvedValue(mockProject);
+
+            vi.mocked(groupPackages).mockReturnValue({ pkgRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }], topLevelRows: [{ name: 'src', files: mockProject.files, totals: mockProject.totals }] });
+
+            mockLoadConfig.mockReturnValue({ groups: [], fallback: { smartDepth: 'auto', promoteThreshold: 0.8 }, ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 } });
+
+            mockExecSync.mockReturnValue('');
+
+            vi.mocked(parseGitDiff).mockReturnValue({});
+            vi.mocked(computeChangesCoverage).mockReturnValue({
+                files: [], packages: [], totals: { lines: { covered: 2, total: 10 }, branches: { covered: 0, total: 0 }, functions: { covered: 0, total: 0 } }
+            });
+
+            mockGetCoverageData.mockResolvedValue(null);
+
+            mockRenderComment.mockResolvedValue('Mock comment');
+            mockUpsertStickyComment.mockResolvedValue();
+
+            await runEnhancedCoverage();
+
+            expect(mockSetFailed).toHaveBeenCalledWith('Project coverage 40.0% is below threshold 90%');
+            expect(mockSetFailed).toHaveBeenCalledWith('Changes coverage 20.0% is below threshold 90%');
+            expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
         });
     });
 });
