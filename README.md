@@ -151,7 +151,7 @@ Changes Coverage: 91.3% (42/46 lines)
 ### Enhanced with Change Detection
 
 <!-- TODO: Add screenshot of enhanced PR comment with badges -->
-*[Screenshot placeholder: Enhanced PR comment with coverage badges and change indicators]*
+<img width="828" height="643" alt="coverage-output" src="https://github.com/user-attachments/assets/98c1bc36-a9df-4c86-8f89-35e384301c9e" />
 
 With change detection enabled:
 
