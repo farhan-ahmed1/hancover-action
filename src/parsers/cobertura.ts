@@ -1,7 +1,10 @@
 import { XMLParser } from 'fast-xml-parser';
-import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { validateXmlSecurity } from '../fs-limits.js';
+import { parseXMLWithStreaming, StreamingParseOptions } from '../streaming-parser.js';
+import { withFileTimeout, globalTimeoutManager } from '../timeout-utils.js';
+import { globalProgressReporter } from '../progress-reporter.js';
+import * as core from '@actions/core';
 
 /**
  * Parse Cobertura XML coverage format
@@ -219,11 +222,38 @@ export function parseCobertura(xmlContent: string): ProjectCov {
 }
 
 /**
- * Read Cobertura XML file from disk and parse it
+ * Read Cobertura XML file from disk and parse it with streaming support
  */
-export function parseCoberturaFile(filePath: string): ProjectCov {
+export async function parseCoberturaFile(filePath: string, options?: StreamingParseOptions): Promise<ProjectCov> {
     try {
-        const xmlContent = readFileSync(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await import('fs/promises').then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        
+        core.info(`Processing Cobertura file: ${filePath} (${formatBytes(fileSizeBytes)})`);
+        
+        // Configure streaming options with progress reporting
+        const streamingOptions: StreamingParseOptions = {
+            timeoutMs: options?.timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes),
+            chunkSize: options?.chunkSize ?? 64 * 1024,
+            maxMemoryUsage: options?.maxMemoryUsage ?? 10 * 1024 * 1024, // 10MB
+            onProgress: options?.onProgress ?? ((progress) => {
+                globalProgressReporter.report(
+                    'Parsing Cobertura XML',
+                    progress.percentage,
+                    ` - ${formatBytes(progress.bytesProcessed)}/${formatBytes(progress.totalBytes)}`
+                );
+            })
+        };
+
+        // Use streaming parser for large files, regular parsing for small files
+        const xmlContent = await withFileTimeout(
+            parseXMLWithStreaming(filePath, fileSizeBytes, streamingOptions),
+            filePath,
+            fileSizeBytes,
+            streamingOptions.timeoutMs
+        );
+        
         return parseCobertura(xmlContent);
     } catch (error) {
         throw new Error(`Failed to read Cobertura file ${filePath}: ${error}`);
@@ -231,6 +261,17 @@ export function parseCoberturaFile(filePath: string): ProjectCov {
 }
 
 // Helper functions
+
+/**
+ * Format bytes for human-readable display
+ */
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 
 /**
  * Create empty project coverage structure

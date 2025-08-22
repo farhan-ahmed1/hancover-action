@@ -1,6 +1,8 @@
-import { readFileSync } from 'fs';
 import { FileCov, ProjectCov } from '../schema.js';
 import { enforceFileSizeLimits } from '../fs-limits.js';
+import { withFileTimeout, globalTimeoutManager } from '../timeout-utils.js';
+import { globalProgressReporter } from '../progress-reporter.js';
+import * as core from '@actions/core';
 
 /**
  * Parse LCOV format coverage data
@@ -296,20 +298,94 @@ function finalizeCoverageFile(
 }
 
 /**
- * Read LCOV file from disk and parse it
+ * Read LCOV file from disk and parse it with streaming support
  */
-export function parseLcovFile(filePath: string): ProjectCov {
+export async function parseLcovFile(filePath: string, timeoutMs?: number): Promise<ProjectCov> {
     try {
-        const data = readFileSync(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await import('fs/promises').then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        
+        core.info(`Processing LCOV file: ${filePath} (${formatBytes(fileSizeBytes)})`);
         
         // Security: Check file size before processing
-        const stats = require('fs').statSync(filePath);
-        enforceFileSizeLimits(stats.size);
+        enforceFileSizeLimits(fileSizeBytes);
         
-        return parseLCOV(data);
+        // Calculate timeout based on file size
+        const calculatedTimeoutMs = timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes);
+        
+        // Progress reporting for large files
+        let lastProgress = 0;
+        const reportProgress = (bytesRead: number) => {
+            const percentage = (bytesRead / fileSizeBytes) * 100;
+            if (percentage - lastProgress >= 10 || percentage === 100) { // Report every 10%
+                globalProgressReporter.report(
+                    'Reading LCOV file',
+                    percentage,
+                    ` - ${formatBytes(bytesRead)}/${formatBytes(fileSizeBytes)}`
+                );
+                lastProgress = percentage;
+            }
+        };
+
+        // Use async file reading with timeout for large files
+        const data = await withFileTimeout(
+            readFileWithProgress(filePath, reportProgress),
+            filePath,
+            fileSizeBytes,
+            calculatedTimeoutMs
+        );
+        
+        globalProgressReporter.report('Parsing LCOV content', 0);
+        const result = parseLCOV(data);
+        globalProgressReporter.report('LCOV parsing complete', 100);
+        
+        return result;
     } catch (error) {
         throw new Error(`Failed to read LCOV file ${filePath}: ${error}`);
     }
+}
+
+/**
+ * Read file with progress reporting
+ */
+// eslint-disable-next-line no-unused-vars
+async function readFileWithProgress(filePath: string, onProgress: (bytesRead: number) => void): Promise<string> {
+    const fs = await import('fs');
+    const { createReadStream } = fs;
+    
+    return new Promise((resolve, reject) => {
+        let content = '';
+        let bytesRead = 0;
+        
+        const stream = createReadStream(filePath, { encoding: 'utf8' });
+        
+        stream.on('data', (chunk: string | Buffer) => {
+            const chunkStr = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+            content += chunkStr;
+            bytesRead += Buffer.byteLength(chunkStr, 'utf8');
+            onProgress(bytesRead);
+        });
+        
+        stream.on('end', () => {
+            resolve(content);
+        });
+        
+        stream.on('error', (error) => {
+            reject(error);
+        });
+    });
+}
+
+/**
+ * Format bytes for human-readable display
+ */
+function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // Helper functions
