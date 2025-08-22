@@ -49872,19 +49872,6 @@ var external_path_ = __nccwpck_require__(6928);
 
 
 
-// Legacy default config for backwards compatibility
-const DEFAULT_CONFIG = {
-    groups: [],
-    fallback: {
-        smartDepth: 'auto',
-        promoteThreshold: 0.8
-    },
-    ui: {
-        expandFilesFor: [],
-        maxDeltaRows: 10,
-        minPassThreshold: 50
-    }
-};
 function loadConfig(cwd = process.cwd()) {
     const configPath = external_path_.join(cwd, '.coverage-report.json');
     // Detect ecosystem for smart defaults
