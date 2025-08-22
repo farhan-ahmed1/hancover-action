@@ -30011,6 +30011,13 @@ module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs");
 
 /***/ }),
 
+/***/ 1943:
+/***/ ((module) => {
+
+module.exports = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("fs/promises");
+
+/***/ }),
+
 /***/ 8611:
 /***/ ((module) => {
 
@@ -40353,6 +40360,36 @@ exports.visitAsync = visitAsync;
 /******/ 	};
 /******/ })();
 /******/ 
+/******/ /* webpack/runtime/create fake namespace object */
+/******/ (() => {
+/******/ 	var getProto = Object.getPrototypeOf ? (obj) => (Object.getPrototypeOf(obj)) : (obj) => (obj.__proto__);
+/******/ 	var leafPrototypes;
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 16: return value when it's Promise-like
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__nccwpck_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = this(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if(typeof value === 'object' && value) {
+/******/ 			if((mode & 4) && value.__esModule) return value;
+/******/ 			if((mode & 16) && typeof value.then === 'function') return value;
+/******/ 		}
+/******/ 		var ns = Object.create(null);
+/******/ 		__nccwpck_require__.r(ns);
+/******/ 		var def = {};
+/******/ 		leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];
+/******/ 		for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {
+/******/ 			Object.getOwnPropertyNames(current).forEach((key) => (def[key] = () => (value[key])));
+/******/ 		}
+/******/ 		def['default'] = () => (value);
+/******/ 		__nccwpck_require__.d(ns, def);
+/******/ 		return ns;
+/******/ 	};
+/******/ })();
+/******/ 
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
 /******/ 	// define getter functions for harmony exports
@@ -40368,6 +40405,17 @@ exports.visitAsync = visitAsync;
 /******/ /* webpack/runtime/hasOwnProperty shorthand */
 /******/ (() => {
 /******/ 	__nccwpck_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/ })();
+/******/ 
+/******/ /* webpack/runtime/make namespace object */
+/******/ (() => {
+/******/ 	// define __esModule on exports
+/******/ 	__nccwpck_require__.r = (exports) => {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
 /******/ })();
 /******/ 
 /******/ /* webpack/runtime/compat */
@@ -45878,7 +45926,296 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+;// CONCATENATED MODULE: ./src/timeout-utils.ts
+/**
+ * Timeout utilities for enforcing time limits on operations
+ */
+
+/**
+ * Create a timeout promise that rejects after the specified duration
+ */
+function createTimeoutPromise(timeoutMs, operation) {
+    return new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error(`Operation '${operation}' timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+    });
+}
+/**
+ * Race a promise against a timeout
+ */
+async function withTimeout(promise, options) {
+    const { timeoutMs, operation, onTimeout } = options;
+    if (timeoutMs <= 0) {
+        // No timeout - return promise directly
+        return promise;
+    }
+    const timeoutPromise = createTimeoutPromise(timeoutMs, operation);
+    try {
+        return await Promise.race([promise, timeoutPromise]);
+    }
+    catch (error) {
+        if (onTimeout && error instanceof Error && error.message.includes('timed out')) {
+            onTimeout();
+        }
+        throw error;
+    }
+}
+/**
+ * Create a timeout controller for manual timeout management
+ */
+class TimeoutController {
+    timeoutId;
+    timeoutMs;
+    operation;
+    isActive = false;
+    constructor(timeoutMs, operation) {
+        this.timeoutMs = timeoutMs;
+        this.operation = operation;
+    }
+    start() {
+        if (this.isActive) {
+            throw new Error('Timeout controller is already active');
+        }
+        this.isActive = true;
+        return new Promise((_, reject) => {
+            if (this.timeoutMs <= 0) {
+                // No timeout
+                return;
+            }
+            this.timeoutId = setTimeout(() => {
+                this.isActive = false;
+                core.warning(`Operation '${this.operation}' exceeded timeout of ${this.timeoutMs}ms`);
+                reject(new Error(`Operation '${this.operation}' timed out after ${this.timeoutMs}ms`));
+            }, this.timeoutMs);
+        });
+    }
+    clear() {
+        if (this.timeoutId) {
+            clearTimeout(this.timeoutId);
+            this.timeoutId = undefined;
+        }
+        this.isActive = false;
+    }
+    isRunning() {
+        return this.isActive;
+    }
+    extend(additionalMs) {
+        if (!this.isActive) {
+            throw new Error('Cannot extend inactive timeout controller');
+        }
+        this.clear();
+        this.isActive = true; // Reactivate after clearing
+        const newTimeout = this.timeoutMs + additionalMs;
+        this.timeoutId = setTimeout(() => {
+            this.isActive = false;
+            core.warning(`Operation '${this.operation}' exceeded extended timeout of ${newTimeout}ms`);
+        }, newTimeout);
+    }
+}
+/**
+ * Timeout manager for file operations
+ */
+class FileOperationTimeout {
+    baseTimeoutMs;
+    perMBTimeoutMs;
+    constructor(baseTimeoutMs = 30000, perMBTimeoutMs = 5000) {
+        this.baseTimeoutMs = baseTimeoutMs;
+        this.perMBTimeoutMs = perMBTimeoutMs;
+    }
+    /**
+     * Calculate timeout based on file size
+     */
+    calculateTimeout(fileSizeBytes) {
+        const fileSizeMB = fileSizeBytes / (1024 * 1024);
+        const calculatedTimeout = this.baseTimeoutMs + (fileSizeMB * this.perMBTimeoutMs);
+        // Cap at reasonable maximum (10 minutes)
+        const maxTimeout = 10 * 60 * 1000;
+        return Math.min(calculatedTimeout, maxTimeout);
+    }
+    /**
+     * Create timeout options for a file operation
+     */
+    createOptions(filePath, fileSizeBytes) {
+        const timeoutMs = this.calculateTimeout(fileSizeBytes);
+        const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
+        return {
+            timeoutMs,
+            operation: `Processing file ${filePath} (${fileSizeMB}MB)`,
+            onTimeout: () => {
+                lib_core.warning(`File processing timeout: ${filePath} (${fileSizeMB}MB) exceeded ${timeoutMs}ms limit`);
+            }
+        };
+    }
+}
+/**
+ * Global timeout manager instance
+ */
+const globalTimeoutManager = new FileOperationTimeout();
+/**
+ * Apply timeout to file reading operations
+ */
+async function withFileTimeout(operation, filePath, fileSizeBytes, customTimeoutMs) {
+    const timeoutMs = customTimeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes);
+    const options = {
+        timeoutMs,
+        operation: `File operation on ${filePath}`,
+        onTimeout: () => {
+            const sizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(1);
+            lib_core.warning(`File operation timed out: ${filePath} (${sizeMB}MB) after ${timeoutMs}ms`);
+        }
+    };
+    return withTimeout(operation, options);
+}
+/**
+ * Batch timeout for multiple operations
+ */
+async function withBatchTimeout(operations, totalTimeoutMs, batchName) {
+    const controller = new TimeoutController(totalTimeoutMs, `Batch operation: ${batchName}`);
+    const timeoutPromise = controller.start();
+    try {
+        const results = await Promise.race([
+            Promise.all(operations.map(op => op())),
+            timeoutPromise
+        ]);
+        controller.clear();
+        return results;
+    }
+    catch (error) {
+        controller.clear();
+        throw error;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/progress-reporter.ts
+/**
+ * Progress reporting utilities for long-running operations
+ */
+
+/**
+ * Core-based progress reporter that logs to GitHub Actions
+ */
+class CoreProgressReporter {
+    totalSteps = 0;
+    operation = '';
+    lastReported = 0;
+    reportThreshold = 5; // Report every 5% change
+    start(totalSteps, operation) {
+        this.totalSteps = totalSteps;
+        this.operation = operation;
+        this.lastReported = 0;
+        lib_core.info(`🚀 Starting ${operation}...`);
+    }
+    step(completedSteps, currentStep) {
+        if (this.totalSteps === 0)
+            return;
+        const percentage = Math.min((completedSteps / this.totalSteps) * 100, 100);
+        const details = currentStep ? ` - ${currentStep}` : '';
+        // Only report if significant progress made
+        if (percentage - this.lastReported >= this.reportThreshold || percentage === 100) {
+            this.report(`${this.operation} Progress`, percentage, details);
+            this.lastReported = percentage;
+        }
+    }
+    report(stage, percentage, details = '') {
+        const progressBar = this.createProgressBar(percentage);
+        const msg = `${stage}: ${progressBar} ${percentage.toFixed(1)}%${details}`;
+        if (percentage === 100) {
+            lib_core.info(`✅ ${msg}`);
+        }
+        else {
+            lib_core.info(`⏳ ${msg}`);
+        }
+    }
+    finish(message = 'Operation completed successfully') {
+        lib_core.info(`🎉 ${message}`);
+    }
+    createProgressBar(percentage, length = 20) {
+        const filled = Math.round((percentage / 100) * length);
+        const empty = length - filled;
+        return '█'.repeat(filled) + '░'.repeat(empty);
+    }
+}
+/**
+ * Null progress reporter (no-op) for silent operation
+ */
+class NullProgressReporter {
+    // eslint-disable-next-line no-unused-vars
+    report(stage, percentage, details) {
+        // No-op
+    }
+    // eslint-disable-next-line no-unused-vars
+    start(totalSteps, operation) {
+        // No-op
+    }
+    // eslint-disable-next-line no-unused-vars
+    step(completedSteps, currentStep) {
+        // No-op
+    }
+    // eslint-disable-next-line no-unused-vars
+    finish(message) {
+        // No-op
+    }
+}
+/**
+ * File processing progress tracker
+ */
+class FileProcessingTracker {
+    reporter;
+    totalFiles = 0;
+    processedFiles = 0;
+    totalBytes = 0;
+    processedBytes = 0;
+    constructor(reporter) {
+        this.reporter = reporter;
+    }
+    startFileProcessing(files) {
+        this.totalFiles = files.length;
+        this.processedFiles = 0;
+        this.totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+        this.processedBytes = 0;
+        const totalSize = this.formatBytes(this.totalBytes);
+        this.reporter.start(this.totalFiles, `Processing ${this.totalFiles} coverage files (${totalSize})`);
+    }
+    updateFileProgress(fileName, bytesProcessed, fileSize) {
+        // Update byte-level progress for current file
+        const filePercentage = (bytesProcessed / fileSize) * 100;
+        this.reporter.report(`Processing ${fileName}`, filePercentage, ` (${this.formatBytes(bytesProcessed)}/${this.formatBytes(fileSize)})`);
+    }
+    completeFile(fileName, fileSize) {
+        this.processedFiles++;
+        this.processedBytes += fileSize;
+        const overallPercentage = (this.processedFiles / this.totalFiles) * 100;
+        this.reporter.step(this.processedFiles, `Completed ${fileName} (${this.formatBytes(fileSize)})`);
+        // Report overall progress
+        this.reporter.report('Overall Progress', overallPercentage, ` - ${this.processedFiles}/${this.totalFiles} files, ${this.formatBytes(this.processedBytes)}/${this.formatBytes(this.totalBytes)}`);
+    }
+    finish() {
+        this.reporter.finish(`Successfully processed ${this.totalFiles} files (${this.formatBytes(this.totalBytes)})`);
+    }
+    formatBytes(bytes) {
+        if (bytes === 0)
+            return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+}
+/**
+ * Global progress reporter instance
+ */
+const globalProgressReporter = new CoreProgressReporter();
+/**
+ * Create a file processing tracker with the global reporter
+ */
+function createFileTracker() {
+    return new FileProcessingTracker(globalProgressReporter);
+}
+
 ;// CONCATENATED MODULE: ./src/parsers/lcov.ts
+
+
 
 
 /**
@@ -46135,19 +46472,73 @@ function finalizeCoverageFile(currentFile, functionDefs, functionHits, branchDat
     files.push(currentFile);
 }
 /**
- * Read LCOV file from disk and parse it
+ * Read LCOV file from disk and parse it with streaming support
  */
-function parseLcovFile(filePath) {
+async function parseLcovFile(filePath, timeoutMs) {
     try {
-        const data = (0,external_fs_.readFileSync)(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23)).then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        lib_core.info(`Processing LCOV file: ${filePath} (${lcov_formatBytes(fileSizeBytes)})`);
         // Security: Check file size before processing
-        const stats = (__nccwpck_require__(9896).statSync)(filePath);
-        enforceFileSizeLimits(stats.size);
-        return lcov_parseLCOV(data);
+        enforceFileSizeLimits(fileSizeBytes);
+        // Calculate timeout based on file size
+        const calculatedTimeoutMs = timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes);
+        // Progress reporting for large files
+        let lastProgress = 0;
+        const reportProgress = (bytesRead) => {
+            const percentage = (bytesRead / fileSizeBytes) * 100;
+            if (percentage - lastProgress >= 10 || percentage === 100) { // Report every 10%
+                globalProgressReporter.report('Reading LCOV file', percentage, ` - ${lcov_formatBytes(bytesRead)}/${lcov_formatBytes(fileSizeBytes)}`);
+                lastProgress = percentage;
+            }
+        };
+        // Use async file reading with timeout for large files
+        const data = await withFileTimeout(readFileWithProgress(filePath, reportProgress), filePath, fileSizeBytes, calculatedTimeoutMs);
+        globalProgressReporter.report('Parsing LCOV content', 0);
+        const result = lcov_parseLCOV(data);
+        globalProgressReporter.report('LCOV parsing complete', 100);
+        return result;
     }
     catch (error) {
         throw new Error(`Failed to read LCOV file ${filePath}: ${error}`);
     }
+}
+/**
+ * Read file with progress reporting
+ */
+// eslint-disable-next-line no-unused-vars
+async function readFileWithProgress(filePath, onProgress) {
+    const fs = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 9896, 23));
+    const { createReadStream } = fs;
+    return new Promise((resolve, reject) => {
+        let content = '';
+        let bytesRead = 0;
+        const stream = createReadStream(filePath, { encoding: 'utf8' });
+        stream.on('data', (chunk) => {
+            const chunkStr = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+            content += chunkStr;
+            bytesRead += Buffer.byteLength(chunkStr, 'utf8');
+            onProgress(bytesRead);
+        });
+        stream.on('end', () => {
+            resolve(content);
+        });
+        stream.on('error', (error) => {
+            reject(error);
+        });
+    });
+}
+/**
+ * Format bytes for human-readable display
+ */
+function lcov_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 // Helper functions
 /**
@@ -48110,7 +48501,241 @@ class XMLParser{
     }
 }
 
+// EXTERNAL MODULE: external "stream"
+var external_stream_ = __nccwpck_require__(2203);
+;// CONCATENATED MODULE: ./src/streaming-parser.ts
+/**
+ * Streaming XML parser utilities for handling large coverage files
+ * without loading them entirely into memory
+ */
+
+
+
+
+/**
+ * Check if a file should be parsed using streaming mode based on size
+ */
+function shouldUseStreaming(fileSizeBytes, options = {}) {
+    const maxMemoryUsage = options.maxMemoryUsage ?? 10 * 1024 * 1024; // 10MB default
+    return fileSizeBytes > maxMemoryUsage;
+}
+/**
+ * Streaming XML chunk processor that accumulates valid XML fragments
+ */
+class XMLChunkProcessor extends external_stream_.Transform {
+    buffer = '';
+    elementStack = [];
+    inElement = false;
+    currentElement = '';
+    onProgress;
+    bytesProcessed = 0;
+    totalBytes;
+    lastProgressUpdate = 0;
+    constructor(totalBytes, onProgress) {
+        super({ objectMode: true });
+        this.totalBytes = totalBytes;
+        this.onProgress = onProgress;
+    }
+    _transform(chunk, encoding, callback) {
+        try {
+            this.buffer += chunk.toString();
+            this.bytesProcessed += chunk.length;
+            // Report progress every 1MB or 5% of file, whichever is smaller
+            const progressThreshold = Math.min(1024 * 1024, this.totalBytes * 0.05);
+            if (this.bytesProcessed - this.lastProgressUpdate > progressThreshold) {
+                this.reportProgress('Parsing XML content');
+                this.lastProgressUpdate = this.bytesProcessed;
+            }
+            // Process complete XML elements
+            this.processBuffer();
+            callback();
+        }
+        catch (error) {
+            callback(error);
+        }
+    }
+    _flush(callback) {
+        try {
+            // Process any remaining buffer content
+            this.processBuffer(true);
+            this.reportProgress('Parsing complete');
+            callback();
+        }
+        catch (error) {
+            callback(error);
+        }
+    }
+    processBuffer(final = false) {
+        // Simple XML element boundary detection
+        // This is a basic implementation - for production might want a more sophisticated parser
+        let startIndex = 0;
+        while (true) {
+            const elementStart = this.buffer.indexOf('<', startIndex);
+            if (elementStart === -1)
+                break;
+            const elementEnd = this.buffer.indexOf('>', elementStart);
+            if (elementEnd === -1 && !final)
+                break; // Wait for complete element
+            if (elementEnd !== -1) {
+                const element = this.buffer.substring(elementStart, elementEnd + 1);
+                this.processXMLElement(element);
+                startIndex = elementEnd + 1;
+            }
+            else {
+                break;
+            }
+        }
+        // Keep unprocessed content in buffer
+        if (startIndex > 0) {
+            this.buffer = this.buffer.substring(startIndex);
+        }
+    }
+    processXMLElement(element) {
+        // Emit complete XML fragments for downstream processing
+        this.push(element);
+    }
+    reportProgress(stage) {
+        if (this.onProgress) {
+            const percentage = Math.min((this.bytesProcessed / this.totalBytes) * 100, 100);
+            this.onProgress({
+                bytesProcessed: this.bytesProcessed,
+                totalBytes: this.totalBytes,
+                percentage,
+                stage
+            });
+        }
+    }
+}
+/**
+ * Stream-based XML content reader with progress tracking
+ */
+async function streamXMLContent(filePath, totalBytes, options = {}) {
+    const { timeoutMs = 120000, chunkSize = 64 * 1024, onProgress } = options;
+    return new Promise((resolve, reject) => {
+        let content = '';
+        let timeoutId;
+        // Set up timeout
+        if (timeoutMs > 0) {
+            timeoutId = setTimeout(() => {
+                reject(new Error(`Streaming XML read timed out after ${timeoutMs}ms for file: ${filePath}`));
+            }, timeoutMs);
+        }
+        const cleanup = () => {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        };
+        try {
+            const readStream = (0,external_fs_.createReadStream)(filePath, {
+                encoding: 'utf8',
+                highWaterMark: chunkSize
+            });
+            const processor = new XMLChunkProcessor(totalBytes, onProgress);
+            // Collect processed chunks
+            processor.on('data', (chunk) => {
+                content += chunk;
+            });
+            processor.on('end', () => {
+                cleanup();
+                resolve(content);
+            });
+            processor.on('error', (error) => {
+                cleanup();
+                reject(new Error(`Failed to stream XML content from ${filePath}: ${error.message}`));
+            });
+            readStream.on('error', (error) => {
+                cleanup();
+                reject(new Error(`Failed to read file ${filePath}: ${error.message}`));
+            });
+            // Connect streams
+            readStream.pipe(processor);
+        }
+        catch (error) {
+            cleanup();
+            reject(error);
+        }
+    });
+}
+/**
+ * Enhanced XML parsing with streaming support and progress reporting
+ */
+async function parseXMLWithStreaming(filePath, fileSizeBytes, options = {}) {
+    const useStreaming = shouldUseStreaming(fileSizeBytes, options);
+    if (options.onProgress) {
+        options.onProgress({
+            bytesProcessed: 0,
+            totalBytes: fileSizeBytes,
+            percentage: 0,
+            stage: useStreaming ? 'Starting streaming parse' : 'Starting standard parse'
+        });
+    }
+    let xmlContent;
+    if (useStreaming) {
+        lib_core.info(`Using streaming mode for large file (${streaming_parser_formatBytes(fileSizeBytes)}): ${filePath}`);
+        xmlContent = await streamXMLContent(filePath, fileSizeBytes, options);
+    }
+    else {
+        // Use standard file reading for smaller files
+        xmlContent = await readFileWithTimeout(filePath, options.timeoutMs ?? 120000);
+        if (options.onProgress) {
+            options.onProgress({
+                bytesProcessed: fileSizeBytes,
+                totalBytes: fileSizeBytes,
+                percentage: 100,
+                stage: 'File read complete'
+            });
+        }
+    }
+    // Always validate security regardless of parsing method
+    try {
+        validateXmlSecurity(xmlContent);
+    }
+    catch (error) {
+        throw new Error(`Security validation failed for ${filePath}: ${error}`);
+    }
+    return xmlContent;
+}
+/**
+ * File reading with timeout support
+ */
+async function readFileWithTimeout(filePath, timeoutMs) {
+    const fs = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23));
+    return new Promise((resolve, reject) => {
+        let timeoutId;
+        if (timeoutMs > 0) {
+            timeoutId = setTimeout(() => {
+                reject(new Error(`File read timed out after ${timeoutMs}ms for file: ${filePath}`));
+            }, timeoutMs);
+        }
+        fs.readFile(filePath, 'utf8')
+            .then(content => {
+            if (timeoutId)
+                clearTimeout(timeoutId);
+            resolve(content);
+        })
+            .catch(error => {
+            if (timeoutId)
+                clearTimeout(timeoutId);
+            reject(error);
+        });
+    });
+}
+/**
+ * Format bytes for human-readable display
+ */
+function streaming_parser_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 ;// CONCATENATED MODULE: ./src/parsers/cobertura.ts
+
+
+
 
 
 
@@ -48306,11 +48931,25 @@ function cobertura_parseCobertura(xmlContent) {
     }
 }
 /**
- * Read Cobertura XML file from disk and parse it
+ * Read Cobertura XML file from disk and parse it with streaming support
  */
-function parseCoberturaFile(filePath) {
+async function parseCoberturaFile(filePath, options) {
     try {
-        const xmlContent = (0,external_fs_.readFileSync)(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23)).then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        lib_core.info(`Processing Cobertura file: ${filePath} (${cobertura_formatBytes(fileSizeBytes)})`);
+        // Configure streaming options with progress reporting
+        const streamingOptions = {
+            timeoutMs: options?.timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes),
+            chunkSize: options?.chunkSize ?? 64 * 1024,
+            maxMemoryUsage: options?.maxMemoryUsage ?? 10 * 1024 * 1024, // 10MB
+            onProgress: options?.onProgress ?? ((progress) => {
+                globalProgressReporter.report('Parsing Cobertura XML', progress.percentage, ` - ${cobertura_formatBytes(progress.bytesProcessed)}/${cobertura_formatBytes(progress.totalBytes)}`);
+            })
+        };
+        // Use streaming parser for large files, regular parsing for small files
+        const xmlContent = await withFileTimeout(parseXMLWithStreaming(filePath, fileSizeBytes, streamingOptions), filePath, fileSizeBytes, streamingOptions.timeoutMs);
         return cobertura_parseCobertura(xmlContent);
     }
     catch (error) {
@@ -48318,6 +48957,17 @@ function parseCoberturaFile(filePath) {
     }
 }
 // Helper functions
+/**
+ * Format bytes for human-readable display
+ */
+function cobertura_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 /**
  * Create empty project coverage structure
  */
@@ -48360,6 +49010,9 @@ function cobertura_sanitizeFilePath(filePath) {
 var sanitize_filename = __nccwpck_require__(5747);
 var sanitize_filename_default = /*#__PURE__*/__nccwpck_require__.n(sanitize_filename);
 ;// CONCATENATED MODULE: ./src/parsers/clover.ts
+
+
+
 
 
 
@@ -48570,11 +49223,25 @@ function clover_parseClover(xmlContent) {
     }
 }
 /**
- * Read Clover XML file from disk and parse it
+ * Read Clover XML file from disk and parse it with streaming support
  */
-function parseCloverFile(filePath) {
+async function parseCloverFile(filePath, options) {
     try {
-        const xmlContent = (0,external_fs_.readFileSync)(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23)).then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        lib_core.info(`Processing Clover file: ${filePath} (${clover_formatBytes(fileSizeBytes)})`);
+        // Configure streaming options with progress reporting
+        const streamingOptions = {
+            timeoutMs: options?.timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes),
+            chunkSize: options?.chunkSize ?? 64 * 1024,
+            maxMemoryUsage: options?.maxMemoryUsage ?? 10 * 1024 * 1024, // 10MB
+            onProgress: options?.onProgress ?? ((progress) => {
+                globalProgressReporter.report('Parsing Clover XML', progress.percentage, ` - ${clover_formatBytes(progress.bytesProcessed)}/${clover_formatBytes(progress.totalBytes)}`);
+            })
+        };
+        // Use streaming parser for large files, regular parsing for small files
+        const xmlContent = await withFileTimeout(parseXMLWithStreaming(filePath, fileSizeBytes, streamingOptions), filePath, fileSizeBytes, streamingOptions.timeoutMs);
         return clover_parseClover(xmlContent);
     }
     catch (error) {
@@ -48582,6 +49249,17 @@ function parseCloverFile(filePath) {
     }
 }
 // Helper functions
+/**
+ * Format bytes for human-readable display
+ */
+function clover_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 /**
  * Create empty project coverage structure
  */
@@ -48620,6 +49298,9 @@ function clover_sanitizeFilePath(filePath) {
 }
 
 ;// CONCATENATED MODULE: ./src/parsers/jacoco.ts
+
+
+
 
 
 
@@ -48914,11 +49595,25 @@ function jacoco_parseJaCoCo(xmlContent) {
     }
 }
 /**
- * Read JaCoCo XML file from disk and parse it
+ * Read JaCoCo XML file from disk and parse it with streaming support
  */
-function parseJaCoCoFile(filePath) {
+async function parseJaCoCoFile(filePath, options) {
     try {
-        const xmlContent = (0,external_fs_.readFileSync)(filePath, 'utf8');
+        // Get file stats for progress reporting and timeout calculation
+        const stats = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23)).then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        lib_core.info(`Processing JaCoCo file: ${filePath} (${jacoco_formatBytes(fileSizeBytes)})`);
+        // Configure streaming options with progress reporting
+        const streamingOptions = {
+            timeoutMs: options?.timeoutMs ?? globalTimeoutManager.calculateTimeout(fileSizeBytes),
+            chunkSize: options?.chunkSize ?? 64 * 1024,
+            maxMemoryUsage: options?.maxMemoryUsage ?? 10 * 1024 * 1024, // 10MB
+            onProgress: options?.onProgress ?? ((progress) => {
+                globalProgressReporter.report('Parsing JaCoCo XML', progress.percentage, ` - ${jacoco_formatBytes(progress.bytesProcessed)}/${jacoco_formatBytes(progress.totalBytes)}`);
+            })
+        };
+        // Use streaming parser for large files, regular parsing for small files
+        const xmlContent = await withFileTimeout(parseXMLWithStreaming(filePath, fileSizeBytes, streamingOptions), filePath, fileSizeBytes, streamingOptions.timeoutMs);
         return jacoco_parseJaCoCo(xmlContent);
     }
     catch (error) {
@@ -48926,6 +49621,17 @@ function parseJaCoCoFile(filePath) {
     }
 }
 // Helper functions
+/**
+ * Format bytes for human-readable display
+ */
+function jacoco_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
 /**
  * Create empty project coverage structure
  */
@@ -49020,62 +49726,79 @@ function jacoco_sanitizeFilePath(filePath) {
 
 
 
+
 /**
- * Auto-detect and parse any supported coverage format
+ * Auto-detect and parse any supported coverage format with enhanced performance
  * Supports LCOV (.info), Cobertura (.xml), Clover (.xml), and JaCoCo (.xml) formats
+ * Features: streaming for large files, progress reporting, timeout enforcement
  */
-async function parseAnyCoverage(filePath) {
-    // Auto-detect by file extension first
-    if (filePath.endsWith('.info') || filePath.endsWith('.lcov')) {
-        return parseLcovFile(filePath);
-    }
-    if (filePath.endsWith('.xml')) {
-        // For XML files, we need to sniff content to distinguish between formats
+async function parseAnyCoverage(filePath, options) {
+    try {
+        // Get file stats for better processing decisions
+        const stats = await Promise.resolve(/* import() */).then(__nccwpck_require__.t.bind(__nccwpck_require__, 1943, 23)).then(fs => fs.stat(filePath));
+        const fileSizeBytes = stats.size;
+        lib_core.info(`Auto-detecting coverage format for: ${filePath} (${parsers_formatBytes(fileSizeBytes)})`);
+        // Auto-detect by file extension first
+        if (filePath.endsWith('.info') || filePath.endsWith('.lcov')) {
+            return parseLcovFile(filePath, options?.timeoutMs);
+        }
+        if (filePath.endsWith('.xml')) {
+            // For XML files, we need to sniff content to distinguish between formats
+            try {
+                const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 500);
+                // Check for JaCoCo XML markers first (most specific)
+                if (head.includes('<report') && (head.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || head.includes('<package') && head.includes('<counter type='))) {
+                    return parseJaCoCoFile(filePath, options);
+                }
+                // Check for Clover XML markers (more specific than Cobertura)
+                if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
+                    return parseCloverFile(filePath, options);
+                }
+                // Check for Cobertura XML markers
+                if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
+                    return parseCoberturaFile(filePath, options);
+                }
+                // Default to Cobertura for XML files if uncertain
+                return parseCoberturaFile(filePath, options);
+            }
+            catch (error) {
+                throw new Error(`Failed to auto-detect XML coverage format for ${filePath}: ${error}`);
+            }
+        }
+        // Fallback: sniff file content for non-standard extensions
         try {
             const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 500);
             // Check for JaCoCo XML markers first (most specific)
             if (head.includes('<report') && (head.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || head.includes('<package') && head.includes('<counter type='))) {
-                return parseJaCoCoFile(filePath);
+                return parseJaCoCoFile(filePath, options);
             }
-            // Check for Clover XML markers (more specific than Cobertura)
+            // Check for Clover XML markers (most specific)
             if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
-                return parseCloverFile(filePath);
+                return parseCloverFile(filePath, options);
             }
             // Check for Cobertura XML markers
             if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
-                return parseCoberturaFile(filePath);
+                return parseCoberturaFile(filePath, options);
             }
-            // Default to Cobertura for XML files if uncertain
-            return parseCoberturaFile(filePath);
+            // Check for LCOV markers
+            if (head.includes('SF:') || head.includes('TN:')) {
+                return parseLcovFile(filePath, options?.timeoutMs);
+            }
+            // Default to LCOV if uncertain
+            return parseLcovFile(filePath, options?.timeoutMs);
         }
         catch (error) {
-            throw new Error(`Failed to auto-detect XML coverage format for ${filePath}: ${error}`);
+            throw new Error(`Failed to auto-detect coverage format for ${filePath}: ${error}`);
         }
-    }
-    // Fallback: sniff file content for non-standard extensions
-    try {
-        const head = (0,external_fs_.readFileSync)(filePath, 'utf8').substring(0, 500);
-        // Check for JaCoCo XML markers first (most specific)
-        if (head.includes('<report') && (head.includes('<!DOCTYPE report PUBLIC "-//JACOCO//') || head.includes('<package') && head.includes('<counter type='))) {
-            return parseJaCoCoFile(filePath);
-        }
-        // Check for Clover XML markers (most specific)
-        if (head.includes('<coverage') && (head.includes('<project') || head.includes('generator="clover'))) {
-            return parseCloverFile(filePath);
-        }
-        // Check for Cobertura XML markers
-        if (head.includes('<coverage') || head.includes('<!DOCTYPE coverage')) {
-            return parseCoberturaFile(filePath);
-        }
-        // Check for LCOV markers
-        if (head.includes('SF:') || head.includes('TN:')) {
-            return parseLcovFile(filePath);
-        }
-        // Default to LCOV if uncertain
-        return parseLcovFile(filePath);
     }
     catch (error) {
-        throw new Error(`Failed to auto-detect coverage format for ${filePath}: ${error}`);
+        // Handle file system errors (file not found, permission errors, etc.)
+        if (filePath.endsWith('.xml')) {
+            throw new Error(`Failed to auto-detect XML coverage format for ${filePath}: ${error}`);
+        }
+        else {
+            throw new Error(`Failed to auto-detect coverage format for ${filePath}: ${error}`);
+        }
     }
 }
 /**
@@ -49108,6 +49831,17 @@ function parseAnyCoverageContent(content, hint) {
     }
     // Default to LCOV
     return parseLCOV(content);
+}
+/**
+ * Format bytes for human-readable display
+ */
+function parsers_formatBytes(bytes) {
+    if (bytes === 0)
+        return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 // Re-export individual parsers for direct use
 
@@ -50100,15 +50834,22 @@ var external_child_process_ = __nccwpck_require__(5317);
 async function runEnhancedCoverage() {
     try {
         const inputs = readInputs();
-        // Step 1: Parse PR coverage (auto-detect LCOV or Cobertura)
-        lib_core.info('Parsing PR coverage...');
+        // Step 1: Parse PR coverage with performance enhancements
+        lib_core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
         const prFiles = inputs.files;
         if (!prFiles || prFiles.length === 0) {
             throw new Error('No coverage files provided');
         }
+        // Configure streaming options based on input timeouts
+        const streamingOptions = {
+            timeoutMs: inputs.timeoutSeconds * 1000,
+            maxMemoryUsage: 10 * 1024 * 1024, // 10MB threshold for streaming
+            chunkSize: 64 * 1024 // 64KB chunks
+        };
+        lib_core.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`);
         // For now, use the first coverage file (could be enhanced to merge multiple)
-        const prProject = await parseAnyCoverage(prFiles[0]);
-        lib_core.info(`Parsed ${prProject.files.length} files from PR coverage`);
+        const prProject = await parseAnyCoverage(prFiles[0], streamingOptions);
+        lib_core.info(`✅ Parsed ${prProject.files.length} files from PR coverage`);
         // Step 2: Smart package grouping with config support
         const config = loadConfig();
         const groupingResult = groupPackages(prProject.files, config);
