@@ -3,7 +3,7 @@ import * as core from '@actions/core';
 import { parseLCOV } from '../src/parsers/lcov.js';
 import { groupPackages } from '../src/group.js';
 import { computeChangesCoverage, parseGitDiff } from '../src/changes.js';
-import { runEnhancedCoverage } from '../src/enhanced.js';
+import { runEnhancedCoverage } from '../src/enhanced-v2.js';
 
 // Mock all dependencies for runEnhancedCoverage tests
 vi.mock('@actions/core');

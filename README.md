@@ -15,6 +15,7 @@ support for multiple coverage formats.
 - **Smart PR comments**: Single sticky comment that updates with each push
 - **Dynamic badges**: Auto-updating coverage and change badges via GitHub Gists
 - **Package organization**: Intelligent grouping with customizable package structure
+- **Enhanced error handling**: Circuit breakers, graceful degradation, and comprehensive error recovery
 - **Security focused**: Minimal permissions, input validation, and secure XML processing
 
 ## Quick Setup
@@ -181,6 +182,7 @@ The action automatically detects the format based on file content and structure.
 - **[Setup Guide](./docs/SETUP-GUIDE.md)** - Complete setup instructions including file-based alternatives
 - **[Configuration Guide](./docs/CONFIGURATION.md)** - Advanced package grouping and report customization
 - **[API Reference](./docs/API-REFERENCE.md)** - Complete input/output reference and configuration options
+- **[Error Handling Guide](./docs/ERROR-HANDLING.md)** - Comprehensive error handling and recovery system
 
 ### Examples
 

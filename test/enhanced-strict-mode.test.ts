@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
-import { runEnhancedCoverage } from '../src/enhanced.js';
+import { runEnhancedCoverage } from '../src/enhanced-v2.js';
 
 // Mock all dependencies
 vi.mock('@actions/core');

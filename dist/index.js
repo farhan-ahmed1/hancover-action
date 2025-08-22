@@ -45866,6 +45866,929 @@ function readInputs() {
 
 // EXTERNAL MODULE: external "fs"
 var external_fs_ = __nccwpck_require__(9896);
+// EXTERNAL MODULE: external "path"
+var external_path_ = __nccwpck_require__(6928);
+;// CONCATENATED MODULE: ./src/config.ts
+
+
+
+function loadConfig(cwd = process.cwd()) {
+    const configPath = external_path_.join(cwd, '.coverage-report.json');
+    // Detect ecosystem for smart defaults
+    const ecosystem = detectEcosystem([], cwd);
+    lib_core.debug(`Detected ecosystem: ${ecosystem.type}`);
+    // Create ecosystem-aware defaults
+    const ecosystemDefaults = {
+        groups: ecosystem.suggestedGroups,
+        fallback: {
+            smartDepth: 'auto',
+            promoteThreshold: 0.8
+        },
+        ui: {
+            expandFilesFor: ecosystem.suggestedGroups.map(g => g.name),
+            maxDeltaRows: 10,
+            minPassThreshold: ecosystem.recommendedThresholds.total
+        }
+    };
+    try {
+        if (!external_fs_.existsSync(configPath)) {
+            lib_core.debug(`No .coverage-report.json found, using smart defaults for ${ecosystem.type} ecosystem`);
+            return ecosystemDefaults;
+        }
+        const rawConfig = JSON.parse(external_fs_.readFileSync(configPath, 'utf8'));
+        lib_core.info(`Loaded config from ${configPath}`);
+        // Merge with ecosystem-aware defaults (instead of generic defaults)
+        const config = {
+            groups: rawConfig.groups || ecosystemDefaults.groups,
+            fallback: {
+                ...ecosystemDefaults.fallback,
+                ...rawConfig.fallback
+            },
+            ui: {
+                ...ecosystemDefaults.ui,
+                ...rawConfig.ui
+            }
+        };
+        lib_core.debug(`Config: ${JSON.stringify(config, null, 2)}`);
+        return config;
+    }
+    catch (error) {
+        lib_core.warning(`Failed to load config from ${configPath}: ${error}. Using ecosystem defaults for ${ecosystem.type}.`);
+        return ecosystemDefaults;
+    }
+}
+/**
+ * Check if a file path matches any of the given glob patterns
+ * For now, we'll use simple glob matching with * and **
+ */
+function matchesPatterns(filePath, patterns) {
+    const normalizedPath = external_path_.posix.normalize(filePath);
+    return patterns.some(pattern => {
+        // Convert simple glob pattern to regex
+        let regexPattern = pattern
+            .replace(/\*\*/g, '§DOUBLE_STAR§') // Temporary placeholder
+            .replace(/\*/g, '[^/]*') // * matches any characters except /
+            .replace(/§DOUBLE_STAR§/g, '.*') // ** matches any number of directories
+            .replace(/\?/g, '[^/]'); // ? matches any single character except /
+        const regex = new RegExp(`^${regexPattern}$`);
+        const matches = regex.test(normalizedPath);
+        return matches;
+    });
+}
+/**
+ * Detect the ecosystem type based on project files and structure
+ */
+function detectEcosystem(files = [], cwd = process.cwd()) {
+    // Check for ecosystem indicator files
+    const hasPackageJson = external_fs_.existsSync(external_path_.join(cwd, 'package.json'));
+    const hasPomXml = external_fs_.existsSync(external_path_.join(cwd, 'pom.xml'));
+    const hasGradleBuild = external_fs_.existsSync(external_path_.join(cwd, 'build.gradle')) || external_fs_.existsSync(external_path_.join(cwd, 'build.gradle.kts'));
+    const hasPyprojectToml = external_fs_.existsSync(external_path_.join(cwd, 'pyproject.toml'));
+    const hasSetupPy = external_fs_.existsSync(external_path_.join(cwd, 'setup.py'));
+    const hasRequirementsTxt = external_fs_.existsSync(external_path_.join(cwd, 'requirements.txt'));
+    const hasCsproj = external_fs_.existsSync(external_path_.join(cwd, '*.csproj')) || files.some(f => f.endsWith('.csproj'));
+    const hasGoMod = external_fs_.existsSync(external_path_.join(cwd, 'go.mod'));
+    const hasGemfile = external_fs_.existsSync(external_path_.join(cwd, 'Gemfile'));
+    // Determine ecosystem type based on priority
+    let type = 'generic';
+    if (hasPackageJson) {
+        type = 'node';
+    }
+    else if (hasPomXml || hasGradleBuild) {
+        type = 'java';
+    }
+    else if (hasPyprojectToml || hasSetupPy || hasRequirementsTxt) {
+        type = 'python';
+    }
+    else if (hasCsproj) {
+        type = 'dotnet';
+    }
+    else if (hasGoMod) {
+        type = 'go';
+    }
+    else if (hasGemfile) {
+        type = 'ruby';
+    }
+    return {
+        type,
+        recommendedThresholds: getRecommendedThresholds(type),
+        suggestedGroups: getSuggestedGroups(type)
+    };
+}
+/**
+ * Get recommended thresholds based on ecosystem type
+ */
+function getRecommendedThresholds(type) {
+    const thresholds = {
+        node: { total: 80, changes: 85 },
+        java: { total: 70, changes: 80 },
+        python: { total: 85, changes: 90 },
+        dotnet: { total: 75, changes: 80 },
+        go: { total: 80, changes: 85 },
+        ruby: { total: 80, changes: 85 },
+        generic: { total: 50, changes: 60 }
+    };
+    return thresholds[type];
+}
+/**
+ * Get suggested grouping patterns based on ecosystem type
+ */
+function getSuggestedGroups(type) {
+    const groupingPatterns = {
+        node: [
+            { name: 'src/components', patterns: ['src/components/**'] },
+            { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+            { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+            { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+        ],
+        java: [
+            { name: 'main/java', patterns: ['src/main/java/**'] },
+            { name: 'main/resources', patterns: ['src/main/resources/**'] },
+            { name: 'test', patterns: ['src/test/**'] }
+        ],
+        python: [
+            { name: 'src', patterns: ['src/**', '*.py'] },
+            { name: 'tests', patterns: ['tests/**', 'test/**'] },
+            { name: 'package', patterns: ['**/**.py'], exclude: ['src/**', 'tests/**', 'test/**'] }
+        ],
+        dotnet: [
+            { name: 'Controllers', patterns: ['**/Controllers/**'] },
+            { name: 'Models', patterns: ['**/Models/**'] },
+            { name: 'Services', patterns: ['**/Services/**'] },
+            { name: 'Core', patterns: ['**/*.cs'], exclude: ['**/Controllers/**', '**/Models/**', '**/Services/**'] }
+        ],
+        go: [
+            { name: 'cmd', patterns: ['cmd/**'] },
+            { name: 'internal', patterns: ['internal/**'] },
+            { name: 'pkg', patterns: ['pkg/**'] },
+            { name: 'root', patterns: ['*.go'] }
+        ],
+        ruby: [
+            { name: 'app', patterns: ['app/**'] },
+            { name: 'lib', patterns: ['lib/**'] },
+            { name: 'config', patterns: ['config/**'] },
+            { name: 'spec', patterns: ['spec/**'] }
+        ],
+        generic: []
+    };
+    return groupingPatterns[type];
+}
+
+;// CONCATENATED MODULE: ./src/group.ts
+
+
+
+/**
+ * Enhanced package grouping with config support:
+ * 1. Apply base grouping (smart defaults)
+ * 2. Apply overlay rules from config
+ * 3. Return both detailed packages and top-level summary
+ */
+function groupPackages(files, config) {
+    if (files.length === 0) {
+        return { pkgRows: [], topLevelRows: [] };
+    }
+    const resolvedConfig = config || loadConfig();
+    lib_core.debug(`Grouping ${files.length} files with config: ${JSON.stringify(resolvedConfig, null, 2)}`);
+    // Step 1: Base grouping (smart defaults)
+    const basePackages = applyBaseGrouping(files, resolvedConfig);
+    // Step 2: Apply overlay rules from config
+    const overlayPackages = applyOverlayRules(basePackages, files, resolvedConfig);
+    // Step 3: Compute top-level summary (always based on first path segment)
+    const topLevelPackages = computeTopLevelSummary(files);
+    // Sort both results
+    overlayPackages.sort((a, b) => a.name.localeCompare(b.name));
+    topLevelPackages.sort((a, b) => a.name.localeCompare(b.name));
+    lib_core.info(`Grouped into ${overlayPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
+    return {
+        pkgRows: overlayPackages,
+        topLevelRows: topLevelPackages
+    };
+}
+/**
+ * Apply base grouping logic (the original smart grouping)
+ */
+function applyBaseGrouping(files, config) {
+    // Step 1: Compute top-level groups
+    const topLevelGroups = new Map();
+    const rootFiles = [];
+    for (const file of files) {
+        const normalizedPath = external_path_.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        if (segments.length === 0) {
+            rootFiles.push(file);
+            continue;
+        }
+        const topLevel = segments[0];
+        if (!topLevelGroups.has(topLevel)) {
+            topLevelGroups.set(topLevel, []);
+        }
+        topLevelGroups.get(topLevel).push(file);
+    }
+    // Add root files if any
+    if (rootFiles.length > 0) {
+        topLevelGroups.set('root', rootFiles);
+    }
+    // Step 2: Check if one group dominates (≥promoteThreshold% of files)
+    const totalFiles = files.length;
+    let dominantGroup = null;
+    if (config.fallback.smartDepth === 'auto') {
+        for (const [groupName, groupFiles] of topLevelGroups) {
+            if (groupFiles.length / totalFiles >= (config.fallback.promoteThreshold ?? 0.8)) {
+                dominantGroup = groupName;
+                break;
+            }
+        }
+    }
+    // Step 3: Build final package structure
+    const packages = [];
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        if (groupName === dominantGroup && shouldPromoteDeeper(groupFiles)) {
+            // Promote one level deeper for the dominant group
+            const subGroups = new Map();
+            for (const file of groupFiles) {
+                const normalizedPath = external_path_.posix.normalize(file.path);
+                const segments = normalizedPath.split('/').filter(s => s.length > 0);
+                let subGroupName = groupName; // fallback
+                if (segments.length >= 2) {
+                    subGroupName = `${segments[0]}/${segments[1]}`;
+                }
+                if (!subGroups.has(subGroupName)) {
+                    subGroups.set(subGroupName, []);
+                }
+                subGroups.get(subGroupName).push(file);
+            }
+            // Add sub-packages
+            for (const [subGroupName, subGroupFiles] of subGroups) {
+                packages.push(createPackage(subGroupName, subGroupFiles));
+            }
+        }
+        else {
+            // Keep as top-level package
+            packages.push(createPackage(groupName, groupFiles));
+        }
+    }
+    return packages;
+}
+/**
+ * Apply overlay rules from config to reassign files
+ */
+function applyOverlayRules(basePackages, allFiles, config) {
+    if (config.groups.length === 0) {
+        return basePackages;
+    }
+    // Track which files have been claimed by overlay rules
+    const claimedFiles = new Set();
+    const overlayPackages = [];
+    // Process overlay rules in order
+    for (const rule of config.groups) {
+        const matchingFiles = [];
+        for (const file of allFiles) {
+            if (claimedFiles.has(file.path))
+                continue;
+            // Check if file matches include patterns
+            const matches = matchesPatterns(file.path, rule.patterns);
+            // Check if file should be excluded
+            const excluded = rule.exclude ? matchesPatterns(file.path, rule.exclude) : false;
+            if (matches && !excluded) {
+                matchingFiles.push(file);
+                claimedFiles.add(file.path);
+            }
+        }
+        if (matchingFiles.length > 0) {
+            overlayPackages.push(createPackage(rule.name, matchingFiles));
+            lib_core.debug(`Overlay rule '${rule.name}' matched ${matchingFiles.length} files`);
+        }
+    }
+    // Add remaining unclaimed files using base grouping
+    const unclaimedFiles = allFiles.filter(f => !claimedFiles.has(f.path));
+    if (unclaimedFiles.length > 0) {
+        const remainingBase = applyBaseGrouping(unclaimedFiles, config);
+        overlayPackages.push(...remainingBase);
+    }
+    return overlayPackages;
+}
+/**
+ * Compute top-level summary based on first path segment only
+ */
+function computeTopLevelSummary(files) {
+    const topLevelGroups = new Map();
+    const rootFiles = [];
+    for (const file of files) {
+        const normalizedPath = external_path_.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        if (segments.length === 0) {
+            rootFiles.push(file);
+            continue;
+        }
+        const topLevel = segments[0];
+        if (!topLevelGroups.has(topLevel)) {
+            topLevelGroups.set(topLevel, []);
+        }
+        topLevelGroups.get(topLevel).push(file);
+    }
+    // Add root files if any
+    if (rootFiles.length > 0) {
+        topLevelGroups.set('root', rootFiles);
+    }
+    // Convert to packages
+    const packages = [];
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        packages.push(createPackage(groupName, groupFiles));
+    }
+    return packages;
+}
+function shouldPromoteDeeper(files) {
+    // Check if there are meaningful subdirectories to promote
+    const subDirs = new Set();
+    for (const file of files) {
+        const normalizedPath = external_path_.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        if (segments.length >= 2) {
+            subDirs.add(segments[1]);
+        }
+    }
+    // Only promote if there are at least 2 subdirectories
+    return subDirs.size >= 2;
+}
+function createPackage(name, files) {
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
+    for (const file of files) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+        totals.branches.covered += file.branches.covered;
+        totals.branches.total += file.branches.total;
+        totals.functions.covered += file.functions.covered;
+        totals.functions.total += file.functions.total;
+        // Set package info on the file for reference
+        file.package = name;
+    }
+    return { name, files, totals };
+}
+/**
+ * Utility functions for percentage calculations
+ */
+function pct(covered, total) {
+    return total === 0 ? 100 : (covered / total) * 100;
+}
+function rollup(files) {
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
+    for (const file of files) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+        totals.branches.covered += file.branches.covered;
+        totals.branches.total += file.branches.total;
+        totals.functions.covered += file.functions.covered;
+        totals.functions.total += file.functions.total;
+    }
+    return totals;
+}
+// Legacy function for backwards compatibility
+function groupCoverage(bundle) {
+    const { pkgRows } = groupPackages(bundle.files);
+    const result = new Map();
+    for (const pkg of pkgRows) {
+        result.set(pkg.name, pkg.files);
+    }
+    return result;
+}
+/**
+ * Simple wrapper that returns just the detailed packages (for backwards compatibility)
+ */
+function groupPackagesLegacy(files) {
+    return groupPackages(files).pkgRows;
+}
+
+;// CONCATENATED MODULE: ./src/changes.ts
+
+/**
+ * Compute code-changes coverage: "Of the lines I touched in this PR, what % is covered?"
+ */
+function computeChangesCoverage(project, changedLinesByFile) {
+    const changesFiles = [];
+    for (const file of project.files) {
+        const changedLines = changedLinesByFile[file.path];
+        if (!changedLines || changedLines.size === 0) {
+            continue;
+        }
+        // Count how many of the changed lines are covered
+        let coveredChangedLines = 0;
+        for (const lineNumber of changedLines) {
+            if (file.coveredLineNumbers.has(lineNumber)) {
+                coveredChangedLines++;
+            }
+        }
+        // Create a file coverage object for just the changed lines
+        const changesFile = {
+            path: file.path,
+            lines: { covered: coveredChangedLines, total: changedLines.size },
+            branches: { covered: 0, total: 0 }, // Not tracking branches for changes
+            functions: { covered: 0, total: 0 }, // Not tracking functions for changes
+            coveredLineNumbers: new Set(Array.from(changedLines).filter(line => file.coveredLineNumbers.has(line))),
+            package: file.package
+        };
+        changesFiles.push(changesFile);
+    }
+    // Group the changes files into packages (reuse existing package assignments)
+    const packageMap = new Map();
+    for (const file of changesFiles) {
+        const packageName = file.package || 'root';
+        if (!packageMap.has(packageName)) {
+            packageMap.set(packageName, []);
+        }
+        packageMap.get(packageName).push(file);
+    }
+    // Create package coverage objects
+    const packages = [];
+    for (const [packageName, files] of packageMap) {
+        const totals = {
+            lines: { covered: 0, total: 0 },
+            branches: { covered: 0, total: 0 },
+            functions: { covered: 0, total: 0 }
+        };
+        for (const file of files) {
+            totals.lines.covered += file.lines.covered;
+            totals.lines.total += file.lines.total;
+        }
+        packages.push({ name: packageName, files, totals });
+    }
+    // Sort packages by name
+    packages.sort((a, b) => a.name.localeCompare(b.name));
+    // Compute overall totals
+    const totals = {
+        lines: { covered: 0, total: 0 },
+        branches: { covered: 0, total: 0 },
+        functions: { covered: 0, total: 0 }
+    };
+    for (const file of changesFiles) {
+        totals.lines.covered += file.lines.covered;
+        totals.lines.total += file.lines.total;
+    }
+    return { files: changesFiles, packages, totals };
+}
+/**
+ * Parse git diff output to extract changed line numbers per file
+ */
+function parseGitDiff(gitDiffOutput) {
+    const result = {};
+    const lines = gitDiffOutput.split('\n');
+    let currentFile = null;
+    for (const line of lines) {
+        // Track file renames: --- a/old +++ b/new
+        if (line.startsWith('+++')) {
+            const match = line.match(/^\+\+\+ b\/(.+)$/);
+            if (match) {
+                currentFile = match[1];
+                result[currentFile] = new Set();
+            }
+        }
+        // Parse hunk headers: @@ -a,b +c,d @@
+        else if (line.startsWith('@@') && currentFile) {
+            const match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
+            if (match) {
+                const startLine = parseInt(match[1], 10);
+                const lineCount = match[2] ? parseInt(match[2], 10) : 1;
+                // Add all lines in this hunk as changed
+                for (let i = 0; i < lineCount; i++) {
+                    result[currentFile].add(startLine + i);
+                }
+            }
+        }
+    }
+    return result;
+}
+/**
+ * Compute delta coverage between PR and main
+ */
+function computeDeltaCoverage(prPackages, mainPackages) {
+    // Build index of main packages by name
+    const mainIndex = new Map();
+    for (const pkg of mainPackages) {
+        mainIndex.set(pkg.name, pkg);
+    }
+    // Build index of PR packages by name
+    const prIndex = new Map();
+    for (const pkg of prPackages) {
+        prIndex.set(pkg.name, pkg);
+    }
+    // Get union of all package names
+    const allPackageNames = new Set([
+        ...prPackages.map(p => p.name),
+        ...mainPackages.map(p => p.name)
+    ]);
+    const deltaPackages = [];
+    for (const packageName of allPackageNames) {
+        const prPkg = prIndex.get(packageName);
+        const mainPkg = mainIndex.get(packageName);
+        const prLinesPct = prPkg ? pct(prPkg.totals.lines.covered, prPkg.totals.lines.total) : 0;
+        const mainLinesPct = mainPkg ? pct(mainPkg.totals.lines.covered, mainPkg.totals.lines.total) : 0;
+        const prBranchesPct = prPkg ? pct(prPkg.totals.branches.covered, prPkg.totals.branches.total) : 0;
+        const mainBranchesPct = mainPkg ? pct(mainPkg.totals.branches.covered, mainPkg.totals.branches.total) : 0;
+        const prFunctionsPct = prPkg ? pct(prPkg.totals.functions.covered, prPkg.totals.functions.total) : 0;
+        const mainFunctionsPct = mainPkg ? pct(mainPkg.totals.functions.covered, mainPkg.totals.functions.total) : 0;
+        deltaPackages.push({
+            name: packageName,
+            linesDeltas: {
+                pr: prLinesPct,
+                main: mainLinesPct,
+                delta: prLinesPct - mainLinesPct
+            },
+            branchesDeltas: {
+                pr: prBranchesPct,
+                main: mainBranchesPct,
+                delta: prBranchesPct - mainBranchesPct
+            },
+            functionsDeltas: {
+                pr: prFunctionsPct,
+                main: mainFunctionsPct,
+                delta: prFunctionsPct - mainFunctionsPct
+            }
+        });
+    }
+    // Sort by absolute delta (lines) descending
+    deltaPackages.sort((a, b) => Math.abs(b.linesDeltas.delta) - Math.abs(a.linesDeltas.delta));
+    return { packages: deltaPackages };
+}
+
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(3228);
+;// CONCATENATED MODULE: ./src/badges.ts
+function generateBadgeUrl(label, message, color = 'blue') {
+    return `https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(message)}-${color}`;
+}
+function generateCoverageBadge(coverage) {
+    const color = getColorForPercentage(coverage);
+    return generateBadgeUrl('coverage', `${coverage.toFixed(1)}%`, color);
+}
+function generateBuildBadge(status) {
+    const color = status === 'passing' ? 'brightgreen' : 'red';
+    return generateBadgeUrl('build', status, color);
+}
+function generateDeltaBadge(delta) {
+    const isPositive = delta >= 0;
+    const prefix = isPositive ? '+' : '';
+    const value = `${prefix}${delta.toFixed(1)}%`;
+    const color = isPositive ? 'brightgreen' : 'red';
+    return generateBadgeUrl('Δ coverage', value, color);
+}
+function createShieldsBadge(label, message, color) {
+    const encodedLabel = encodeURIComponent(label);
+    const encodedMessage = encodeURIComponent(message);
+    return `https://img.shields.io/badge/${encodedLabel}-${encodedMessage}-${color}`;
+}
+function getColorForPercentage(percentage) {
+    if (percentage >= 90)
+        return 'brightgreen';
+    if (percentage >= 80)
+        return 'green';
+    if (percentage >= 70)
+        return 'yellowgreen';
+    if (percentage >= 60)
+        return 'yellow';
+    if (percentage >= 50)
+        return 'orange';
+    return 'red';
+}
+function getHealthIcon(percentage, threshold = 50) {
+    return percentage >= threshold ? '✅' : '❌';
+}
+
+;// CONCATENATED MODULE: ./src/comment.ts
+
+
+
+
+
+const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
+async function renderComment(data) {
+    const { prProject, prPackages, topLevelPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
+    const config = loadConfig();
+    // Generate badges
+    const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
+    const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
+    // Generate changes badge if main branch coverage is available
+    let changesBadge = '';
+    lib_core.info(`Checking for changes badge: mainBranchCoverage = ${mainBranchCoverage}`);
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        let value;
+        if (delta >= 0) {
+            value = `+${delta.toFixed(1)}%`;
+        }
+        else {
+            // Use Unicode minus sign (−) instead of hyphen-minus (-) to avoid separator conflicts
+            value = `−${Math.abs(delta).toFixed(1)}%`;
+        }
+        const color = delta >= 0 ? 'brightgreen' : 'red';
+        changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
+        lib_core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
+    }
+    else {
+        lib_core.info('❌ No changes badge - missing baseline coverage data');
+    }
+    let deltaBadge = '';
+    if (deltaCoverage && deltaCoverage.packages.length > 0) {
+        // Calculate overall delta from summary
+        const totalDelta = calculateOverallDelta(deltaCoverage);
+        deltaBadge = ` [![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
+    }
+    // Badge section
+    const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
+    // Generate table sections
+    const topLevelTable = topLevelPackages ? renderTopLevelSummaryTable(topLevelPackages, minThreshold) : '';
+    const projectTable = renderProjectTable(prPackages, minThreshold, config);
+    const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
+    // Calculate overall coverage for display
+    const overallCoverage = `**Overall Coverage:** ${projectLinesPct.toFixed(1)}%`;
+    const totalLines = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+    const totalLinesCovered = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+    const coverageStats = `**Lines Covered:** ${totalLinesCovered}/${totalLines}`;
+    // Generate coverage change sentence if main branch coverage is available
+    let coverageChangeSentence = '';
+    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
+        const delta = projectLinesPct - mainBranchCoverage;
+        if (delta > 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR increased coverage by ${delta.toFixed(1)} percentage points._`;
+        }
+        else if (delta < 0) {
+            coverageChangeSentence = `\n\n_Changes made in this PR decreased coverage by ${Math.abs(delta).toFixed(1)} percentage points._`;
+        }
+        else {
+            coverageChangeSentence = '\n\n_Changes made in this PR did not affect overall coverage._';
+        }
+    }
+    return `${COVERAGE_COMMENT_MARKER}
+## Coverage Report
+<!-- Last updated: ${new Date().toISOString()} -->
+
+${badgeSection}
+
+${overallCoverage} | ${coverageStats}${coverageChangeSentence}
+
+${topLevelTable ? `${topLevelTable}\n` : ''}
+
+<details>
+<summary><b>Detailed Coverage by Package</b></summary>
+
+<br/>
+
+${projectTable}
+
+</details>
+
+${deltaTable ? `\n${deltaTable}` : ''}
+
+_Minimum pass threshold is ${minThreshold.toFixed(1)}%_
+`;
+}
+function renderTopLevelSummaryTable(packages, minThreshold) {
+    if (packages.length === 0) {
+        return '';
+    }
+    let table = `### Top-level Packages (Summary)
+
+| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Package rows
+    for (const pkg of packages) {
+        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
+    }
+    // Only add summary row if there are multiple top-level packages
+    if (packages.length > 1) {
+        const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+        const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+        const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
+        const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
+        const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
+        const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
+        const summaryLinesPct = pct(totalLinesCovered, totalLines);
+        const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
+        const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
+        const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
+        table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    }
+    return table;
+}
+function renderProjectTable(packages, minThreshold, config) {
+    if (packages.length === 0) {
+        return '_No coverage data available_';
+    }
+    const resolvedConfig = config || loadConfig();
+    let table = `| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Package rows
+    for (const pkg of packages) {
+        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
+    }
+    // Summary row
+    const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
+    const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
+    const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
+    const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
+    const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
+    const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
+    const summaryLinesPct = pct(totalLinesCovered, totalLines);
+    const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
+    const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
+    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
+    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
+    // Add expandable file tables after the main table
+    let expandableTables = '';
+    for (const pkg of packages) {
+        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
+        if (shouldExpand) {
+            expandableTables += renderExpandableFileTable(pkg, minThreshold);
+        }
+    }
+    return table + expandableTables;
+}
+/**
+ * Determine if a package should have an expandable file table
+ */
+function shouldExpandPackage(pkg, config) {
+    // Check explicit config first
+    if (config?.ui?.expandFilesFor?.includes(pkg.name)) {
+        return true;
+    }
+    // Default: expand packages with >= 2 files but not too many (to avoid spam)
+    return pkg.files.length >= 2 && pkg.files.length <= 20;
+}
+/**
+ * Render an expandable <details> block with file-level coverage
+ */
+function renderExpandableFileTable(pkg, minThreshold) {
+    if (pkg.files.length <= 1) {
+        return '';
+    }
+    let fileTable = `
+<details>
+<summary><b>Files in <code>${pkg.name}</code></b></summary>
+
+| File | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Sort files by name for consistent ordering
+    const sortedFiles = [...pkg.files].sort((a, b) => a.path.localeCompare(b.path));
+    for (const file of sortedFiles) {
+        const linesPct = pct(file.lines.covered, file.lines.total);
+        const branchesPct = pct(file.branches.covered, file.branches.total);
+        const functionsPct = pct(file.functions.covered, file.functions.total);
+        const health = getHealthIcon(linesPct, minThreshold);
+        fileTable += `| ${file.path} | ${linesPct.toFixed(1)}% (${file.lines.covered}/${file.lines.total}) | ${branchesPct.toFixed(1)}% (${file.branches.covered}/${file.branches.total}) | ${functionsPct.toFixed(1)}% (${file.functions.covered}/${file.functions.total}) | ${health} |\n`;
+    }
+    // Add package total row
+    const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
+    const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
+    const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
+    const health = getHealthIcon(linesPct, minThreshold);
+    fileTable += `| **Total** | **${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total})** | **${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total})** | **${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total})** | **${health}** |
+
+</details>
+`;
+    return fileTable;
+}
+function renderDeltaTable(deltaCoverage, minThreshold) {
+    if (deltaCoverage.packages.length === 0) {
+        return '';
+    }
+    // Show top 10 packages by absolute delta
+    const top10 = deltaCoverage.packages.slice(0, 10);
+    const remaining = deltaCoverage.packages.slice(10);
+    let table = `### Coverage Delta (PR vs main)
+| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+    // Top 10 rows
+    for (const pkg of top10) {
+        const health = getHealthIcon(pkg.linesDeltas.pr, minThreshold);
+        table += `| ${pkg.name} | ${pkg.linesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.linesDeltas.delta)}) | ${pkg.branchesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.branchesDeltas.delta)}) | ${pkg.functionsDeltas.pr.toFixed(1)}% (${formatDelta(pkg.functionsDeltas.delta)}) | ${health} |\n`;
+    }
+    // Calculate summary delta
+    const totalDelta = calculateOverallDelta(deltaCoverage);
+    const summaryHealth = getHealthIcon(calculateOverallPct(deltaCoverage), minThreshold);
+    table += `| **Summary** | **${calculateOverallPct(deltaCoverage).toFixed(1)}% (${formatDelta(totalDelta)})** | **—** | **—** | **${summaryHealth}** |\n`;
+    // Add collapsed section for remaining packages if any
+    if (remaining.length > 0) {
+        table += `\n<details>
+<summary><i>Show ${remaining.length} more packages...</i></summary>
+
+| Package | Statements | Branches | Functions | Health |
+|---|---:|---:|---:|:---:|
+`;
+        for (const pkg of remaining) {
+            const health = getHealthIcon(pkg.linesDeltas.pr, minThreshold);
+            table += `| ${pkg.name} | ${pkg.linesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.linesDeltas.delta)}) | ${pkg.branchesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.branchesDeltas.delta)}) | ${pkg.functionsDeltas.pr.toFixed(1)}% (${formatDelta(pkg.functionsDeltas.delta)}) | ${health} |\n`;
+        }
+        table += '\n</details>';
+    }
+    return table;
+}
+function calculateOverallDelta(deltaCoverage) {
+    if (deltaCoverage.packages.length === 0)
+        return 0;
+    // Simple average of deltas (could be weighted by file count)
+    const totalDelta = deltaCoverage.packages.reduce((sum, pkg) => sum + pkg.linesDeltas.delta, 0);
+    return totalDelta / deltaCoverage.packages.length;
+}
+function calculateOverallPct(deltaCoverage) {
+    if (deltaCoverage.packages.length === 0)
+        return 0;
+    // Simple average of PR percentages (could be weighted by file count)
+    const totalPct = deltaCoverage.packages.reduce((sum, pkg) => sum + pkg.linesDeltas.pr, 0);
+    return totalPct / deltaCoverage.packages.length;
+}
+function formatDelta(delta) {
+    if (delta === 0)
+        return '±0.0%';
+    return `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`;
+}
+function shield(label, value, color) {
+    const e = encodeURIComponent;
+    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${color}`;
+}
+function colorForPct(p) {
+    return p >= 90 ? 'brightgreen' : p >= 80 ? 'green' : p >= 70 ? 'yellowgreen' : p >= 60 ? 'yellow' : p >= 50 ? 'orange' : 'red';
+}
+function deltaColor(d) {
+    return d >= 0 ? 'brightgreen' : 'red';
+}
+async function upsertStickyComment(md, mode = 'update') {
+    try {
+        const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
+        if (!token) {
+            lib_core.warning('No GitHub token provided, skipping comment update');
+            return;
+        }
+        const octokit = github.getOctokit(token);
+        const context = github.context;
+        // Only work with pull requests
+        if (!context.payload.pull_request) {
+            lib_core.info('Not a pull request, skipping comment');
+            return;
+        }
+        const { owner, repo } = context.repo;
+        const pull_number = context.payload.pull_request.number;
+        if (mode === 'update') {
+            // Find existing coverage comment
+            const { data: comments } = await octokit.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: pull_number,
+                per_page: 100
+            });
+            const coverageComments = comments.filter(comment => {
+                const body = comment.body || '';
+                return body.includes(COVERAGE_COMMENT_MARKER) || body.includes('## Coverage Report');
+            });
+            if (coverageComments.length > 1) {
+                lib_core.warning(`Found multiple coverage comments (${coverageComments.length}), using the latest one`);
+            }
+            const existingComment = coverageComments[coverageComments.length - 1]; // Use the latest one
+            if (existingComment) {
+                // Update existing comment
+                await octokit.rest.issues.updateComment({
+                    owner,
+                    repo,
+                    comment_id: existingComment.id,
+                    body: md,
+                });
+                lib_core.info(`Updated existing coverage comment (ID: ${existingComment.id})`);
+                return;
+            }
+        }
+        // Create new comment (either mode is 'new' or no existing comment found)
+        await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: pull_number,
+            body: md,
+        });
+        lib_core.info('Created new coverage comment');
+    }
+    catch (error) {
+        lib_core.error(`Failed to upsert comment: ${error}`);
+        throw error;
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/fs-limits.ts
 /**
  * Security and file size enforcement utilities
@@ -49866,929 +50789,6 @@ function parsers_formatBytes(bytes) {
 
 
 
-// EXTERNAL MODULE: external "path"
-var external_path_ = __nccwpck_require__(6928);
-;// CONCATENATED MODULE: ./src/config.ts
-
-
-
-function loadConfig(cwd = process.cwd()) {
-    const configPath = external_path_.join(cwd, '.coverage-report.json');
-    // Detect ecosystem for smart defaults
-    const ecosystem = detectEcosystem([], cwd);
-    lib_core.debug(`Detected ecosystem: ${ecosystem.type}`);
-    // Create ecosystem-aware defaults
-    const ecosystemDefaults = {
-        groups: ecosystem.suggestedGroups,
-        fallback: {
-            smartDepth: 'auto',
-            promoteThreshold: 0.8
-        },
-        ui: {
-            expandFilesFor: ecosystem.suggestedGroups.map(g => g.name),
-            maxDeltaRows: 10,
-            minPassThreshold: ecosystem.recommendedThresholds.total
-        }
-    };
-    try {
-        if (!external_fs_.existsSync(configPath)) {
-            lib_core.debug(`No .coverage-report.json found, using smart defaults for ${ecosystem.type} ecosystem`);
-            return ecosystemDefaults;
-        }
-        const rawConfig = JSON.parse(external_fs_.readFileSync(configPath, 'utf8'));
-        lib_core.info(`Loaded config from ${configPath}`);
-        // Merge with ecosystem-aware defaults (instead of generic defaults)
-        const config = {
-            groups: rawConfig.groups || ecosystemDefaults.groups,
-            fallback: {
-                ...ecosystemDefaults.fallback,
-                ...rawConfig.fallback
-            },
-            ui: {
-                ...ecosystemDefaults.ui,
-                ...rawConfig.ui
-            }
-        };
-        lib_core.debug(`Config: ${JSON.stringify(config, null, 2)}`);
-        return config;
-    }
-    catch (error) {
-        lib_core.warning(`Failed to load config from ${configPath}: ${error}. Using ecosystem defaults for ${ecosystem.type}.`);
-        return ecosystemDefaults;
-    }
-}
-/**
- * Check if a file path matches any of the given glob patterns
- * For now, we'll use simple glob matching with * and **
- */
-function matchesPatterns(filePath, patterns) {
-    const normalizedPath = external_path_.posix.normalize(filePath);
-    return patterns.some(pattern => {
-        // Convert simple glob pattern to regex
-        let regexPattern = pattern
-            .replace(/\*\*/g, '§DOUBLE_STAR§') // Temporary placeholder
-            .replace(/\*/g, '[^/]*') // * matches any characters except /
-            .replace(/§DOUBLE_STAR§/g, '.*') // ** matches any number of directories
-            .replace(/\?/g, '[^/]'); // ? matches any single character except /
-        const regex = new RegExp(`^${regexPattern}$`);
-        const matches = regex.test(normalizedPath);
-        return matches;
-    });
-}
-/**
- * Detect the ecosystem type based on project files and structure
- */
-function detectEcosystem(files = [], cwd = process.cwd()) {
-    // Check for ecosystem indicator files
-    const hasPackageJson = external_fs_.existsSync(external_path_.join(cwd, 'package.json'));
-    const hasPomXml = external_fs_.existsSync(external_path_.join(cwd, 'pom.xml'));
-    const hasGradleBuild = external_fs_.existsSync(external_path_.join(cwd, 'build.gradle')) || external_fs_.existsSync(external_path_.join(cwd, 'build.gradle.kts'));
-    const hasPyprojectToml = external_fs_.existsSync(external_path_.join(cwd, 'pyproject.toml'));
-    const hasSetupPy = external_fs_.existsSync(external_path_.join(cwd, 'setup.py'));
-    const hasRequirementsTxt = external_fs_.existsSync(external_path_.join(cwd, 'requirements.txt'));
-    const hasCsproj = external_fs_.existsSync(external_path_.join(cwd, '*.csproj')) || files.some(f => f.endsWith('.csproj'));
-    const hasGoMod = external_fs_.existsSync(external_path_.join(cwd, 'go.mod'));
-    const hasGemfile = external_fs_.existsSync(external_path_.join(cwd, 'Gemfile'));
-    // Determine ecosystem type based on priority
-    let type = 'generic';
-    if (hasPackageJson) {
-        type = 'node';
-    }
-    else if (hasPomXml || hasGradleBuild) {
-        type = 'java';
-    }
-    else if (hasPyprojectToml || hasSetupPy || hasRequirementsTxt) {
-        type = 'python';
-    }
-    else if (hasCsproj) {
-        type = 'dotnet';
-    }
-    else if (hasGoMod) {
-        type = 'go';
-    }
-    else if (hasGemfile) {
-        type = 'ruby';
-    }
-    return {
-        type,
-        recommendedThresholds: getRecommendedThresholds(type),
-        suggestedGroups: getSuggestedGroups(type)
-    };
-}
-/**
- * Get recommended thresholds based on ecosystem type
- */
-function getRecommendedThresholds(type) {
-    const thresholds = {
-        node: { total: 80, changes: 85 },
-        java: { total: 70, changes: 80 },
-        python: { total: 85, changes: 90 },
-        dotnet: { total: 75, changes: 80 },
-        go: { total: 80, changes: 85 },
-        ruby: { total: 80, changes: 85 },
-        generic: { total: 50, changes: 60 }
-    };
-    return thresholds[type];
-}
-/**
- * Get suggested grouping patterns based on ecosystem type
- */
-function getSuggestedGroups(type) {
-    const groupingPatterns = {
-        node: [
-            { name: 'src/components', patterns: ['src/components/**'] },
-            { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
-            { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
-            { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
-        ],
-        java: [
-            { name: 'main/java', patterns: ['src/main/java/**'] },
-            { name: 'main/resources', patterns: ['src/main/resources/**'] },
-            { name: 'test', patterns: ['src/test/**'] }
-        ],
-        python: [
-            { name: 'src', patterns: ['src/**', '*.py'] },
-            { name: 'tests', patterns: ['tests/**', 'test/**'] },
-            { name: 'package', patterns: ['**/**.py'], exclude: ['src/**', 'tests/**', 'test/**'] }
-        ],
-        dotnet: [
-            { name: 'Controllers', patterns: ['**/Controllers/**'] },
-            { name: 'Models', patterns: ['**/Models/**'] },
-            { name: 'Services', patterns: ['**/Services/**'] },
-            { name: 'Core', patterns: ['**/*.cs'], exclude: ['**/Controllers/**', '**/Models/**', '**/Services/**'] }
-        ],
-        go: [
-            { name: 'cmd', patterns: ['cmd/**'] },
-            { name: 'internal', patterns: ['internal/**'] },
-            { name: 'pkg', patterns: ['pkg/**'] },
-            { name: 'root', patterns: ['*.go'] }
-        ],
-        ruby: [
-            { name: 'app', patterns: ['app/**'] },
-            { name: 'lib', patterns: ['lib/**'] },
-            { name: 'config', patterns: ['config/**'] },
-            { name: 'spec', patterns: ['spec/**'] }
-        ],
-        generic: []
-    };
-    return groupingPatterns[type];
-}
-
-;// CONCATENATED MODULE: ./src/group.ts
-
-
-
-/**
- * Enhanced package grouping with config support:
- * 1. Apply base grouping (smart defaults)
- * 2. Apply overlay rules from config
- * 3. Return both detailed packages and top-level summary
- */
-function groupPackages(files, config) {
-    if (files.length === 0) {
-        return { pkgRows: [], topLevelRows: [] };
-    }
-    const resolvedConfig = config || loadConfig();
-    lib_core.debug(`Grouping ${files.length} files with config: ${JSON.stringify(resolvedConfig, null, 2)}`);
-    // Step 1: Base grouping (smart defaults)
-    const basePackages = applyBaseGrouping(files, resolvedConfig);
-    // Step 2: Apply overlay rules from config
-    const overlayPackages = applyOverlayRules(basePackages, files, resolvedConfig);
-    // Step 3: Compute top-level summary (always based on first path segment)
-    const topLevelPackages = computeTopLevelSummary(files);
-    // Sort both results
-    overlayPackages.sort((a, b) => a.name.localeCompare(b.name));
-    topLevelPackages.sort((a, b) => a.name.localeCompare(b.name));
-    lib_core.info(`Grouped into ${overlayPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
-    return {
-        pkgRows: overlayPackages,
-        topLevelRows: topLevelPackages
-    };
-}
-/**
- * Apply base grouping logic (the original smart grouping)
- */
-function applyBaseGrouping(files, config) {
-    // Step 1: Compute top-level groups
-    const topLevelGroups = new Map();
-    const rootFiles = [];
-    for (const file of files) {
-        const normalizedPath = external_path_.posix.normalize(file.path);
-        const segments = normalizedPath.split('/').filter(s => s.length > 0);
-        if (segments.length === 0) {
-            rootFiles.push(file);
-            continue;
-        }
-        const topLevel = segments[0];
-        if (!topLevelGroups.has(topLevel)) {
-            topLevelGroups.set(topLevel, []);
-        }
-        topLevelGroups.get(topLevel).push(file);
-    }
-    // Add root files if any
-    if (rootFiles.length > 0) {
-        topLevelGroups.set('root', rootFiles);
-    }
-    // Step 2: Check if one group dominates (≥promoteThreshold% of files)
-    const totalFiles = files.length;
-    let dominantGroup = null;
-    if (config.fallback.smartDepth === 'auto') {
-        for (const [groupName, groupFiles] of topLevelGroups) {
-            if (groupFiles.length / totalFiles >= (config.fallback.promoteThreshold ?? 0.8)) {
-                dominantGroup = groupName;
-                break;
-            }
-        }
-    }
-    // Step 3: Build final package structure
-    const packages = [];
-    for (const [groupName, groupFiles] of topLevelGroups) {
-        if (groupName === dominantGroup && shouldPromoteDeeper(groupFiles)) {
-            // Promote one level deeper for the dominant group
-            const subGroups = new Map();
-            for (const file of groupFiles) {
-                const normalizedPath = external_path_.posix.normalize(file.path);
-                const segments = normalizedPath.split('/').filter(s => s.length > 0);
-                let subGroupName = groupName; // fallback
-                if (segments.length >= 2) {
-                    subGroupName = `${segments[0]}/${segments[1]}`;
-                }
-                if (!subGroups.has(subGroupName)) {
-                    subGroups.set(subGroupName, []);
-                }
-                subGroups.get(subGroupName).push(file);
-            }
-            // Add sub-packages
-            for (const [subGroupName, subGroupFiles] of subGroups) {
-                packages.push(createPackage(subGroupName, subGroupFiles));
-            }
-        }
-        else {
-            // Keep as top-level package
-            packages.push(createPackage(groupName, groupFiles));
-        }
-    }
-    return packages;
-}
-/**
- * Apply overlay rules from config to reassign files
- */
-function applyOverlayRules(basePackages, allFiles, config) {
-    if (config.groups.length === 0) {
-        return basePackages;
-    }
-    // Track which files have been claimed by overlay rules
-    const claimedFiles = new Set();
-    const overlayPackages = [];
-    // Process overlay rules in order
-    for (const rule of config.groups) {
-        const matchingFiles = [];
-        for (const file of allFiles) {
-            if (claimedFiles.has(file.path))
-                continue;
-            // Check if file matches include patterns
-            const matches = matchesPatterns(file.path, rule.patterns);
-            // Check if file should be excluded
-            const excluded = rule.exclude ? matchesPatterns(file.path, rule.exclude) : false;
-            if (matches && !excluded) {
-                matchingFiles.push(file);
-                claimedFiles.add(file.path);
-            }
-        }
-        if (matchingFiles.length > 0) {
-            overlayPackages.push(createPackage(rule.name, matchingFiles));
-            lib_core.debug(`Overlay rule '${rule.name}' matched ${matchingFiles.length} files`);
-        }
-    }
-    // Add remaining unclaimed files using base grouping
-    const unclaimedFiles = allFiles.filter(f => !claimedFiles.has(f.path));
-    if (unclaimedFiles.length > 0) {
-        const remainingBase = applyBaseGrouping(unclaimedFiles, config);
-        overlayPackages.push(...remainingBase);
-    }
-    return overlayPackages;
-}
-/**
- * Compute top-level summary based on first path segment only
- */
-function computeTopLevelSummary(files) {
-    const topLevelGroups = new Map();
-    const rootFiles = [];
-    for (const file of files) {
-        const normalizedPath = external_path_.posix.normalize(file.path);
-        const segments = normalizedPath.split('/').filter(s => s.length > 0);
-        if (segments.length === 0) {
-            rootFiles.push(file);
-            continue;
-        }
-        const topLevel = segments[0];
-        if (!topLevelGroups.has(topLevel)) {
-            topLevelGroups.set(topLevel, []);
-        }
-        topLevelGroups.get(topLevel).push(file);
-    }
-    // Add root files if any
-    if (rootFiles.length > 0) {
-        topLevelGroups.set('root', rootFiles);
-    }
-    // Convert to packages
-    const packages = [];
-    for (const [groupName, groupFiles] of topLevelGroups) {
-        packages.push(createPackage(groupName, groupFiles));
-    }
-    return packages;
-}
-function shouldPromoteDeeper(files) {
-    // Check if there are meaningful subdirectories to promote
-    const subDirs = new Set();
-    for (const file of files) {
-        const normalizedPath = external_path_.posix.normalize(file.path);
-        const segments = normalizedPath.split('/').filter(s => s.length > 0);
-        if (segments.length >= 2) {
-            subDirs.add(segments[1]);
-        }
-    }
-    // Only promote if there are at least 2 subdirectories
-    return subDirs.size >= 2;
-}
-function createPackage(name, files) {
-    const totals = {
-        lines: { covered: 0, total: 0 },
-        branches: { covered: 0, total: 0 },
-        functions: { covered: 0, total: 0 }
-    };
-    for (const file of files) {
-        totals.lines.covered += file.lines.covered;
-        totals.lines.total += file.lines.total;
-        totals.branches.covered += file.branches.covered;
-        totals.branches.total += file.branches.total;
-        totals.functions.covered += file.functions.covered;
-        totals.functions.total += file.functions.total;
-        // Set package info on the file for reference
-        file.package = name;
-    }
-    return { name, files, totals };
-}
-/**
- * Utility functions for percentage calculations
- */
-function pct(covered, total) {
-    return total === 0 ? 100 : (covered / total) * 100;
-}
-function rollup(files) {
-    const totals = {
-        lines: { covered: 0, total: 0 },
-        branches: { covered: 0, total: 0 },
-        functions: { covered: 0, total: 0 }
-    };
-    for (const file of files) {
-        totals.lines.covered += file.lines.covered;
-        totals.lines.total += file.lines.total;
-        totals.branches.covered += file.branches.covered;
-        totals.branches.total += file.branches.total;
-        totals.functions.covered += file.functions.covered;
-        totals.functions.total += file.functions.total;
-    }
-    return totals;
-}
-// Legacy function for backwards compatibility
-function groupCoverage(bundle) {
-    const { pkgRows } = groupPackages(bundle.files);
-    const result = new Map();
-    for (const pkg of pkgRows) {
-        result.set(pkg.name, pkg.files);
-    }
-    return result;
-}
-/**
- * Simple wrapper that returns just the detailed packages (for backwards compatibility)
- */
-function groupPackagesLegacy(files) {
-    return groupPackages(files).pkgRows;
-}
-
-;// CONCATENATED MODULE: ./src/changes.ts
-
-/**
- * Compute code-changes coverage: "Of the lines I touched in this PR, what % is covered?"
- */
-function computeChangesCoverage(project, changedLinesByFile) {
-    const changesFiles = [];
-    for (const file of project.files) {
-        const changedLines = changedLinesByFile[file.path];
-        if (!changedLines || changedLines.size === 0) {
-            continue;
-        }
-        // Count how many of the changed lines are covered
-        let coveredChangedLines = 0;
-        for (const lineNumber of changedLines) {
-            if (file.coveredLineNumbers.has(lineNumber)) {
-                coveredChangedLines++;
-            }
-        }
-        // Create a file coverage object for just the changed lines
-        const changesFile = {
-            path: file.path,
-            lines: { covered: coveredChangedLines, total: changedLines.size },
-            branches: { covered: 0, total: 0 }, // Not tracking branches for changes
-            functions: { covered: 0, total: 0 }, // Not tracking functions for changes
-            coveredLineNumbers: new Set(Array.from(changedLines).filter(line => file.coveredLineNumbers.has(line))),
-            package: file.package
-        };
-        changesFiles.push(changesFile);
-    }
-    // Group the changes files into packages (reuse existing package assignments)
-    const packageMap = new Map();
-    for (const file of changesFiles) {
-        const packageName = file.package || 'root';
-        if (!packageMap.has(packageName)) {
-            packageMap.set(packageName, []);
-        }
-        packageMap.get(packageName).push(file);
-    }
-    // Create package coverage objects
-    const packages = [];
-    for (const [packageName, files] of packageMap) {
-        const totals = {
-            lines: { covered: 0, total: 0 },
-            branches: { covered: 0, total: 0 },
-            functions: { covered: 0, total: 0 }
-        };
-        for (const file of files) {
-            totals.lines.covered += file.lines.covered;
-            totals.lines.total += file.lines.total;
-        }
-        packages.push({ name: packageName, files, totals });
-    }
-    // Sort packages by name
-    packages.sort((a, b) => a.name.localeCompare(b.name));
-    // Compute overall totals
-    const totals = {
-        lines: { covered: 0, total: 0 },
-        branches: { covered: 0, total: 0 },
-        functions: { covered: 0, total: 0 }
-    };
-    for (const file of changesFiles) {
-        totals.lines.covered += file.lines.covered;
-        totals.lines.total += file.lines.total;
-    }
-    return { files: changesFiles, packages, totals };
-}
-/**
- * Parse git diff output to extract changed line numbers per file
- */
-function parseGitDiff(gitDiffOutput) {
-    const result = {};
-    const lines = gitDiffOutput.split('\n');
-    let currentFile = null;
-    for (const line of lines) {
-        // Track file renames: --- a/old +++ b/new
-        if (line.startsWith('+++')) {
-            const match = line.match(/^\+\+\+ b\/(.+)$/);
-            if (match) {
-                currentFile = match[1];
-                result[currentFile] = new Set();
-            }
-        }
-        // Parse hunk headers: @@ -a,b +c,d @@
-        else if (line.startsWith('@@') && currentFile) {
-            const match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/);
-            if (match) {
-                const startLine = parseInt(match[1], 10);
-                const lineCount = match[2] ? parseInt(match[2], 10) : 1;
-                // Add all lines in this hunk as changed
-                for (let i = 0; i < lineCount; i++) {
-                    result[currentFile].add(startLine + i);
-                }
-            }
-        }
-    }
-    return result;
-}
-/**
- * Compute delta coverage between PR and main
- */
-function computeDeltaCoverage(prPackages, mainPackages) {
-    // Build index of main packages by name
-    const mainIndex = new Map();
-    for (const pkg of mainPackages) {
-        mainIndex.set(pkg.name, pkg);
-    }
-    // Build index of PR packages by name
-    const prIndex = new Map();
-    for (const pkg of prPackages) {
-        prIndex.set(pkg.name, pkg);
-    }
-    // Get union of all package names
-    const allPackageNames = new Set([
-        ...prPackages.map(p => p.name),
-        ...mainPackages.map(p => p.name)
-    ]);
-    const deltaPackages = [];
-    for (const packageName of allPackageNames) {
-        const prPkg = prIndex.get(packageName);
-        const mainPkg = mainIndex.get(packageName);
-        const prLinesPct = prPkg ? pct(prPkg.totals.lines.covered, prPkg.totals.lines.total) : 0;
-        const mainLinesPct = mainPkg ? pct(mainPkg.totals.lines.covered, mainPkg.totals.lines.total) : 0;
-        const prBranchesPct = prPkg ? pct(prPkg.totals.branches.covered, prPkg.totals.branches.total) : 0;
-        const mainBranchesPct = mainPkg ? pct(mainPkg.totals.branches.covered, mainPkg.totals.branches.total) : 0;
-        const prFunctionsPct = prPkg ? pct(prPkg.totals.functions.covered, prPkg.totals.functions.total) : 0;
-        const mainFunctionsPct = mainPkg ? pct(mainPkg.totals.functions.covered, mainPkg.totals.functions.total) : 0;
-        deltaPackages.push({
-            name: packageName,
-            linesDeltas: {
-                pr: prLinesPct,
-                main: mainLinesPct,
-                delta: prLinesPct - mainLinesPct
-            },
-            branchesDeltas: {
-                pr: prBranchesPct,
-                main: mainBranchesPct,
-                delta: prBranchesPct - mainBranchesPct
-            },
-            functionsDeltas: {
-                pr: prFunctionsPct,
-                main: mainFunctionsPct,
-                delta: prFunctionsPct - mainFunctionsPct
-            }
-        });
-    }
-    // Sort by absolute delta (lines) descending
-    deltaPackages.sort((a, b) => Math.abs(b.linesDeltas.delta) - Math.abs(a.linesDeltas.delta));
-    return { packages: deltaPackages };
-}
-
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(3228);
-;// CONCATENATED MODULE: ./src/badges.ts
-function generateBadgeUrl(label, message, color = 'blue') {
-    return `https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(message)}-${color}`;
-}
-function generateCoverageBadge(coverage) {
-    const color = getColorForPercentage(coverage);
-    return generateBadgeUrl('coverage', `${coverage.toFixed(1)}%`, color);
-}
-function generateBuildBadge(status) {
-    const color = status === 'passing' ? 'brightgreen' : 'red';
-    return generateBadgeUrl('build', status, color);
-}
-function generateDeltaBadge(delta) {
-    const isPositive = delta >= 0;
-    const prefix = isPositive ? '+' : '';
-    const value = `${prefix}${delta.toFixed(1)}%`;
-    const color = isPositive ? 'brightgreen' : 'red';
-    return generateBadgeUrl('Δ coverage', value, color);
-}
-function createShieldsBadge(label, message, color) {
-    const encodedLabel = encodeURIComponent(label);
-    const encodedMessage = encodeURIComponent(message);
-    return `https://img.shields.io/badge/${encodedLabel}-${encodedMessage}-${color}`;
-}
-function getColorForPercentage(percentage) {
-    if (percentage >= 90)
-        return 'brightgreen';
-    if (percentage >= 80)
-        return 'green';
-    if (percentage >= 70)
-        return 'yellowgreen';
-    if (percentage >= 60)
-        return 'yellow';
-    if (percentage >= 50)
-        return 'orange';
-    return 'red';
-}
-function getHealthIcon(percentage, threshold = 50) {
-    return percentage >= threshold ? '✅' : '❌';
-}
-
-;// CONCATENATED MODULE: ./src/comment.ts
-
-
-
-
-
-const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
-async function renderComment(data) {
-    const { prProject, prPackages, topLevelPackages, deltaCoverage, mainBranchCoverage, minThreshold = 50 } = data;
-    const config = loadConfig();
-    // Generate badges
-    const projectLinesPct = pct(prProject.totals.lines.covered, prProject.totals.lines.total);
-    const coverageBadge = shield('coverage', `${projectLinesPct.toFixed(1)}%`, colorForPct(projectLinesPct));
-    // Generate changes badge if main branch coverage is available
-    let changesBadge = '';
-    lib_core.info(`Checking for changes badge: mainBranchCoverage = ${mainBranchCoverage}`);
-    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
-        const delta = projectLinesPct - mainBranchCoverage;
-        let value;
-        if (delta >= 0) {
-            value = `+${delta.toFixed(1)}%`;
-        }
-        else {
-            // Use Unicode minus sign (−) instead of hyphen-minus (-) to avoid separator conflicts
-            value = `−${Math.abs(delta).toFixed(1)}%`;
-        }
-        const color = delta >= 0 ? 'brightgreen' : 'red';
-        changesBadge = ` [![Changes](${shield('changes', value, color)})](#)`;
-        lib_core.info(`✅ Generated changes badge: ${value} (${projectLinesPct.toFixed(1)}% - ${mainBranchCoverage.toFixed(1)}%)`);
-    }
-    else {
-        lib_core.info('❌ No changes badge - missing baseline coverage data');
-    }
-    let deltaBadge = '';
-    if (deltaCoverage && deltaCoverage.packages.length > 0) {
-        // Calculate overall delta from summary
-        const totalDelta = calculateOverallDelta(deltaCoverage);
-        deltaBadge = ` [![Δ vs main](${shield('Δ coverage', formatDelta(totalDelta), deltaColor(totalDelta))})](#)`;
-    }
-    // Badge section
-    const badgeSection = `[![Coverage](${coverageBadge})](#)${changesBadge}${deltaBadge}`;
-    // Generate table sections
-    const topLevelTable = topLevelPackages ? renderTopLevelSummaryTable(topLevelPackages, minThreshold) : '';
-    const projectTable = renderProjectTable(prPackages, minThreshold, config);
-    const deltaTable = deltaCoverage ? renderDeltaTable(deltaCoverage, minThreshold) : '';
-    // Calculate overall coverage for display
-    const overallCoverage = `**Overall Coverage:** ${projectLinesPct.toFixed(1)}%`;
-    const totalLines = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
-    const totalLinesCovered = prPackages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
-    const coverageStats = `**Lines Covered:** ${totalLinesCovered}/${totalLines}`;
-    // Generate coverage change sentence if main branch coverage is available
-    let coverageChangeSentence = '';
-    if (mainBranchCoverage !== null && mainBranchCoverage !== undefined) {
-        const delta = projectLinesPct - mainBranchCoverage;
-        if (delta > 0) {
-            coverageChangeSentence = `\n\n_Changes made in this PR increased coverage by ${delta.toFixed(1)} percentage points._`;
-        }
-        else if (delta < 0) {
-            coverageChangeSentence = `\n\n_Changes made in this PR decreased coverage by ${Math.abs(delta).toFixed(1)} percentage points._`;
-        }
-        else {
-            coverageChangeSentence = '\n\n_Changes made in this PR did not affect overall coverage._';
-        }
-    }
-    return `${COVERAGE_COMMENT_MARKER}
-## Coverage Report
-<!-- Last updated: ${new Date().toISOString()} -->
-
-${badgeSection}
-
-${overallCoverage} | ${coverageStats}${coverageChangeSentence}
-
-${topLevelTable ? `${topLevelTable}\n` : ''}
-
-<details>
-<summary><b>Detailed Coverage by Package</b></summary>
-
-<br/>
-
-${projectTable}
-
-</details>
-
-${deltaTable ? `\n${deltaTable}` : ''}
-
-_Minimum pass threshold is ${minThreshold.toFixed(1)}%_
-`;
-}
-function renderTopLevelSummaryTable(packages, minThreshold) {
-    if (packages.length === 0) {
-        return '';
-    }
-    let table = `### Top-level Packages (Summary)
-
-| Package | Statements | Branches | Functions | Health |
-|---|---:|---:|---:|:---:|
-`;
-    // Package rows
-    for (const pkg of packages) {
-        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
-        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
-        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
-        const health = getHealthIcon(linesPct, minThreshold);
-        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
-    }
-    // Only add summary row if there are multiple top-level packages
-    if (packages.length > 1) {
-        const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
-        const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
-        const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
-        const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
-        const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
-        const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
-        const summaryLinesPct = pct(totalLinesCovered, totalLines);
-        const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
-        const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
-        const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
-        table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    }
-    return table;
-}
-function renderProjectTable(packages, minThreshold, config) {
-    if (packages.length === 0) {
-        return '_No coverage data available_';
-    }
-    const resolvedConfig = config || loadConfig();
-    let table = `| Package | Statements | Branches | Functions | Health |
-|---|---:|---:|---:|:---:|
-`;
-    // Package rows
-    for (const pkg of packages) {
-        const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
-        const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
-        const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
-        const health = getHealthIcon(linesPct, minThreshold);
-        table += `| ${pkg.name} | ${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total}) | ${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total}) | ${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total}) | ${health} |\n`;
-    }
-    // Summary row
-    const totalLines = packages.reduce((sum, pkg) => sum + pkg.totals.lines.total, 0);
-    const totalLinesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.lines.covered, 0);
-    const totalBranches = packages.reduce((sum, pkg) => sum + pkg.totals.branches.total, 0);
-    const totalBranchesCovered = packages.reduce((sum, pkg) => sum + pkg.totals.branches.covered, 0);
-    const totalFunctions = packages.reduce((sum, pkg) => sum + pkg.totals.functions.total, 0);
-    const totalFunctionsCovered = packages.reduce((sum, pkg) => sum + pkg.totals.functions.covered, 0);
-    const summaryLinesPct = pct(totalLinesCovered, totalLines);
-    const summaryBranchesPct = pct(totalBranchesCovered, totalBranches);
-    const summaryFunctionsPct = pct(totalFunctionsCovered, totalFunctions);
-    const summaryHealth = getHealthIcon(summaryLinesPct, minThreshold);
-    table += `| **Summary** | **${summaryLinesPct.toFixed(1)}% (${totalLinesCovered}/${totalLines})** | **${summaryBranchesPct.toFixed(1)}% (${totalBranchesCovered}/${totalBranches})** | **${summaryFunctionsPct.toFixed(1)}% (${totalFunctionsCovered}/${totalFunctions})** | **${summaryHealth}** |\n`;
-    // Add expandable file tables after the main table
-    let expandableTables = '';
-    for (const pkg of packages) {
-        const shouldExpand = shouldExpandPackage(pkg, resolvedConfig);
-        if (shouldExpand) {
-            expandableTables += renderExpandableFileTable(pkg, minThreshold);
-        }
-    }
-    return table + expandableTables;
-}
-/**
- * Determine if a package should have an expandable file table
- */
-function shouldExpandPackage(pkg, config) {
-    // Check explicit config first
-    if (config?.ui?.expandFilesFor?.includes(pkg.name)) {
-        return true;
-    }
-    // Default: expand packages with >= 2 files but not too many (to avoid spam)
-    return pkg.files.length >= 2 && pkg.files.length <= 20;
-}
-/**
- * Render an expandable <details> block with file-level coverage
- */
-function renderExpandableFileTable(pkg, minThreshold) {
-    if (pkg.files.length <= 1) {
-        return '';
-    }
-    let fileTable = `
-<details>
-<summary><b>Files in <code>${pkg.name}</code></b></summary>
-
-| File | Statements | Branches | Functions | Health |
-|---|---:|---:|---:|:---:|
-`;
-    // Sort files by name for consistent ordering
-    const sortedFiles = [...pkg.files].sort((a, b) => a.path.localeCompare(b.path));
-    for (const file of sortedFiles) {
-        const linesPct = pct(file.lines.covered, file.lines.total);
-        const branchesPct = pct(file.branches.covered, file.branches.total);
-        const functionsPct = pct(file.functions.covered, file.functions.total);
-        const health = getHealthIcon(linesPct, minThreshold);
-        fileTable += `| ${file.path} | ${linesPct.toFixed(1)}% (${file.lines.covered}/${file.lines.total}) | ${branchesPct.toFixed(1)}% (${file.branches.covered}/${file.branches.total}) | ${functionsPct.toFixed(1)}% (${file.functions.covered}/${file.functions.total}) | ${health} |\n`;
-    }
-    // Add package total row
-    const linesPct = pct(pkg.totals.lines.covered, pkg.totals.lines.total);
-    const branchesPct = pct(pkg.totals.branches.covered, pkg.totals.branches.total);
-    const functionsPct = pct(pkg.totals.functions.covered, pkg.totals.functions.total);
-    const health = getHealthIcon(linesPct, minThreshold);
-    fileTable += `| **Total** | **${linesPct.toFixed(1)}% (${pkg.totals.lines.covered}/${pkg.totals.lines.total})** | **${branchesPct.toFixed(1)}% (${pkg.totals.branches.covered}/${pkg.totals.branches.total})** | **${functionsPct.toFixed(1)}% (${pkg.totals.functions.covered}/${pkg.totals.functions.total})** | **${health}** |
-
-</details>
-`;
-    return fileTable;
-}
-function renderDeltaTable(deltaCoverage, minThreshold) {
-    if (deltaCoverage.packages.length === 0) {
-        return '';
-    }
-    // Show top 10 packages by absolute delta
-    const top10 = deltaCoverage.packages.slice(0, 10);
-    const remaining = deltaCoverage.packages.slice(10);
-    let table = `### Coverage Delta (PR vs main)
-| Package | Statements | Branches | Functions | Health |
-|---|---:|---:|---:|:---:|
-`;
-    // Top 10 rows
-    for (const pkg of top10) {
-        const health = getHealthIcon(pkg.linesDeltas.pr, minThreshold);
-        table += `| ${pkg.name} | ${pkg.linesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.linesDeltas.delta)}) | ${pkg.branchesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.branchesDeltas.delta)}) | ${pkg.functionsDeltas.pr.toFixed(1)}% (${formatDelta(pkg.functionsDeltas.delta)}) | ${health} |\n`;
-    }
-    // Calculate summary delta
-    const totalDelta = calculateOverallDelta(deltaCoverage);
-    const summaryHealth = getHealthIcon(calculateOverallPct(deltaCoverage), minThreshold);
-    table += `| **Summary** | **${calculateOverallPct(deltaCoverage).toFixed(1)}% (${formatDelta(totalDelta)})** | **—** | **—** | **${summaryHealth}** |\n`;
-    // Add collapsed section for remaining packages if any
-    if (remaining.length > 0) {
-        table += `\n<details>
-<summary><i>Show ${remaining.length} more packages...</i></summary>
-
-| Package | Statements | Branches | Functions | Health |
-|---|---:|---:|---:|:---:|
-`;
-        for (const pkg of remaining) {
-            const health = getHealthIcon(pkg.linesDeltas.pr, minThreshold);
-            table += `| ${pkg.name} | ${pkg.linesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.linesDeltas.delta)}) | ${pkg.branchesDeltas.pr.toFixed(1)}% (${formatDelta(pkg.branchesDeltas.delta)}) | ${pkg.functionsDeltas.pr.toFixed(1)}% (${formatDelta(pkg.functionsDeltas.delta)}) | ${health} |\n`;
-        }
-        table += '\n</details>';
-    }
-    return table;
-}
-function calculateOverallDelta(deltaCoverage) {
-    if (deltaCoverage.packages.length === 0)
-        return 0;
-    // Simple average of deltas (could be weighted by file count)
-    const totalDelta = deltaCoverage.packages.reduce((sum, pkg) => sum + pkg.linesDeltas.delta, 0);
-    return totalDelta / deltaCoverage.packages.length;
-}
-function calculateOverallPct(deltaCoverage) {
-    if (deltaCoverage.packages.length === 0)
-        return 0;
-    // Simple average of PR percentages (could be weighted by file count)
-    const totalPct = deltaCoverage.packages.reduce((sum, pkg) => sum + pkg.linesDeltas.pr, 0);
-    return totalPct / deltaCoverage.packages.length;
-}
-function formatDelta(delta) {
-    if (delta === 0)
-        return '±0.0%';
-    return `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`;
-}
-function shield(label, value, color) {
-    const e = encodeURIComponent;
-    return `https://img.shields.io/badge/${e(label)}-${e(value)}-${color}`;
-}
-function colorForPct(p) {
-    return p >= 90 ? 'brightgreen' : p >= 80 ? 'green' : p >= 70 ? 'yellowgreen' : p >= 60 ? 'yellow' : p >= 50 ? 'orange' : 'red';
-}
-function deltaColor(d) {
-    return d >= 0 ? 'brightgreen' : 'red';
-}
-async function upsertStickyComment(md, mode = 'update') {
-    try {
-        const token = lib_core.getInput('github-token') || process.env.GITHUB_TOKEN;
-        if (!token) {
-            lib_core.warning('No GitHub token provided, skipping comment update');
-            return;
-        }
-        const octokit = github.getOctokit(token);
-        const context = github.context;
-        // Only work with pull requests
-        if (!context.payload.pull_request) {
-            lib_core.info('Not a pull request, skipping comment');
-            return;
-        }
-        const { owner, repo } = context.repo;
-        const pull_number = context.payload.pull_request.number;
-        if (mode === 'update') {
-            // Find existing coverage comment
-            const { data: comments } = await octokit.rest.issues.listComments({
-                owner,
-                repo,
-                issue_number: pull_number,
-                per_page: 100
-            });
-            const coverageComments = comments.filter(comment => {
-                const body = comment.body || '';
-                return body.includes(COVERAGE_COMMENT_MARKER) || body.includes('## Coverage Report');
-            });
-            if (coverageComments.length > 1) {
-                lib_core.warning(`Found multiple coverage comments (${coverageComments.length}), using the latest one`);
-            }
-            const existingComment = coverageComments[coverageComments.length - 1]; // Use the latest one
-            if (existingComment) {
-                // Update existing comment
-                await octokit.rest.issues.updateComment({
-                    owner,
-                    repo,
-                    comment_id: existingComment.id,
-                    body: md,
-                });
-                lib_core.info(`Updated existing coverage comment (ID: ${existingComment.id})`);
-                return;
-            }
-        }
-        // Create new comment (either mode is 'new' or no existing comment found)
-        await octokit.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: pull_number,
-            body: md,
-        });
-        lib_core.info('Created new coverage comment');
-    }
-    catch (error) {
-        lib_core.error(`Failed to upsert comment: ${error}`);
-        throw error;
-    }
-}
-
 ;// CONCATENATED MODULE: ./src/coverage-data.ts
 
 
@@ -50940,8 +50940,434 @@ function coverage_data_getColorForPercentage(percentage) {
 
 // EXTERNAL MODULE: external "child_process"
 var external_child_process_ = __nccwpck_require__(5317);
-;// CONCATENATED MODULE: ./src/enhanced.ts
+;// CONCATENATED MODULE: ./src/error-handling.ts
+/**
+ * Comprehensive error handling system with structured result patterns
+ * and graceful degradation capabilities
+ */
 
+/**
+ * Error severity levels for proper escalation
+ */
+var ErrorSeverity;
+(function (ErrorSeverity) {
+    /** Non-critical errors that can be recovered from */
+    ErrorSeverity["WARNING"] = "warning";
+    /** Errors that affect functionality but allow partial operation */
+    ErrorSeverity["RECOVERABLE"] = "recoverable";
+    /** Critical errors that require immediate attention */
+    ErrorSeverity["FATAL"] = "fatal";
+})(ErrorSeverity || (ErrorSeverity = {}));
+/**
+ * Error categories for better organization and handling
+ */
+var ErrorCategory;
+(function (ErrorCategory) {
+    ErrorCategory["PARSING"] = "parsing";
+    ErrorCategory["CONFIG"] = "config";
+    ErrorCategory["GIT_DIFF"] = "git_diff";
+    ErrorCategory["CHANGES_COVERAGE"] = "changes_coverage";
+    ErrorCategory["BASELINE"] = "baseline";
+    ErrorCategory["GIST_OPERATIONS"] = "gist_operations";
+    ErrorCategory["FILE_SYSTEM"] = "file_system";
+    ErrorCategory["NETWORK"] = "network";
+    ErrorCategory["VALIDATION"] = "validation";
+    ErrorCategory["TIMEOUT"] = "timeout";
+})(ErrorCategory || (ErrorCategory = {}));
+/**
+ * Structured error with enhanced context and recovery information
+ */
+class ProcessingError extends Error {
+    severity;
+    category;
+    context;
+    recoverable;
+    retryable;
+    constructor(message, severity, category, context = {}, options = {}) {
+        super(message);
+        this.name = 'ProcessingError';
+        this.severity = severity;
+        this.category = category;
+        this.recoverable = options.recoverable ?? (severity !== ErrorSeverity.FATAL);
+        this.retryable = options.retryable ?? false;
+        this.context = {
+            operation: 'unknown',
+            timestamp: new Date(),
+            ...context,
+            stackTrace: options.cause?.stack || this.stack
+        };
+        if (options.cause) {
+            this.cause = options.cause;
+        }
+    }
+    /**
+     * Create a recoverable error
+     */
+    static recoverable(message, category, context = {}, cause) {
+        return new ProcessingError(message, ErrorSeverity.RECOVERABLE, category, context, { recoverable: true, cause });
+    }
+    /**
+     * Create a fatal error
+     */
+    static fatal(message, category, context = {}, cause) {
+        return new ProcessingError(message, ErrorSeverity.FATAL, category, context, { recoverable: false, cause });
+    }
+    /**
+     * Create a warning-level error
+     */
+    static warning(message, category, context = {}, cause) {
+        return new ProcessingError(message, ErrorSeverity.WARNING, category, context, { recoverable: true, cause });
+    }
+    /**
+     * Get a formatted error message for logging
+     */
+    toLogMessage() {
+        const parts = [
+            `[${this.severity.toUpperCase()}]`,
+            `[${this.category}]`,
+            this.context.operation
+        ];
+        if (this.context.resource) {
+            parts.push(`(${this.context.resource})`);
+        }
+        if (this.context.step) {
+            parts.push(`- ${this.context.step}`);
+        }
+        parts.push(`: ${this.message}`);
+        return parts.join(' ');
+    }
+}
+/**
+ * Result pattern for operations that can fail or succeed with warnings
+ */
+class ProcessingResult {
+    success;
+    data;
+    errors;
+    warnings;
+    constructor(success, data, errors = [], warnings = []) {
+        this.success = success;
+        this.data = data;
+        this.errors = errors;
+        this.warnings = warnings;
+    }
+    /**
+     * Create a successful result
+     */
+    static success(data) {
+        return new ProcessingResult(true, data);
+    }
+    /**
+     * Create a failed result
+     */
+    static failure(error) {
+        return new ProcessingResult(false, undefined, [error]);
+    }
+    /**
+     * Create a partially successful result with warnings
+     */
+    static partial(data, warnings) {
+        return new ProcessingResult(true, data, [], warnings);
+    }
+    /**
+     * Create a result with both data and recoverable errors
+     */
+    static withErrors(data, errors, warnings = []) {
+        const hasRecoverableErrors = errors.some(e => e.recoverable);
+        const hasFatalErrors = errors.some(e => !e.recoverable);
+        return new ProcessingResult(hasRecoverableErrors && !hasFatalErrors && data !== undefined, data, errors, warnings);
+    }
+    /**
+     * Check if result has any errors
+     */
+    hasErrors() {
+        return this.errors.length > 0;
+    }
+    /**
+     * Check if result has fatal errors
+     */
+    hasFatalErrors() {
+        return this.errors.some(e => !e.recoverable);
+    }
+    /**
+     * Check if result has recoverable errors only
+     */
+    hasRecoverableErrorsOnly() {
+        return this.hasErrors() && !this.hasFatalErrors();
+    }
+    /**
+     * Get all error messages
+     */
+    getErrorMessages() {
+        return this.errors.map(e => e.message);
+    }
+    /**
+     * Get all warning messages
+     */
+    getWarningMessages() {
+        return this.warnings.map(w => w.message);
+    }
+    /**
+     * Combine with another result
+     */
+    combine(other) {
+        const combinedErrors = [...this.errors, ...other.errors];
+        const combinedWarnings = [...this.warnings, ...other.warnings];
+        // Success if both are successful
+        const success = this.success && other.success;
+        // Use first successful data, or undefined if none
+        const data = this.success ? this.data : (other.success ? other.data : undefined);
+        return new ProcessingResult(success, data, combinedErrors, combinedWarnings);
+    }
+}
+/**
+ * Circuit breaker for preventing cascading failures
+ */
+class CircuitBreaker {
+    failureCount = 0;
+    lastFailureTime;
+    failureThreshold;
+    timeoutMs;
+    name;
+    constructor(name, failureThreshold = 3, timeoutMs = 60000 // 1 minute
+    ) {
+        this.name = name;
+        this.failureThreshold = failureThreshold;
+        this.timeoutMs = timeoutMs;
+    }
+    /**
+     * Check if circuit breaker should prevent execution
+     */
+    shouldBlock() {
+        if (this.failureCount < this.failureThreshold) {
+            return false;
+        }
+        if (!this.lastFailureTime) {
+            return true;
+        }
+        const timeSinceLastFailure = Date.now() - this.lastFailureTime.getTime();
+        // Reset if timeout period has passed
+        if (timeSinceLastFailure > this.timeoutMs) {
+            this.reset();
+            return false;
+        }
+        return true;
+    }
+    /**
+     * Record a failure
+     */
+    recordFailure() {
+        this.failureCount++;
+        this.lastFailureTime = new Date();
+        if (this.failureCount >= this.failureThreshold) {
+            lib_core.warning(`Circuit breaker '${this.name}' opened after ${this.failureCount} failures. ` +
+                `Will retry after ${this.timeoutMs}ms`);
+        }
+    }
+    /**
+     * Record a success
+     */
+    recordSuccess() {
+        if (this.failureCount > 0) {
+            lib_core.info(`Circuit breaker '${this.name}' reset after successful operation`);
+            this.reset();
+        }
+    }
+    /**
+     * Reset the circuit breaker
+     */
+    reset() {
+        this.failureCount = 0;
+        this.lastFailureTime = undefined;
+    }
+    /**
+     * Get current state for debugging
+     */
+    getState() {
+        return {
+            name: this.name,
+            failureCount: this.failureCount,
+            isOpen: this.shouldBlock(),
+            lastFailureTime: this.lastFailureTime
+        };
+    }
+}
+/**
+ * Error aggregator for collecting and analyzing errors across operations
+ */
+class ErrorAggregator {
+    errors = [];
+    warnings = [];
+    circuitBreakers = new Map();
+    /**
+     * Add an error to the aggregator
+     */
+    addError(error) {
+        this.errors.push(error);
+        // Update circuit breaker for this category
+        const breakerKey = `${error.category}-${error.context.operation}`;
+        if (!this.circuitBreakers.has(breakerKey)) {
+            this.circuitBreakers.set(breakerKey, new CircuitBreaker(breakerKey, 3, 60000));
+        }
+        this.circuitBreakers.get(breakerKey).recordFailure();
+    }
+    /**
+     * Add a warning to the aggregator
+     */
+    addWarning(warning) {
+        this.warnings.push(warning);
+    }
+    /**
+     * Record a successful operation
+     */
+    recordSuccess(category, operation) {
+        const breakerKey = `${category}-${operation}`;
+        const breaker = this.circuitBreakers.get(breakerKey);
+        if (breaker) {
+            breaker.recordSuccess();
+        }
+    }
+    /**
+     * Check if operation should be blocked by circuit breaker
+     */
+    shouldBlock(category, operation) {
+        const breakerKey = `${category}-${operation}`;
+        const breaker = this.circuitBreakers.get(breakerKey);
+        return breaker ? breaker.shouldBlock() : false;
+    }
+    /**
+     * Get all errors
+     */
+    getErrors() {
+        return [...this.errors];
+    }
+    /**
+     * Get all warnings
+     */
+    getWarnings() {
+        return [...this.warnings];
+    }
+    /**
+     * Get errors by category
+     */
+    getErrorsByCategory(category) {
+        return this.errors.filter(e => e.category === category);
+    }
+    /**
+     * Get error summary for logging
+     */
+    getSummary() {
+        const categorySummary = {};
+        for (const error of this.errors) {
+            categorySummary[error.category] = (categorySummary[error.category] || 0) + 1;
+        }
+        return {
+            totalErrors: this.errors.length,
+            fatalErrors: this.errors.filter(e => !e.recoverable).length,
+            recoverableErrors: this.errors.filter(e => e.recoverable).length,
+            warnings: this.warnings.length,
+            categorySummary
+        };
+    }
+    /**
+     * Log summary of all errors and warnings
+     */
+    logSummary() {
+        const summary = this.getSummary();
+        if (summary.totalErrors === 0 && summary.warnings === 0) {
+            return;
+        }
+        lib_core.info(`Processing Summary: ${summary.totalErrors} errors ` +
+            `(${summary.fatalErrors} fatal, ${summary.recoverableErrors} recoverable), ` +
+            `${summary.warnings} warnings`);
+        if (summary.totalErrors > 0) {
+            lib_core.info(`Errors by category: ${JSON.stringify(summary.categorySummary, null, 2)}`);
+        }
+        // Log individual errors for debugging
+        for (const error of this.errors) {
+            if (error.severity === ErrorSeverity.FATAL) {
+                lib_core.error(error.toLogMessage());
+            }
+            else {
+                lib_core.warning(error.toLogMessage());
+            }
+        }
+        // Log warnings
+        for (const warning of this.warnings) {
+            lib_core.warning(`[WARNING] [${warning.category}] ${warning.context.operation}: ${warning.message}`);
+        }
+    }
+    /**
+     * Clear all errors and warnings
+     */
+    clear() {
+        this.errors = [];
+        this.warnings = [];
+    }
+}
+/**
+ * Utility functions for error handling
+ */
+class ErrorHandlingUtils {
+    /**
+     * Wrap an async operation with error handling
+     */
+    static async withErrorHandling(operation, context, category, options = {}) {
+        const { retryCount = 0, strict = false, fallback } = options;
+        let lastError;
+        for (let attempt = 0; attempt <= retryCount; attempt++) {
+            try {
+                const result = await operation();
+                return ProcessingResult.success(result);
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                lastError = new ProcessingError(`${errorMessage}${attempt > 0 ? ` (attempt ${attempt + 1}/${retryCount + 1})` : ''}`, strict ? ErrorSeverity.FATAL : ErrorSeverity.RECOVERABLE, category, {
+                    ...context,
+                    metadata: { attempt: attempt + 1, maxAttempts: retryCount + 1 }
+                }, { retryable: attempt < retryCount, cause: error instanceof Error ? error : undefined });
+                // If this isn't the last attempt, continue retrying
+                if (attempt < retryCount) {
+                    lib_core.warning(`Retry ${attempt + 1}/${retryCount} for ${context.operation}: ${errorMessage}`);
+                    continue;
+                }
+            }
+        }
+        // All retries failed
+        if (lastError) {
+            if (fallback !== undefined && !strict) {
+                const warning = {
+                    message: `Using fallback value after ${retryCount + 1} failed attempts: ${lastError.message}`,
+                    category,
+                    context: { ...lastError.context },
+                    timestamp: new Date()
+                };
+                return ProcessingResult.partial(fallback, [warning]);
+            }
+            return ProcessingResult.failure(lastError);
+        }
+        // This should never happen, but just in case
+        return ProcessingResult.failure(ProcessingError.fatal('Unknown error occurred', category, context));
+    }
+    /**
+     * Create error context for a given operation
+     */
+    static createContext(operation, resource, step, metadata) {
+        return {
+            operation,
+            resource,
+            step,
+            metadata,
+            timestamp: new Date()
+        };
+    }
+}
+
+;// CONCATENATED MODULE: ./src/enhanced-error-handling.ts
+/**
+ * Enhanced error handling wrapper functions for coverage processing operations
+ * Provides comprehensive error recovery and circuit breaker patterns for the enhanced coverage system
+ */
 
 
 
@@ -50952,7 +51378,164 @@ var external_child_process_ = __nccwpck_require__(5317);
 
 
 /**
- * Calculate total size of all provided files
+ * Enhanced error handling for coverage file parsing
+ */
+async function parseWithRecovery(file, options, aggregator) {
+    const context = ErrorHandlingUtils.createContext('parseAnyCoverage', file, 'coverage_parsing');
+    // Check circuit breaker
+    if (aggregator.shouldBlock(ErrorCategory.PARSING, 'parseAnyCoverage')) {
+        return ProcessingResult.failure(ProcessingError.recoverable('Circuit breaker blocking parsing operations', ErrorCategory.PARSING, context));
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => parseAnyCoverage(file, options), context, ErrorCategory.PARSING, { retryCount: 1, strict: false });
+}
+/**
+ * Enhanced error handling for configuration loading
+ */
+async function loadConfigWithRecovery(aggregator) {
+    const context = ErrorHandlingUtils.createContext('loadConfig', undefined, 'config_loading');
+    if (aggregator.shouldBlock(ErrorCategory.CONFIG, 'loadConfig')) {
+        // Return fallback config when circuit breaker is open
+        const fallbackConfig = {
+            groups: [],
+            fallback: { smartDepth: 'auto', promoteThreshold: 0.8 },
+            ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 }
+        };
+        const warning = {
+            message: 'Using fallback configuration due to circuit breaker',
+            category: ErrorCategory.CONFIG,
+            context,
+            timestamp: new Date()
+        };
+        return ProcessingResult.partial(fallbackConfig, [warning]);
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => Promise.resolve(loadConfig()), context, ErrorCategory.CONFIG, {
+        strict: false,
+        fallback: {
+            groups: [],
+            fallback: { smartDepth: 'auto', promoteThreshold: 0.8 },
+            ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 }
+        }
+    });
+}
+/**
+ * Enhanced error handling for git diff operations
+ */
+async function getGitDiffWithRecovery(aggregator) {
+    const context = ErrorHandlingUtils.createContext('execSync', 'git diff', 'git_diff');
+    if (aggregator.shouldBlock(ErrorCategory.GIT_DIFF, 'execSync')) {
+        const warning = {
+            message: 'Git diff unavailable due to circuit breaker, using empty change set',
+            category: ErrorCategory.GIT_DIFF,
+            context,
+            timestamp: new Date()
+        };
+        return ProcessingResult.partial({}, [warning]);
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => {
+        const diffOutput = (0,external_child_process_.execSync)('git diff --unified=0 --find-renames --diff-filter=AMR origin/main...HEAD', { encoding: 'utf8', timeout: 30000 });
+        return Promise.resolve(parseGitDiff(diffOutput));
+    }, context, ErrorCategory.GIT_DIFF, { strict: false, fallback: {} });
+}
+/**
+ * Enhanced error handling for changes coverage computation
+ */
+async function computeChangesCoverageWithRecovery(prProject, changedLinesByFile, prPackages, aggregator) {
+    const context = ErrorHandlingUtils.createContext('computeChangesCoverage', undefined, 'changes_coverage');
+    if (aggregator.shouldBlock(ErrorCategory.CHANGES_COVERAGE, 'computeChangesCoverage')) {
+        // Fallback to project totals
+        const fallback = {
+            packages: prPackages,
+            totals: prProject.totals,
+            files: []
+        };
+        const warning = {
+            message: 'Using project totals for changes coverage due to circuit breaker',
+            category: ErrorCategory.CHANGES_COVERAGE,
+            context,
+            timestamp: new Date()
+        };
+        return ProcessingResult.partial(fallback, [warning]);
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => Promise.resolve(computeChangesCoverage(prProject, changedLinesByFile)), context, ErrorCategory.CHANGES_COVERAGE, {
+        strict: false,
+        fallback: {
+            packages: prPackages,
+            totals: prProject.totals,
+            files: []
+        }
+    });
+}
+/**
+ * Enhanced error handling for baseline coverage retrieval
+ */
+async function getBaselineCoverageWithRecovery(gistId, gistToken, aggregator) {
+    const context = ErrorHandlingUtils.createContext('getCoverageData', gistId, 'baseline_gist');
+    if (aggregator?.shouldBlock(ErrorCategory.GIST_OPERATIONS, 'getCoverageData')) {
+        const warning = {
+            message: 'Baseline coverage unavailable due to circuit breaker',
+            category: ErrorCategory.GIST_OPERATIONS,
+            context,
+            timestamp: new Date()
+        };
+        return ProcessingResult.partial(null, [warning]);
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => getCoverageData(gistId, gistToken), context, ErrorCategory.GIST_OPERATIONS, { strict: false, fallback: null });
+}
+/**
+ * Enhanced error handling for baseline file parsing
+ */
+async function parseBaselineFilesWithRecovery(baselineFiles, config, aggregator) {
+    for (const baselineFile of baselineFiles) {
+        const context = ErrorHandlingUtils.createContext('parseAnyCoverage', baselineFile, 'baseline_files');
+        if (aggregator.shouldBlock(ErrorCategory.PARSING, 'parseAnyCoverage')) {
+            continue; // Skip this file and try the next one
+        }
+        const result = await ErrorHandlingUtils.withErrorHandling(async () => {
+            const mainProject = await parseAnyCoverage(baselineFile);
+            const mainGroupingResult = groupPackages(mainProject.files, config);
+            const mainPackages = mainGroupingResult.pkgRows;
+            const mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
+            const deltaCoverage = computeDeltaCoverage([], mainPackages); // This needs to be passed the prPackages
+            return { mainBranchCoverage, deltaCoverage };
+        }, context, ErrorCategory.PARSING);
+        if (result.success && result.data) {
+            aggregator.recordSuccess(ErrorCategory.PARSING, 'parseAnyCoverage');
+            return result;
+        }
+        else {
+            // Add the error to aggregator and try next file
+            if (result.errors.length > 0) {
+                result.errors.forEach(e => aggregator.addError(e));
+            }
+        }
+    }
+    // No baseline files could be parsed
+    const warning = {
+        message: 'No baseline files could be parsed',
+        category: ErrorCategory.PARSING,
+        context: ErrorHandlingUtils.createContext('parseBaselineFiles', baselineFiles.join(', '), 'baseline_files'),
+        timestamp: new Date()
+    };
+    return ProcessingResult.partial(null, [warning]);
+}
+/**
+ * Enhanced error handling for gist operations
+ */
+async function saveGistDataWithRecovery(projectLinesPct, gistId, gistToken, aggregator) {
+    const context = ErrorHandlingUtils.createContext('saveCoverageData', gistId, 'gist_save');
+    if (aggregator?.shouldBlock(ErrorCategory.GIST_OPERATIONS, 'saveCoverageData')) {
+        const warning = {
+            message: 'Gist save operation blocked by circuit breaker',
+            category: ErrorCategory.GIST_OPERATIONS,
+            context,
+            timestamp: new Date()
+        };
+        return ProcessingResult.partial(undefined, [warning]);
+    }
+    return ErrorHandlingUtils.withErrorHandling(() => saveCoverageData(projectLinesPct, gistId, gistToken), context, ErrorCategory.GIST_OPERATIONS, { retryCount: 2, strict: false });
+}
+/**
+ * Calculate total size of all provided files with error handling
  */
 function getTotalFileSize(filePaths) {
     let totalSize = 0;
@@ -50968,20 +51551,28 @@ function getTotalFileSize(filePaths) {
     }
     return totalSize;
 }
+
+
+;// CONCATENATED MODULE: ./src/enhanced-v2.ts
+
+
+
+
+
+
+
+/**
+ * Enhanced coverage analysis with comprehensive error handling and graceful degradation
+ */
 async function runEnhancedCoverage() {
     const startTime = Date.now();
     let inputs;
-    // Processing results tracker for graceful degradation
-    const processingResults = {
-        parsed: 0,
-        skipped: 0,
-        errors: [],
-        warnings: []
-    };
+    // Initialize error aggregator for centralized error tracking
+    const errorAggregator = new ErrorAggregator();
     try {
         inputs = readInputs();
-        // Step 1: Parse PR coverage with performance enhancements and error recovery
-        lib_core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
+        // Step 1: Parse PR coverage with enhanced error recovery
+        lib_core.info('🚀 Starting enhanced coverage analysis with comprehensive error handling...');
         const prFiles = inputs.files;
         if (!prFiles || prFiles.length === 0) {
             throw new Error('No coverage files provided');
@@ -50993,193 +51584,125 @@ async function runEnhancedCoverage() {
             chunkSize: 64 * 1024 // 64KB chunks
         };
         lib_core.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`);
-        // Enhanced parsing with error recovery
+        // Enhanced parsing with circuit breaker and retry logic
         let prProject = null;
         for (const file of prFiles) {
-            try {
-                prProject = await parseAnyCoverage(file, streamingOptions);
-                processingResults.parsed++;
+            const parseResult = await parseWithRecovery(file, streamingOptions, errorAggregator);
+            if (parseResult.success && parseResult.data) {
+                prProject = parseResult.data;
+                errorAggregator.recordSuccess(ErrorCategory.PARSING, 'parseAnyCoverage');
                 lib_core.info(`✅ Successfully parsed ${file} with ${prProject.files.length} files`);
                 break; // Use first successfully parsed file
             }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                processingResults.errors.push({
-                    file,
-                    error: errorMessage,
-                    step: 'coverage_parsing'
-                });
-                processingResults.skipped++;
-                if (inputs.strict) {
-                    throw new Error(`Strict mode: Failed to parse coverage file ${file}: ${errorMessage}`);
-                }
-                else {
-                    lib_core.warning(`Skipping coverage file ${file}: ${errorMessage}`);
-                    processingResults.warnings.push({
-                        message: `Skipped coverage file ${file}: ${errorMessage}`,
-                        step: 'coverage_parsing'
-                    });
+            else {
+                // Collect errors and warnings
+                parseResult.errors.forEach(e => errorAggregator.addError(e));
+                parseResult.warnings.forEach(w => errorAggregator.addWarning(w));
+                if (inputs.strict && parseResult.hasFatalErrors()) {
+                    throw new Error(`Strict mode: Failed to parse coverage file ${file}: ${parseResult.getErrorMessages().join(', ')}`);
                 }
             }
         }
-        // If no files were successfully parsed, fail
+        // If no files were successfully parsed, fail appropriately
         if (!prProject) {
-            throw new Error(`Failed to parse any coverage files. Errors: ${processingResults.errors.map(e => `${e.file}: ${e.error}`).join(', ')}`);
-        }
-        lib_core.info(`✅ Parsed ${prProject.files.length} files from PR coverage`);
-        // Step 2: Smart package grouping with config support and error recovery
-        let config;
-        let groupingResult;
-        try {
-            config = loadConfig();
-            groupingResult = groupPackages(prProject.files, config);
-        }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            processingResults.errors.push({
-                file: 'config',
-                error: errorMessage,
-                step: 'config_loading'
-            });
+            const errorMessage = `Failed to parse any coverage files. Attempted ${prFiles.length} files.`;
             if (inputs.strict) {
-                throw new Error(`Strict mode: Failed to load configuration: ${errorMessage}`);
+                throw new Error(errorMessage);
             }
             else {
-                lib_core.warning(`Failed to load configuration, using fallback: ${errorMessage}`);
-                // Use fallback config
-                config = {
-                    groups: [],
-                    fallback: { smartDepth: 'auto', promoteThreshold: 0.8 },
-                    ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 }
-                };
-                groupingResult = groupPackages(prProject.files, config);
-                processingResults.warnings.push({
-                    message: `Using fallback configuration due to config error: ${errorMessage}`,
-                    step: 'config_loading'
-                });
+                // In non-strict mode, we can't continue without any coverage data
+                lib_core.setFailed(errorMessage);
+                errorAggregator.logSummary();
+                return;
             }
         }
+        lib_core.info(`✅ Parsed ${prProject.files.length} files from PR coverage`);
+        // Step 2: Smart package grouping with enhanced error recovery
+        const configResult = await loadConfigWithRecovery(errorAggregator);
+        let config;
+        if (configResult.success && configResult.data) {
+            config = configResult.data;
+            errorAggregator.recordSuccess(ErrorCategory.CONFIG, 'loadConfig');
+        }
+        else {
+            configResult.errors.forEach(e => errorAggregator.addError(e));
+            configResult.warnings.forEach(w => errorAggregator.addWarning(w));
+            if (inputs.strict && configResult.hasFatalErrors()) {
+                throw new Error(`Strict mode: Failed to load configuration: ${configResult.getErrorMessages().join(', ')}`);
+            }
+            // Use the fallback config from the result
+            config = configResult.data;
+        }
+        const groupingResult = groupPackages(prProject.files, config);
         const prPackages = groupingResult.pkgRows;
         const topLevelPackages = groupingResult.topLevelRows;
         lib_core.info(`Grouped into ${prPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
-        // Step 3: Get changed lines from git diff with error recovery
+        // Step 3: Get changed lines from git diff with enhanced error recovery
+        const gitDiffResult = await getGitDiffWithRecovery(errorAggregator);
         let changedLinesByFile = {};
-        try {
-            const diffOutput = (0,external_child_process_.execSync)('git diff --unified=0 --find-renames --diff-filter=AMR origin/main...HEAD', { encoding: 'utf8', timeout: 30000 });
-            changedLinesByFile = parseGitDiff(diffOutput);
+        if (gitDiffResult.success && gitDiffResult.data) {
+            changedLinesByFile = gitDiffResult.data;
+            errorAggregator.recordSuccess(ErrorCategory.GIT_DIFF, 'execSync');
             lib_core.info(`Found changed lines in ${Object.keys(changedLinesByFile).length} files`);
         }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            processingResults.errors.push({
-                file: 'git_diff',
-                error: errorMessage,
-                step: 'git_diff'
-            });
-            if (inputs.strict) {
-                throw new Error(`Strict mode: Failed to get git diff: ${errorMessage}`);
+        else {
+            gitDiffResult.errors.forEach(e => errorAggregator.addError(e));
+            gitDiffResult.warnings.forEach(w => errorAggregator.addWarning(w));
+            if (inputs.strict && gitDiffResult.hasFatalErrors()) {
+                throw new Error(`Strict mode: Failed to get git diff: ${gitDiffResult.getErrorMessages().join(', ')}`);
             }
-            else {
-                lib_core.warning(`Failed to get git diff: ${errorMessage}. Proceeding with full coverage analysis.`);
-                processingResults.warnings.push({
-                    message: `Git diff unavailable, analyzing full coverage: ${errorMessage}`,
-                    step: 'git_diff'
-                });
-            }
+            // Use empty change set as fallback
+            changedLinesByFile = gitDiffResult.data || {};
         }
-        // Step 4: Compute code changes coverage with error recovery
+        // Step 4: Compute code changes coverage with enhanced error recovery
+        const changesCoverageResult = await computeChangesCoverageWithRecovery(prProject, changedLinesByFile, prPackages, errorAggregator);
         let changesCoverage;
-        try {
-            changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
+        if (changesCoverageResult.success && changesCoverageResult.data) {
+            changesCoverage = changesCoverageResult.data;
+            errorAggregator.recordSuccess(ErrorCategory.CHANGES_COVERAGE, 'computeChangesCoverage');
             lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
         }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            processingResults.errors.push({
-                file: 'changes_coverage',
-                error: errorMessage,
-                step: 'changes_coverage'
-            });
-            if (inputs.strict) {
-                throw new Error(`Strict mode: Failed to compute changes coverage: ${errorMessage}`);
+        else {
+            changesCoverageResult.errors.forEach(e => errorAggregator.addError(e));
+            changesCoverageResult.warnings.forEach(w => errorAggregator.addWarning(w));
+            if (inputs.strict && changesCoverageResult.hasFatalErrors()) {
+                throw new Error(`Strict mode: Failed to compute changes coverage: ${changesCoverageResult.getErrorMessages().join(', ')}`);
             }
-            else {
-                lib_core.warning(`Failed to compute changes coverage: ${errorMessage}. Using project totals.`);
-                // Create fallback changes coverage based on project totals
-                changesCoverage = {
-                    packages: prPackages,
-                    totals: prProject.totals
-                };
-                processingResults.warnings.push({
-                    message: `Using project totals for changes coverage due to error: ${errorMessage}`,
-                    step: 'changes_coverage'
-                });
-            }
+            // Use fallback from result
+            changesCoverage = changesCoverageResult.data;
         }
-        // Step 5: Parse baseline coverage from gist or baseline files with error recovery
+        // Step 5: Parse baseline coverage with enhanced error recovery
         let mainBranchCoverage = null;
         let deltaCoverage;
         // First try to get baseline coverage from gist
-        try {
-            lib_core.info('Attempting to fetch baseline coverage from gist...');
-            mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.gistToken);
-            if (mainBranchCoverage !== null) {
-                lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
-            }
-            else {
-                lib_core.info('❌ No baseline coverage available from gist');
-            }
+        const gistResult = await getBaselineCoverageWithRecovery(inputs.gistId, inputs.gistToken, errorAggregator);
+        if (gistResult.success && gistResult.data !== null && gistResult.data !== undefined) {
+            mainBranchCoverage = gistResult.data;
+            errorAggregator.recordSuccess(ErrorCategory.GIST_OPERATIONS, 'getCoverageData');
+            lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
         }
-        catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            processingResults.errors.push({
-                file: 'gist_baseline',
-                error: errorMessage,
-                step: 'baseline_gist'
-            });
-            if (inputs.strict) {
-                throw new Error(`Strict mode: Failed to fetch baseline coverage from gist: ${errorMessage}`);
+        else {
+            gistResult.errors.forEach(e => errorAggregator.addError(e));
+            gistResult.warnings.forEach(w => errorAggregator.addWarning(w));
+            if (inputs.strict && gistResult.hasFatalErrors()) {
+                throw new Error(`Strict mode: Failed to fetch baseline coverage from gist: ${gistResult.getErrorMessages().join(', ')}`);
             }
-            else {
-                lib_core.warning(`Failed to fetch baseline coverage from gist: ${errorMessage}`);
-                processingResults.warnings.push({
-                    message: `Gist baseline unavailable: ${errorMessage}`,
-                    step: 'baseline_gist'
-                });
-            }
+            lib_core.info('❌ No baseline coverage available from gist');
         }
         // If no gist coverage available, try baseline files
         if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
-            for (const baselineFile of inputs.baselineFiles) {
-                try {
-                    lib_core.info(`Parsing baseline coverage from file: ${baselineFile}...`);
-                    const mainProject = await parseAnyCoverage(baselineFile);
-                    const mainGroupingResult = groupPackages(mainProject.files, config);
-                    const mainPackages = mainGroupingResult.pkgRows;
-                    // Calculate main branch coverage percentage
-                    mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
-                    lib_core.info(`Main branch coverage from file ${baselineFile}: ${mainBranchCoverage.toFixed(1)}%`);
-                    deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);
-                    lib_core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
-                    break; // Use first successful baseline
-                }
-                catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    processingResults.errors.push({
-                        file: baselineFile,
-                        error: errorMessage,
-                        step: 'baseline_files'
-                    });
-                    if (inputs.strict) {
-                        throw new Error(`Strict mode: Failed to process baseline coverage file ${baselineFile}: ${errorMessage}`);
-                    }
-                    else {
-                        lib_core.warning(`Failed to process baseline coverage file ${baselineFile}: ${errorMessage}`);
-                        processingResults.warnings.push({
-                            message: `Skipped baseline file ${baselineFile}: ${errorMessage}`,
-                            step: 'baseline_files'
-                        });
-                    }
+            const baselineResult = await parseBaselineFilesWithRecovery(inputs.baselineFiles, config, errorAggregator);
+            if (baselineResult.success && baselineResult.data) {
+                mainBranchCoverage = baselineResult.data.mainBranchCoverage;
+                deltaCoverage = computeDeltaCoverage(prPackages, baselineResult.data.deltaCoverage);
+                lib_core.info(`Main branch coverage from baseline files: ${mainBranchCoverage.toFixed(1)}%`);
+                lib_core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
+            }
+            else {
+                baselineResult.errors.forEach(e => errorAggregator.addError(e));
+                baselineResult.warnings.forEach(w => errorAggregator.addWarning(w));
+                if (inputs.strict && baselineResult.hasFatalErrors()) {
+                    throw new Error(`Strict mode: Failed to process baseline coverage files: ${baselineResult.getErrorMessages().join(', ')}`);
                 }
             }
         }
@@ -51227,45 +51750,27 @@ async function runEnhancedCoverage() {
                 lib_core.setFailed(message);
             }
         }
-        lib_core.info('Enhanced coverage analysis completed successfully');
-        // Log processing results summary
-        if (processingResults.warnings.length > 0 || processingResults.errors.length > 0) {
-            lib_core.info(`Processing Summary: ${processingResults.parsed} parsed, ${processingResults.skipped} skipped, ${processingResults.warnings.length} warnings, ${processingResults.errors.length} errors`);
-            if (processingResults.warnings.length > 0) {
-                lib_core.info('Warnings encountered:');
-                processingResults.warnings.forEach(w => lib_core.warning(`[${w.step}] ${w.message}`));
-            }
-            if (processingResults.errors.length > 0 && !inputs.strict) {
-                lib_core.info('Errors handled gracefully (non-strict mode):');
-                processingResults.errors.forEach(e => lib_core.info(`[${e.step}] ${e.file}: ${e.error}`));
-            }
-        }
         // Step 10: Save coverage data to gist if we're on main branch
         const isMainBranch = process.env.GITHUB_REF === 'refs/heads/main' ||
             process.env.GITHUB_REF === 'refs/heads/master';
         if (isMainBranch) {
-            try {
-                await saveCoverageData(projectLinesPct, inputs.gistId, inputs.gistToken);
+            const saveResult = await saveGistDataWithRecovery(projectLinesPct, inputs.gistId, inputs.gistToken, errorAggregator);
+            if (saveResult.success) {
+                errorAggregator.recordSuccess(ErrorCategory.GIST_OPERATIONS, 'saveCoverageData');
                 lib_core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
             }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                processingResults.errors.push({
-                    file: 'gist_save',
-                    error: errorMessage,
-                    step: 'gist_save'
-                });
-                if (inputs.strict) {
-                    throw new Error(`Strict mode: Failed to save coverage data: ${errorMessage}`);
-                }
-                else {
-                    lib_core.warning(`Failed to save coverage data: ${errorMessage}`);
+            else {
+                saveResult.errors.forEach(e => errorAggregator.addError(e));
+                saveResult.warnings.forEach(w => errorAggregator.addWarning(w));
+                if (inputs.strict && saveResult.hasFatalErrors()) {
+                    throw new Error(`Strict mode: Failed to save coverage data: ${saveResult.getErrorMessages().join(', ')}`);
                 }
             }
         }
+        // Log comprehensive summary
+        lib_core.info('Enhanced coverage analysis completed successfully');
+        errorAggregator.logSummary();
         // Ensure clean exit by explicitly terminating any lingering processes
-        // This prevents hanging when there are uncleared timeouts or event listeners
-        // Only exit forcefully in production GitHub Actions environment
         const isTestEnvironment = process.env.NODE_ENV === 'test' ||
             process.env.VITEST === 'true' ||
             process.env.JEST_WORKER_ID !== undefined ||
@@ -51282,24 +51787,15 @@ async function runEnhancedCoverage() {
             files: inputs?.files || [],
             totalSize: inputs?.files ? getTotalFileSize(inputs.files) : 0,
             timeElapsed: Date.now() - startTime,
-            processingResults: {
-                parsed: processingResults.parsed,
-                skipped: processingResults.skipped,
-                errorsCount: processingResults.errors.length,
-                warningsCount: processingResults.warnings.length,
-                errors: processingResults.errors,
-                warnings: processingResults.warnings
-            }
+            aggregatorSummary: errorAggregator.getSummary()
         };
         const errorMessage = error instanceof Error ? error.message : String(error);
         const contextString = JSON.stringify(context, null, 2);
-        // Log processing summary even on failure
-        if (processingResults.errors.length > 0 || processingResults.warnings.length > 0) {
-            lib_core.error(`Final processing state: ${processingResults.parsed} parsed, ${processingResults.skipped} skipped, ${processingResults.warnings.length} warnings, ${processingResults.errors.length} errors`);
-        }
+        // Log final error aggregator state
+        lib_core.error('Final error state:');
+        errorAggregator.logSummary();
         lib_core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
         // Ensure process exits even on failure to prevent hanging
-        // Only exit forcefully in production GitHub Actions environment
         const isTestEnvironment = process.env.NODE_ENV === 'test' ||
             process.env.VITEST === 'true' ||
             process.env.JEST_WORKER_ID !== undefined ||
