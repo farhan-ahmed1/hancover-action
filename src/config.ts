@@ -32,20 +32,6 @@ export type Config = {
   };
 };
 
-// Legacy default config for backwards compatibility
-const DEFAULT_CONFIG: Required<Config> = {
-    groups: [],
-    fallback: {
-        smartDepth: 'auto',
-        promoteThreshold: 0.8
-    },
-    ui: {
-        expandFilesFor: [],
-        maxDeltaRows: 10,
-        minPassThreshold: 50
-    }
-};
-
 export function loadConfig(cwd = process.cwd()): Required<Config> {
     const configPath = path.join(cwd, '.coverage-report.json');
     
