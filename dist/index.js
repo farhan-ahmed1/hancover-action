@@ -45895,6 +45895,21 @@ function enforceTotalSizeLimits(totalSize, maxTotalBytes = DEFAULT_MAX_TOTAL_BYT
     }
 }
 /**
+ * Enforce timeout limits based on elapsed time
+ */
+function enforceTimeoutLimits(startTime, timeoutSeconds) {
+    if (timeoutSeconds < 0) {
+        throw new Error('Timeout seconds must be non-negative');
+    }
+    if (startTime < 0) {
+        throw new Error('Start time must be non-negative');
+    }
+    const elapsed = (Date.now() - startTime) / 1000;
+    if (elapsed > timeoutSeconds) {
+        throw new Error(`Operation timed out after ${timeoutSeconds}s`);
+    }
+}
+/**
  * Validate XML content for security issues before parsing
  */
 function validateXmlSecurity(xmlContent) {
@@ -50831,9 +50846,29 @@ var external_child_process_ = __nccwpck_require__(5317);
 
 
 
+
+/**
+ * Calculate total size of all provided files
+ */
+function getTotalFileSize(filePaths) {
+    let totalSize = 0;
+    for (const filePath of filePaths) {
+        try {
+            const stats = external_fs_.statSync(filePath);
+            totalSize += stats.size;
+        }
+        catch (error) {
+            // File might not exist or be accessible, continue
+            lib_core.debug(`Could not get size for file ${filePath}: ${error}`);
+        }
+    }
+    return totalSize;
+}
 async function runEnhancedCoverage() {
+    const startTime = Date.now();
+    let inputs;
     try {
-        const inputs = readInputs();
+        inputs = readInputs();
         // Step 1: Parse PR coverage with performance enhancements
         lib_core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
         const prFiles = inputs.files;
@@ -50957,7 +50992,15 @@ async function runEnhancedCoverage() {
         }
     }
     catch (error) {
-        lib_core.setFailed(`Enhanced coverage analysis failed: ${error}`);
+        // Enhanced error context with detailed diagnostic information
+        const context = {
+            files: inputs?.files || [],
+            totalSize: inputs?.files ? getTotalFileSize(inputs.files) : 0,
+            timeElapsed: Date.now() - startTime
+        };
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const contextString = JSON.stringify(context, null, 2);
+        lib_core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
         throw error;
     }
 }
