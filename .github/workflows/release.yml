@@ -96,11 +96,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh attestation download \
+          gh attestation download hancover-action-dist.tgz \
             --owner "${GITHUB_REPOSITORY%/*}" \
             --repo  "${GITHUB_REPOSITORY#*/}" \
-            --digest "sha256:${{ steps.digest.outputs.sha256 }}" \
-            --format json > hancover-action-dist.intoto.jsonl
+            --digest-alg sha256 > hancover-action-dist.intoto.jsonl
           test -s hancover-action-dist.intoto.jsonl
 
       # Create the GitHub Release and upload the artifact + signatures
