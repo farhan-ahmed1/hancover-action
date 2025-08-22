@@ -5,17 +5,17 @@ on:
     tags:
       - 'v*.*.*'
 
-# Minimal top-level permissions
+# Keep top-level minimal and elevate at job scope
 permissions: {}
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # Required to create releases
-      id-token: write      # Required for OIDC token
-      attestations: write  # Required to create attestations
-      actions: read        # Required to read workflow information
+      contents: write       # create releases & upload assets
+      id-token: write       # OIDC for keyless signing
+      attestations: write   # upload provenance
+      actions: read         # read workflow metadata for attestations
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -43,18 +43,42 @@ jobs:
       - name: Verify build integrity
         run: |
           echo "Verifying build output..."
-          test -f dist/index.js || exit 1
+          test -f dist/index.js || (echo "dist/index.js missing" && exit 1)
           echo "Build verification passed"
 
-      - name: Generate build hashes
-        id: hash
+      # Package everything users need to run the JS action
+      - name: Create release bundle
         run: |
-          cd dist
-          sha256sum * > ../checksums.txt
-          echo "hashes<<EOF" >> "$GITHUB_OUTPUT"
-          cat ../checksums.txt >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          rm -f hancover-action-dist.tgz checksums.txt
+          tar -czf hancover-action-dist.tgz \
+            action.yml \
+            package.json \
+            package-lock.json \
+            README.md \
+            LICENSE \
+            dist
+          sha256sum hancover-action-dist.tgz > checksums.txt
 
+      # Install cosign (keyless signing)
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      # Sign the bundle (produces signature and certificate)
+      - name: Keyless sign bundle with cosign
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          # A single .bundle is convenient, but we also emit separate sig+cert
+          cosign sign-blob --yes \
+            --bundle hancover-action-dist.tgz.bundle \
+            hancover-action-dist.tgz
+
+          cosign sign-blob --yes \
+            --output-signature hancover-action-dist.tgz.sig \
+            --output-certificate hancover-action-dist.tgz.pem \
+            hancover-action-dist.tgz
+
+      # Create the GitHub Release and upload the artifact + signatures
       - name: Create signed release
         id: create_release
         uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v1.0.4
@@ -62,49 +86,67 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            ## 🔒 Security Information
-            
-            This release has been security audited and signed.
-            
-            **Verification:**
-            - All dependencies audited for security vulnerabilities
-            - Code analyzed with CodeQL
-            - Build integrity verified with checksums
-            
-            ## 📋 Recommended Usage
-            
-            Pin to this specific version in your workflows:
+            ## 🔒 Verification
+
+            **Artifact digest (sha256):**
+            ```
+            ${{ steps.print_digest.outputs.digest }}
+            ```
+
+            **Files uploaded**
+            - `hancover-action-dist.tgz` (release bundle)
+            - `hancover-action-dist.tgz.sig` (cosign signature)
+            - `hancover-action-dist.tgz.pem` (OIDC certificate)
+            - `hancover-action-dist.tgz.bundle` (signature+cert bundle)
+            - `checksums.txt` (sha256)
+
+            **How to verify**
+            ```bash
+            # Signature
+            cosign verify-blob \
+              --signature hancover-action-dist.tgz.sig \
+              --certificate hancover-action-dist.tgz.pem \
+              hancover-action-dist.tgz
+
+            # OR use the bundle:
+            cosign verify-blob --bundle hancover-action-dist.tgz.bundle hancover-action-dist.tgz
+            ```
+
+            ## 📦 Usage
+            Pin to this exact version:
             ```yaml
             uses: farhan-ahmed1/hancover-action@${{ github.ref_name }}
             ```
-            
-            **Required permissions:**
+
+            Required permissions:
             ```yaml
             permissions:
               pull-requests: write
               contents: read
             ```
-            
-            ## 🔐 Build Checksums
-            
-            ```
-            ${{ steps.hash.outputs.hashes }}
-            ```
-            
-            ## Changes in this release:
-            - See commit history for detailed changes
-            
+
           files: |
-            dist/index.js
-            action.yml
-            README.md
+            hancover-action-dist.tgz
+            hancover-action-dist.tgz.sig
+            hancover-action-dist.tgz.pem
+            hancover-action-dist.tgz.bundle
+            checksums.txt
           generate_release_notes: true
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate attestation
+      # Optional: print the artifact digest into a separate step output used above
+      - name: Compute digest output
+        id: print_digest
+        run: |
+          DIGEST=$(sha256sum hancover-action-dist.tgz | awk '{print $1}')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      # Attach build provenance (SLSA/in-toto) for the exact file we uploaded
+      - name: Generate provenance attestation
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: 'dist/index.js'
+          subject-path: |
+            hancover-action-dist.tgz
