@@ -33,7 +33,6 @@ import * as coverageDataModule from '../src/coverage-data.js';
 import * as changesModule from '../src/changes.js';
 
 const mockExecSync = vi.mocked(childProcess.execSync);
-const mockStatSync = vi.mocked(fs.statSync);
 const mockLoadConfig = vi.mocked(configModule.loadConfig);
 const mockReadInputs = vi.mocked(inputsModule.readInputs);
 const mockParseAnyCoverage = vi.mocked(parsersModule.parseAnyCoverage);
