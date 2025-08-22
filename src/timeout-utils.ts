@@ -68,12 +68,14 @@ export class TimeoutController {
 
         this.isActive = true;
         
-        return new Promise((_, reject) => {
-            if (this.timeoutMs <= 0) {
-                // No timeout
-                return;
-            }
+        if (this.timeoutMs <= 0) {
+            // No timeout - immediately mark as inactive since there's no timer to manage
+            this.isActive = false;
+            // Return a promise that never resolves (but doesn't prevent garbage collection)
+            return new Promise(() => {});
+        }
 
+        return new Promise((_, reject) => {
             this.timeoutId = setTimeout(() => {
                 this.isActive = false;
                 core.warning(`Operation '${this.operation}' exceeded timeout of ${this.timeoutMs}ms`);
