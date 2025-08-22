@@ -78,6 +78,31 @@ jobs:
             --output-certificate hancover-action-dist.tgz.pem \
             hancover-action-dist.tgz
 
+      # Compute SHA256 for the tarball
+      - name: Compute tarball digest
+        id: digest
+        run: |
+          echo "sha256=$(sha256sum hancover-action-dist.tgz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      # Publish provenance to GitHub's Attestations store (ties digest->workflow)
+      - name: Generate provenance attestation (explicit digest)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-name: hancover-action-dist.tgz
+          subject-digest: sha256:${{ steps.digest.outputs.sha256 }}
+
+      # Download that attestation as a local in-toto file so Scorecard can see it in the release assets
+      - name: Export attestation as in-toto file
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh attestation download \
+            --owner "${GITHUB_REPOSITORY%/*}" \
+            --repo  "${GITHUB_REPOSITORY#*/}" \
+            --digest "sha256:${{ steps.digest.outputs.sha256 }}" \
+            --format json > hancover-action-dist.intoto.jsonl
+          test -s hancover-action-dist.intoto.jsonl
+
       # Create the GitHub Release and upload the artifact + signatures
       - name: Create signed release
         id: create_release
@@ -90,7 +115,7 @@ jobs:
 
             **Artifact digest (sha256):**
             ```
-            ${{ steps.print_digest.outputs.digest }}
+            ${{ steps.digest.outputs.sha256 }}
             ```
 
             **Files uploaded**
@@ -99,6 +124,7 @@ jobs:
             - `hancover-action-dist.tgz.pem` (OIDC certificate)
             - `hancover-action-dist.tgz.bundle` (signature+cert bundle)
             - `checksums.txt` (sha256)
+            - `hancover-action-dist.intoto.jsonl` (provenance attestation)
 
             **How to verify**
             ```bash
@@ -131,6 +157,7 @@ jobs:
             hancover-action-dist.tgz.pem
             hancover-action-dist.tgz.bundle
             checksums.txt
+            hancover-action-dist.intoto.jsonl
           generate_release_notes: true
           draft: false
           prerelease: false
@@ -143,10 +170,3 @@ jobs:
         run: |
           DIGEST=$(sha256sum hancover-action-dist.tgz | awk '{print $1}')
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-
-      # Attach build provenance (SLSA/in-toto) for the exact file we uploaded
-      - name: Generate provenance attestation
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
-        with:
-          subject-path: |
-            hancover-action-dist.tgz
