@@ -39,18 +39,27 @@ const mockComputeChangesCoverage = vi.mocked(changesModule.computeChangesCoverag
 const mockParseGitDiff = vi.mocked(changesModule.parseGitDiff);
 
 describe('Enhanced Coverage - Strict Mode & Error Handling', () => {
+    let mockProcessExit: any;
+
     beforeEach(() => {
         vi.clearAllMocks();
         delete process.env.GITHUB_REF;
-        delete process.env.NODE_ENV;
-        delete process.env.VITEST;
-        delete process.env.JEST_WORKER_ID;
-        // Reset global test function detection
-        delete (globalThis as any).it;
+        // Ensure we're detected as a test environment
+        process.env.NODE_ENV = 'test';
+        process.env.VITEST = 'true';
+        // Set up global test function detection
+        (globalThis as any).it = it;
+        
+        // Mock process.exit to prevent actual exits during testing
+        mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+            throw new Error('process.exit called');
+        });
     });
 
     afterEach(() => {
         vi.resetAllMocks();
+        // Restore process.exit
+        mockProcessExit?.mockRestore();
     });
 
     describe('Strict Mode Error Handling', () => {
