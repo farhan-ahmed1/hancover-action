@@ -277,9 +277,12 @@ index abc123..def456 100644
 
             await expect(runEnhancedCoverage()).rejects.toThrow();
             
-            // Check that the enhanced error format includes file sizes
+            // Check that the enhanced error format includes file sizes and processing results
             expect(mockSetFailed).toHaveBeenCalledWith(
-                expect.stringContaining('Coverage processing failed: Parsing failed')
+                expect.stringContaining('Coverage processing failed: Failed to parse any coverage files')
+            );
+            expect(mockSetFailed).toHaveBeenCalledWith(
+                expect.stringContaining('processingResults')
             );
             expect(mockSetFailed).toHaveBeenCalledWith(
                 expect.stringContaining('Context: {')
@@ -358,7 +361,7 @@ index abc123..def456 100644
 
             await runEnhancedCoverage();
 
-            expect(mockWarning).toHaveBeenCalledWith('Failed to get git diff: Error: Git diff failed');
+            expect(mockWarning).toHaveBeenCalledWith('Failed to get git diff: Git diff failed. Proceeding with full coverage analysis.');
             expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
         });
 
@@ -487,7 +490,7 @@ index abc123..def456 100644
 
             await runEnhancedCoverage();
 
-            expect(mockWarning).toHaveBeenCalledWith('Failed to save coverage data: Error: Failed to save to gist');
+            expect(mockWarning).toHaveBeenCalledWith('Failed to save coverage data: Failed to save to gist');
             expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
         });
 
@@ -579,8 +582,8 @@ index abc123..def456 100644
             await runEnhancedCoverage();
 
             expect(mockInfo).toHaveBeenCalledWith('❌ No baseline coverage available from gist');
-            expect(mockInfo).toHaveBeenCalledWith('Parsing baseline coverage from files...');
-            expect(mockInfo).toHaveBeenCalledWith('Main branch coverage from files: 75.0%');
+            expect(mockInfo).toHaveBeenCalledWith('Parsing baseline coverage from file: baseline-coverage/lcov.info...');
+            expect(mockInfo).toHaveBeenCalledWith('Main branch coverage from file baseline-coverage/lcov.info: 75.0%');
             expect(mockSetOutput).toHaveBeenCalledWith('coverage-delta', '10.0'); // 85.0 - 75.0
         });
 
@@ -620,7 +623,7 @@ index abc123..def456 100644
 
             await runEnhancedCoverage();
 
-            expect(mockWarning).toHaveBeenCalledWith('Failed to process baseline coverage: Error: Failed to parse baseline');
+            expect(mockWarning).toHaveBeenCalledWith('Failed to process baseline coverage file baseline-coverage/lcov.info: Failed to parse baseline');
             expect(mockInfo).toHaveBeenCalledWith('Enhanced coverage analysis completed successfully');
         });
 
