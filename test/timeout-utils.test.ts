@@ -180,23 +180,23 @@ describe('Timeout Utils', () => {
         it('should handle zero timeout (no timeout)', () => {
             const controller = new TimeoutController(0, 'no timeout');
             
-            // Should not create actual timeout
+            // Should not create actual timeout and immediately become inactive
             controller.start();
-            expect(controller.isRunning()).toBe(true);
+            expect(controller.isRunning()).toBe(false);
             
             vi.advanceTimersByTime(1000);
-            // Should still be running since no timeout was set
-            expect(controller.isRunning()).toBe(true);
+            // Should still be inactive since no timeout was set
+            expect(controller.isRunning()).toBe(false);
         });
 
         it('should handle negative timeout (no timeout)', () => {
             const controller = new TimeoutController(-1, 'negative timeout');
             
             controller.start();
-            expect(controller.isRunning()).toBe(true);
+            expect(controller.isRunning()).toBe(false);
             
             vi.advanceTimersByTime(1000);
-            expect(controller.isRunning()).toBe(true);
+            expect(controller.isRunning()).toBe(false);
         });
 
         it('should log warning when timeout expires', async () => {

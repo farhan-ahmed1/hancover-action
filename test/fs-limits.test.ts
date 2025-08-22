@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     enforceFileSizeLimits,
     enforceTotalSizeLimits,
+    enforceTimeoutLimits,
     validateXmlSecurity
 } from '../src/fs-limits.js';
 
@@ -137,6 +138,67 @@ describe('FS Limits and Security', () => {
             expect(() => enforceTotalSizeLimits(1, 0)).toThrow(
                 'Total size (1 Bytes) exceeds the limit of 0 Bytes'
             );
+        });
+    });
+
+    describe('enforceTimeoutLimits', () => {
+        it('should allow operations within timeout', () => {
+            const startTime = Date.now();
+            expect(() => enforceTimeoutLimits(startTime, 10)).not.toThrow();
+        });
+
+        it('should reject operations that exceed timeout', () => {
+            const startTime = Date.now() - 5000; // 5 seconds ago
+            expect(() => enforceTimeoutLimits(startTime, 3)).toThrow(
+                'Operation timed out after 3s'
+            );
+        });
+
+        it('should handle zero timeout correctly', () => {
+            const startTime = Date.now() - 1000; // 1 second ago
+            expect(() => enforceTimeoutLimits(startTime, 0)).toThrow(
+                'Operation timed out after 0s'
+            );
+        });
+
+        it('should allow exactly at timeout boundary', () => {
+            const startTime = Date.now() - 2000; // 2 seconds ago
+            expect(() => enforceTimeoutLimits(startTime, 2)).not.toThrow();
+        });
+
+        it('should reject negative timeout values', () => {
+            const startTime = Date.now();
+            expect(() => enforceTimeoutLimits(startTime, -1)).toThrow(
+                'Timeout seconds must be non-negative'
+            );
+        });
+
+        it('should reject negative start time values', () => {
+            expect(() => enforceTimeoutLimits(-1, 10)).toThrow(
+                'Start time must be non-negative'
+            );
+        });
+
+        it('should handle very large timeout values', () => {
+            const startTime = Date.now();
+            expect(() => enforceTimeoutLimits(startTime, 86400)).not.toThrow(); // 24 hours
+        });
+
+        it('should handle edge case of start time in future', () => {
+            const futureStartTime = Date.now() + 1000; // 1 second in future
+            expect(() => enforceTimeoutLimits(futureStartTime, 10)).not.toThrow();
+        });
+
+        it('should be accurate with millisecond precision', () => {
+            const startTime = Date.now() - 1500; // 1.5 seconds ago
+            expect(() => enforceTimeoutLimits(startTime, 1)).toThrow('Operation timed out after 1s');
+            expect(() => enforceTimeoutLimits(startTime, 2)).not.toThrow();
+        });
+
+        it('should handle fractional timeout values', () => {
+            const startTime = Date.now() - 1500; // 1.5 seconds ago
+            expect(() => enforceTimeoutLimits(startTime, 1.2)).toThrow('Operation timed out after 1.2s');
+            expect(() => enforceTimeoutLimits(startTime, 1.8)).not.toThrow();
         });
     });
 

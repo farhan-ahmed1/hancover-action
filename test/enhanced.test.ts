@@ -8,6 +8,7 @@ import { runEnhancedCoverage } from '../src/enhanced.js';
 // Mock all dependencies for runEnhancedCoverage tests
 vi.mock('@actions/core');
 vi.mock('child_process');
+vi.mock('fs');
 vi.mock('../src/inputs.js');
 vi.mock('../src/parsers/index.js');
 vi.mock('../src/group.js');
@@ -23,6 +24,7 @@ const mockWarning = vi.mocked(core.warning);
 
 // Import and mock at top level to ensure proper mocking
 import * as childProcess from 'child_process';
+import * as fs from 'fs';
 import * as configModule from '../src/config.js';
 import * as inputsModule from '../src/inputs.js';
 import * as parsersModule from '../src/parsers/index.js';
@@ -215,8 +217,9 @@ index abc123..def456 100644
             expect(mockSetFailed).not.toHaveBeenCalled();
         });
 
-        it('should handle missing coverage files', async () => {
+        it('should fail with no coverage files provided', async () => {
             mockReadInputs.mockReturnValue({
+                timeoutSeconds: 120,
                 files: [],
                 baselineFiles: [],
                 minThreshold: 50,
@@ -226,8 +229,95 @@ index abc123..def456 100644
                 gistToken: ''
             } as any);
 
+            // Mock fs.statSync to return file stats
+            vi.mocked(fs.statSync).mockReturnValue({ size: 1000 } as any);
+
             await expect(runEnhancedCoverage()).rejects.toThrow();
-            expect(mockSetFailed).toHaveBeenCalledWith('Enhanced coverage analysis failed: Error: No coverage files provided');
+            
+            // Check that the enhanced error format is used
+            expect(mockSetFailed).toHaveBeenCalledWith(
+                expect.stringContaining('Coverage processing failed: No coverage files provided')
+            );
+            expect(mockSetFailed).toHaveBeenCalledWith(
+                expect.stringContaining('Context: {')
+            );
+            
+            // Verify the context includes expected fields
+            const setFailedCall = mockSetFailed.mock.calls[0][0];
+            expect(setFailedCall).toContain('"files": []');
+            expect(setFailedCall).toContain('"totalSize": 0');
+            expect(setFailedCall).toContain('"timeElapsed":');
+        });
+
+        it('should include file sizes in enhanced error context', async () => {
+            const testFiles = ['coverage/lcov.info', 'coverage/cobertura.xml'];
+            mockReadInputs.mockReturnValue({
+                timeoutSeconds: 120,
+                files: testFiles,
+                baselineFiles: [],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            // Mock fs.statSync to return different file sizes
+            vi.mocked(fs.statSync).mockImplementation((filePath) => {
+                if (filePath === 'coverage/lcov.info') {
+                    return { size: 5000 } as any;
+                } else if (filePath === 'coverage/cobertura.xml') {
+                    return { size: 3000 } as any;
+                }
+                return { size: 1000 } as any;
+            });
+
+            // Mock parseAnyCoverage to throw an error
+            mockParseAnyCoverage.mockRejectedValue(new Error('Parsing failed'));
+
+            await expect(runEnhancedCoverage()).rejects.toThrow();
+            
+            // Check that the enhanced error format includes file sizes
+            expect(mockSetFailed).toHaveBeenCalledWith(
+                expect.stringContaining('Coverage processing failed: Parsing failed')
+            );
+            expect(mockSetFailed).toHaveBeenCalledWith(
+                expect.stringContaining('Context: {')
+            );
+            
+            const setFailedCall = mockSetFailed.mock.calls[0][0];
+            expect(setFailedCall).toContain('"totalSize": 8000'); // 5000 + 3000
+            expect(setFailedCall).toContain(testFiles[0]);
+            expect(setFailedCall).toContain(testFiles[1]);
+        });
+
+        it('should handle file stat errors gracefully in error context', async () => {
+            const testFiles = ['nonexistent.info'];
+            mockReadInputs.mockReturnValue({
+                timeoutSeconds: 120,
+                files: testFiles,
+                baselineFiles: [],
+                minThreshold: 50,
+                warnOnly: false,
+                commentMode: 'update' as const,
+                gistId: '',
+                gistToken: ''
+            } as any);
+
+            // Mock fs.statSync to throw (file doesn't exist)
+            vi.mocked(fs.statSync).mockImplementation(() => {
+                throw new Error('ENOENT: no such file or directory');
+            });
+
+            // Mock parseAnyCoverage to throw an error
+            mockParseAnyCoverage.mockRejectedValue(new Error('File not found'));
+
+            await expect(runEnhancedCoverage()).rejects.toThrow();
+            
+            // Should still include context even when file stat fails
+            const setFailedCall = mockSetFailed.mock.calls[0][0];
+            expect(setFailedCall).toContain('"totalSize": 0'); // Should be 0 when stat fails
+            expect(setFailedCall).toContain('nonexistent.info');
         });
 
         it('should handle git diff errors gracefully', async () => {
