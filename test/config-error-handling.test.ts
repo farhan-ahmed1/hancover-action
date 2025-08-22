@@ -26,7 +26,8 @@ describe('Config Error Handling', () => {
         const config = loadConfig('/test/path');
 
         expect(mockFs.existsSync).toHaveBeenCalledWith('/test/path/.coverage-report.json');
-        expect(mockCore.debug).toHaveBeenCalledWith('No .coverage-report.json found, using smart defaults');
+        expect(mockCore.debug).toHaveBeenCalledWith('Detected ecosystem: generic');
+        expect(mockCore.debug).toHaveBeenCalledWith('No .coverage-report.json found, using smart defaults for generic ecosystem');
         
         expect(config).toEqual({
             groups: [],
@@ -52,20 +53,25 @@ describe('Config Error Handling', () => {
         expect(mockFs.existsSync).toHaveBeenCalledWith('/test/path/.coverage-report.json');
         expect(mockFs.readFileSync).toHaveBeenCalledWith('/test/path/.coverage-report.json', 'utf8');
         expect(mockCore.warning).toHaveBeenCalledWith(
-            expect.stringMatching(/Failed to load config from .*\.coverage-report\.json.*Using defaults/)
+            expect.stringMatching(/Failed to load config from .*\.coverage-report\.json.*Using ecosystem defaults for/)
         );
         
-        // Should return default config
+        // Should return ecosystem-aware defaults (Node.js in this test environment)
         expect(config).toEqual({
-            groups: [],
+            groups: [
+                { name: 'src/components', patterns: ['src/components/**'] },
+                { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+                { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+                { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+            ],
             fallback: {
                 smartDepth: 'auto',
                 promoteThreshold: 0.8
             },
             ui: {
-                expandFilesFor: [],
+                expandFilesFor: ['src/components', 'src/utils', 'src/services', 'src'],
                 maxDeltaRows: 10,
-                minPassThreshold: 50
+                minPassThreshold: 80
             }
         });
     });
@@ -82,20 +88,25 @@ describe('Config Error Handling', () => {
         expect(mockFs.existsSync).toHaveBeenCalledWith('/test/path/.coverage-report.json');
         expect(mockFs.readFileSync).toHaveBeenCalledWith('/test/path/.coverage-report.json', 'utf8');
         expect(mockCore.warning).toHaveBeenCalledWith(
-            expect.stringMatching(/Failed to load config from .*\.coverage-report\.json.*Permission denied.*Using defaults/)
+            expect.stringMatching(/Failed to load config from .*\.coverage-report\.json.*Permission denied.*Using ecosystem defaults for/)
         );
         
-        // Should return default config
+        // Should return ecosystem-aware defaults (Node.js in this test environment)
         expect(config).toEqual({
-            groups: [],
+            groups: [
+                { name: 'src/components', patterns: ['src/components/**'] },
+                { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+                { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+                { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+            ],
             fallback: {
                 smartDepth: 'auto',
                 promoteThreshold: 0.8
             },
             ui: {
-                expandFilesFor: [],
+                expandFilesFor: ['src/components', 'src/utils', 'src/services', 'src'],
                 maxDeltaRows: 10,
-                minPassThreshold: 50
+                minPassThreshold: 80
             }
         });
     });
@@ -118,17 +129,22 @@ describe('Config Error Handling', () => {
         expect(mockCore.info).toHaveBeenCalledWith('Loaded config from /test/path/.coverage-report.json');
         expect(mockCore.debug).toHaveBeenCalledWith(expect.stringMatching(/Config:/));
         
-        // Should merge with defaults
+        // Should use ecosystem-aware defaults (Node.js detected based on package.json)
         expect(config).toEqual({
-            groups: [], // from defaults
+            groups: [
+                { name: 'src/components', patterns: ['src/components/**'] },
+                { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+                { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+                { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+            ],
             fallback: {
-                smartDepth: 'top', // from loaded config
-                promoteThreshold: 0.8 // from defaults
+                smartDepth: 'top', // from config file
+                promoteThreshold: 0.8
             },
             ui: {
-                expandFilesFor: [], // from defaults
-                maxDeltaRows: 10, // from defaults
-                minPassThreshold: 50 // from defaults
+                expandFilesFor: ['src/components', 'src/utils', 'src/services', 'src'], 
+                maxDeltaRows: 10,
+                minPassThreshold: 80 // Node.js ecosystem default
             }
         });
     });
@@ -171,16 +187,22 @@ describe('Config Error Handling', () => {
 
         const config = loadConfig('/test/path');
 
+        // Should use ecosystem-aware defaults (Node.js detected based on package.json)
         expect(config).toEqual({
-            groups: [], // from defaults
+            groups: [
+                { name: 'src/components', patterns: ['src/components/**'] },
+                { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+                { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+                { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+            ],
             fallback: {
                 smartDepth: 'auto', // from defaults
                 promoteThreshold: 0.8 // from defaults
             },
             ui: {
-                expandFilesFor: [], // from defaults
+                expandFilesFor: ['src/components', 'src/utils', 'src/services', 'src'],
                 maxDeltaRows: 10, // from defaults
-                minPassThreshold: 50 // from defaults
+                minPassThreshold: 80 // Node.js ecosystem default
             }
         });
     });

@@ -49872,6 +49872,7 @@ var external_path_ = __nccwpck_require__(6928);
 
 
 
+// Legacy default config for backwards compatibility
 const DEFAULT_CONFIG = {
     groups: [],
     fallback: {
@@ -49886,22 +49887,38 @@ const DEFAULT_CONFIG = {
 };
 function loadConfig(cwd = process.cwd()) {
     const configPath = external_path_.join(cwd, '.coverage-report.json');
+    // Detect ecosystem for smart defaults
+    const ecosystem = detectEcosystem([], cwd);
+    lib_core.debug(`Detected ecosystem: ${ecosystem.type}`);
+    // Create ecosystem-aware defaults
+    const ecosystemDefaults = {
+        groups: ecosystem.suggestedGroups,
+        fallback: {
+            smartDepth: 'auto',
+            promoteThreshold: 0.8
+        },
+        ui: {
+            expandFilesFor: ecosystem.suggestedGroups.map(g => g.name),
+            maxDeltaRows: 10,
+            minPassThreshold: ecosystem.recommendedThresholds.total
+        }
+    };
     try {
         if (!external_fs_.existsSync(configPath)) {
-            lib_core.debug('No .coverage-report.json found, using smart defaults');
-            return DEFAULT_CONFIG;
+            lib_core.debug(`No .coverage-report.json found, using smart defaults for ${ecosystem.type} ecosystem`);
+            return ecosystemDefaults;
         }
         const rawConfig = JSON.parse(external_fs_.readFileSync(configPath, 'utf8'));
         lib_core.info(`Loaded config from ${configPath}`);
-        // Merge with defaults
+        // Merge with ecosystem-aware defaults (instead of generic defaults)
         const config = {
-            groups: rawConfig.groups || DEFAULT_CONFIG.groups,
+            groups: rawConfig.groups || ecosystemDefaults.groups,
             fallback: {
-                ...DEFAULT_CONFIG.fallback,
+                ...ecosystemDefaults.fallback,
                 ...rawConfig.fallback
             },
             ui: {
-                ...DEFAULT_CONFIG.ui,
+                ...ecosystemDefaults.ui,
                 ...rawConfig.ui
             }
         };
@@ -49909,8 +49926,8 @@ function loadConfig(cwd = process.cwd()) {
         return config;
     }
     catch (error) {
-        lib_core.warning(`Failed to load config from ${configPath}: ${error}. Using defaults.`);
-        return DEFAULT_CONFIG;
+        lib_core.warning(`Failed to load config from ${configPath}: ${error}. Using ecosystem defaults for ${ecosystem.type}.`);
+        return ecosystemDefaults;
     }
 }
 /**
@@ -49930,6 +49947,104 @@ function matchesPatterns(filePath, patterns) {
         const matches = regex.test(normalizedPath);
         return matches;
     });
+}
+/**
+ * Detect the ecosystem type based on project files and structure
+ */
+function detectEcosystem(files = [], cwd = process.cwd()) {
+    // Check for ecosystem indicator files
+    const hasPackageJson = external_fs_.existsSync(external_path_.join(cwd, 'package.json'));
+    const hasPomXml = external_fs_.existsSync(external_path_.join(cwd, 'pom.xml'));
+    const hasGradleBuild = external_fs_.existsSync(external_path_.join(cwd, 'build.gradle')) || external_fs_.existsSync(external_path_.join(cwd, 'build.gradle.kts'));
+    const hasPyprojectToml = external_fs_.existsSync(external_path_.join(cwd, 'pyproject.toml'));
+    const hasSetupPy = external_fs_.existsSync(external_path_.join(cwd, 'setup.py'));
+    const hasRequirementsTxt = external_fs_.existsSync(external_path_.join(cwd, 'requirements.txt'));
+    const hasCsproj = external_fs_.existsSync(external_path_.join(cwd, '*.csproj')) || files.some(f => f.endsWith('.csproj'));
+    const hasGoMod = external_fs_.existsSync(external_path_.join(cwd, 'go.mod'));
+    const hasGemfile = external_fs_.existsSync(external_path_.join(cwd, 'Gemfile'));
+    // Determine ecosystem type based on priority
+    let type = 'generic';
+    if (hasPackageJson) {
+        type = 'node';
+    }
+    else if (hasPomXml || hasGradleBuild) {
+        type = 'java';
+    }
+    else if (hasPyprojectToml || hasSetupPy || hasRequirementsTxt) {
+        type = 'python';
+    }
+    else if (hasCsproj) {
+        type = 'dotnet';
+    }
+    else if (hasGoMod) {
+        type = 'go';
+    }
+    else if (hasGemfile) {
+        type = 'ruby';
+    }
+    return {
+        type,
+        recommendedThresholds: getRecommendedThresholds(type),
+        suggestedGroups: getSuggestedGroups(type)
+    };
+}
+/**
+ * Get recommended thresholds based on ecosystem type
+ */
+function getRecommendedThresholds(type) {
+    const thresholds = {
+        node: { total: 80, changes: 85 },
+        java: { total: 70, changes: 80 },
+        python: { total: 85, changes: 90 },
+        dotnet: { total: 75, changes: 80 },
+        go: { total: 80, changes: 85 },
+        ruby: { total: 80, changes: 85 },
+        generic: { total: 50, changes: 60 }
+    };
+    return thresholds[type];
+}
+/**
+ * Get suggested grouping patterns based on ecosystem type
+ */
+function getSuggestedGroups(type) {
+    const groupingPatterns = {
+        node: [
+            { name: 'src/components', patterns: ['src/components/**'] },
+            { name: 'src/utils', patterns: ['src/utils/**', 'src/lib/**'] },
+            { name: 'src/services', patterns: ['src/services/**', 'src/api/**'] },
+            { name: 'src', patterns: ['src/**'], exclude: ['src/components/**', 'src/utils/**', 'src/lib/**', 'src/services/**', 'src/api/**'] }
+        ],
+        java: [
+            { name: 'main/java', patterns: ['src/main/java/**'] },
+            { name: 'main/resources', patterns: ['src/main/resources/**'] },
+            { name: 'test', patterns: ['src/test/**'] }
+        ],
+        python: [
+            { name: 'src', patterns: ['src/**', '*.py'] },
+            { name: 'tests', patterns: ['tests/**', 'test/**'] },
+            { name: 'package', patterns: ['**/**.py'], exclude: ['src/**', 'tests/**', 'test/**'] }
+        ],
+        dotnet: [
+            { name: 'Controllers', patterns: ['**/Controllers/**'] },
+            { name: 'Models', patterns: ['**/Models/**'] },
+            { name: 'Services', patterns: ['**/Services/**'] },
+            { name: 'Core', patterns: ['**/*.cs'], exclude: ['**/Controllers/**', '**/Models/**', '**/Services/**'] }
+        ],
+        go: [
+            { name: 'cmd', patterns: ['cmd/**'] },
+            { name: 'internal', patterns: ['internal/**'] },
+            { name: 'pkg', patterns: ['pkg/**'] },
+            { name: 'root', patterns: ['*.go'] }
+        ],
+        ruby: [
+            { name: 'app', patterns: ['app/**'] },
+            { name: 'lib', patterns: ['lib/**'] },
+            { name: 'config', patterns: ['config/**'] },
+            { name: 'spec', patterns: ['spec/**'] }
+        ],
+        generic: []
+    };
+    return groupingPatterns[type];
 }
 
 ;// CONCATENATED MODULE: ./src/group.ts
@@ -50869,9 +50984,16 @@ function getTotalFileSize(filePaths) {
 async function runEnhancedCoverage() {
     const startTime = Date.now();
     let inputs;
+    // Processing results tracker for graceful degradation
+    const processingResults = {
+        parsed: 0,
+        skipped: 0,
+        errors: [],
+        warnings: []
+    };
     try {
         inputs = readInputs();
-        // Step 1: Parse PR coverage with performance enhancements
+        // Step 1: Parse PR coverage with performance enhancements and error recovery
         lib_core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
         const prFiles = inputs.files;
         if (!prFiles || prFiles.length === 0) {
@@ -50884,16 +51006,76 @@ async function runEnhancedCoverage() {
             chunkSize: 64 * 1024 // 64KB chunks
         };
         lib_core.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`);
-        // For now, use the first coverage file (could be enhanced to merge multiple)
-        const prProject = await parseAnyCoverage(prFiles[0], streamingOptions);
+        // Enhanced parsing with error recovery
+        let prProject = null;
+        for (const file of prFiles) {
+            try {
+                prProject = await parseAnyCoverage(file, streamingOptions);
+                processingResults.parsed++;
+                lib_core.info(`✅ Successfully parsed ${file} with ${prProject.files.length} files`);
+                break; // Use first successfully parsed file
+            }
+            catch (error) {
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                processingResults.errors.push({
+                    file,
+                    error: errorMessage,
+                    step: 'coverage_parsing'
+                });
+                processingResults.skipped++;
+                if (inputs.strict) {
+                    throw new Error(`Strict mode: Failed to parse coverage file ${file}: ${errorMessage}`);
+                }
+                else {
+                    lib_core.warning(`Skipping coverage file ${file}: ${errorMessage}`);
+                    processingResults.warnings.push({
+                        message: `Skipped coverage file ${file}: ${errorMessage}`,
+                        step: 'coverage_parsing'
+                    });
+                }
+            }
+        }
+        // If no files were successfully parsed, fail
+        if (!prProject) {
+            throw new Error(`Failed to parse any coverage files. Errors: ${processingResults.errors.map(e => `${e.file}: ${e.error}`).join(', ')}`);
+        }
         lib_core.info(`✅ Parsed ${prProject.files.length} files from PR coverage`);
-        // Step 2: Smart package grouping with config support
-        const config = loadConfig();
-        const groupingResult = groupPackages(prProject.files, config);
+        // Step 2: Smart package grouping with config support and error recovery
+        let config;
+        let groupingResult;
+        try {
+            config = loadConfig();
+            groupingResult = groupPackages(prProject.files, config);
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            processingResults.errors.push({
+                file: 'config',
+                error: errorMessage,
+                step: 'config_loading'
+            });
+            if (inputs.strict) {
+                throw new Error(`Strict mode: Failed to load configuration: ${errorMessage}`);
+            }
+            else {
+                lib_core.warning(`Failed to load configuration, using fallback: ${errorMessage}`);
+                // Use fallback config
+                config = {
+                    groups: [],
+                    fallback: { smartDepth: 'auto', promoteThreshold: 0.8 },
+                    ui: { expandFilesFor: [], maxDeltaRows: 10, minPassThreshold: 50 }
+                };
+                groupingResult = groupPackages(prProject.files, config);
+                processingResults.warnings.push({
+                    message: `Using fallback configuration due to config error: ${errorMessage}`,
+                    step: 'config_loading'
+                });
+            }
+        }
         const prPackages = groupingResult.pkgRows;
         const topLevelPackages = groupingResult.topLevelRows;
         lib_core.info(`Grouped into ${prPackages.length} detailed packages and ${topLevelPackages.length} top-level packages`);
-        // Step 3: Get changed lines from git diff
+        // Step 3: Get changed lines from git diff with error recovery
         let changedLinesByFile = {};
         try {
             const diffOutput = (0,external_child_process_.execSync)('git diff --unified=0 --find-renames --diff-filter=AMR origin/main...HEAD', { encoding: 'utf8', timeout: 30000 });
@@ -50901,38 +51083,117 @@ async function runEnhancedCoverage() {
             lib_core.info(`Found changed lines in ${Object.keys(changedLinesByFile).length} files`);
         }
         catch (error) {
-            lib_core.warning(`Failed to get git diff: ${error}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            processingResults.errors.push({
+                file: 'git_diff',
+                error: errorMessage,
+                step: 'git_diff'
+            });
+            if (inputs.strict) {
+                throw new Error(`Strict mode: Failed to get git diff: ${errorMessage}`);
+            }
+            else {
+                lib_core.warning(`Failed to get git diff: ${errorMessage}. Proceeding with full coverage analysis.`);
+                processingResults.warnings.push({
+                    message: `Git diff unavailable, analyzing full coverage: ${errorMessage}`,
+                    step: 'git_diff'
+                });
+            }
         }
-        // Step 4: Compute code changes coverage
-        const changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
-        lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
-        // Step 5: Parse baseline coverage from gist or baseline files
+        // Step 4: Compute code changes coverage with error recovery
+        let changesCoverage;
+        try {
+            changesCoverage = computeChangesCoverage(prProject, changedLinesByFile);
+            lib_core.info(`Computed changes coverage for ${changesCoverage.packages.length} packages`);
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            processingResults.errors.push({
+                file: 'changes_coverage',
+                error: errorMessage,
+                step: 'changes_coverage'
+            });
+            if (inputs.strict) {
+                throw new Error(`Strict mode: Failed to compute changes coverage: ${errorMessage}`);
+            }
+            else {
+                lib_core.warning(`Failed to compute changes coverage: ${errorMessage}. Using project totals.`);
+                // Create fallback changes coverage based on project totals
+                changesCoverage = {
+                    packages: prPackages,
+                    totals: prProject.totals
+                };
+                processingResults.warnings.push({
+                    message: `Using project totals for changes coverage due to error: ${errorMessage}`,
+                    step: 'changes_coverage'
+                });
+            }
+        }
+        // Step 5: Parse baseline coverage from gist or baseline files with error recovery
         let mainBranchCoverage = null;
         let deltaCoverage;
         // First try to get baseline coverage from gist
-        lib_core.info('Attempting to fetch baseline coverage from gist...');
-        mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.gistToken);
-        if (mainBranchCoverage !== null) {
-            lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
+        try {
+            lib_core.info('Attempting to fetch baseline coverage from gist...');
+            mainBranchCoverage = await getCoverageData(inputs.gistId, inputs.gistToken);
+            if (mainBranchCoverage !== null) {
+                lib_core.info(`✅ Successfully fetched baseline coverage from gist: ${mainBranchCoverage.toFixed(1)}%`);
+            }
+            else {
+                lib_core.info('❌ No baseline coverage available from gist');
+            }
         }
-        else {
-            lib_core.info('❌ No baseline coverage available from gist');
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            processingResults.errors.push({
+                file: 'gist_baseline',
+                error: errorMessage,
+                step: 'baseline_gist'
+            });
+            if (inputs.strict) {
+                throw new Error(`Strict mode: Failed to fetch baseline coverage from gist: ${errorMessage}`);
+            }
+            else {
+                lib_core.warning(`Failed to fetch baseline coverage from gist: ${errorMessage}`);
+                processingResults.warnings.push({
+                    message: `Gist baseline unavailable: ${errorMessage}`,
+                    step: 'baseline_gist'
+                });
+            }
         }
         // If no gist coverage available, try baseline files
         if (mainBranchCoverage === null && inputs.baselineFiles && inputs.baselineFiles.length > 0) {
-            try {
-                lib_core.info('Parsing baseline coverage from files...');
-                const mainProject = await parseAnyCoverage(inputs.baselineFiles[0]);
-                const mainGroupingResult = groupPackages(mainProject.files, config);
-                const mainPackages = mainGroupingResult.pkgRows;
-                // Calculate main branch coverage percentage
-                mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
-                lib_core.info(`Main branch coverage from files: ${mainBranchCoverage.toFixed(1)}%`);
-                deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);
-                lib_core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
-            }
-            catch (error) {
-                lib_core.warning(`Failed to process baseline coverage: ${error}`);
+            for (const baselineFile of inputs.baselineFiles) {
+                try {
+                    lib_core.info(`Parsing baseline coverage from file: ${baselineFile}...`);
+                    const mainProject = await parseAnyCoverage(baselineFile);
+                    const mainGroupingResult = groupPackages(mainProject.files, config);
+                    const mainPackages = mainGroupingResult.pkgRows;
+                    // Calculate main branch coverage percentage
+                    mainBranchCoverage = (mainProject.totals.lines.covered / mainProject.totals.lines.total) * 100;
+                    lib_core.info(`Main branch coverage from file ${baselineFile}: ${mainBranchCoverage.toFixed(1)}%`);
+                    deltaCoverage = computeDeltaCoverage(prPackages, mainPackages);
+                    lib_core.info(`Computed delta coverage for ${deltaCoverage.packages.length} packages`);
+                    break; // Use first successful baseline
+                }
+                catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    processingResults.errors.push({
+                        file: baselineFile,
+                        error: errorMessage,
+                        step: 'baseline_files'
+                    });
+                    if (inputs.strict) {
+                        throw new Error(`Strict mode: Failed to process baseline coverage file ${baselineFile}: ${errorMessage}`);
+                    }
+                    else {
+                        lib_core.warning(`Failed to process baseline coverage file ${baselineFile}: ${errorMessage}`);
+                        processingResults.warnings.push({
+                            message: `Skipped baseline file ${baselineFile}: ${errorMessage}`,
+                            step: 'baseline_files'
+                        });
+                    }
+                }
             }
         }
         // Step 7: Render the comprehensive comment
@@ -50980,6 +51241,18 @@ async function runEnhancedCoverage() {
             }
         }
         lib_core.info('Enhanced coverage analysis completed successfully');
+        // Log processing results summary
+        if (processingResults.warnings.length > 0 || processingResults.errors.length > 0) {
+            lib_core.info(`Processing Summary: ${processingResults.parsed} parsed, ${processingResults.skipped} skipped, ${processingResults.warnings.length} warnings, ${processingResults.errors.length} errors`);
+            if (processingResults.warnings.length > 0) {
+                lib_core.info('Warnings encountered:');
+                processingResults.warnings.forEach(w => lib_core.warning(`[${w.step}] ${w.message}`));
+            }
+            if (processingResults.errors.length > 0 && !inputs.strict) {
+                lib_core.info('Errors handled gracefully (non-strict mode):');
+                processingResults.errors.forEach(e => lib_core.info(`[${e.step}] ${e.file}: ${e.error}`));
+            }
+        }
         // Step 10: Save coverage data to gist if we're on main branch
         const isMainBranch = process.env.GITHUB_REF === 'refs/heads/main' ||
             process.env.GITHUB_REF === 'refs/heads/master';
@@ -50989,7 +51262,18 @@ async function runEnhancedCoverage() {
                 lib_core.info(`Saved coverage data to gist for main branch: ${projectLinesPct.toFixed(1)}%`);
             }
             catch (error) {
-                lib_core.warning(`Failed to save coverage data: ${error}`);
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                processingResults.errors.push({
+                    file: 'gist_save',
+                    error: errorMessage,
+                    step: 'gist_save'
+                });
+                if (inputs.strict) {
+                    throw new Error(`Strict mode: Failed to save coverage data: ${errorMessage}`);
+                }
+                else {
+                    lib_core.warning(`Failed to save coverage data: ${errorMessage}`);
+                }
             }
         }
         // Ensure clean exit by explicitly terminating any lingering processes
@@ -51010,10 +51294,22 @@ async function runEnhancedCoverage() {
         const context = {
             files: inputs?.files || [],
             totalSize: inputs?.files ? getTotalFileSize(inputs.files) : 0,
-            timeElapsed: Date.now() - startTime
+            timeElapsed: Date.now() - startTime,
+            processingResults: {
+                parsed: processingResults.parsed,
+                skipped: processingResults.skipped,
+                errorsCount: processingResults.errors.length,
+                warningsCount: processingResults.warnings.length,
+                errors: processingResults.errors,
+                warnings: processingResults.warnings
+            }
         };
         const errorMessage = error instanceof Error ? error.message : String(error);
         const contextString = JSON.stringify(context, null, 2);
+        // Log processing summary even on failure
+        if (processingResults.errors.length > 0 || processingResults.warnings.length > 0) {
+            lib_core.error(`Final processing state: ${processingResults.parsed} parsed, ${processingResults.skipped} skipped, ${processingResults.warnings.length} warnings, ${processingResults.errors.length} errors`);
+        }
         lib_core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
         // Ensure process exits even on failure to prevent hanging
         // Only exit forcefully in production GitHub Actions environment

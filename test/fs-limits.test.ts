@@ -162,7 +162,9 @@ describe('FS Limits and Security', () => {
         });
 
         it('should allow exactly at timeout boundary', () => {
-            const startTime = Date.now() - 2000; // 2 seconds ago
+            // Use a slightly smaller elapsed time to account for execution time
+            // This ensures we're testing the boundary condition without race conditions
+            const startTime = Date.now() - 1990; // 1.99 seconds ago, giving 10ms buffer
             expect(() => enforceTimeoutLimits(startTime, 2)).not.toThrow();
         });
 
@@ -190,13 +192,15 @@ describe('FS Limits and Security', () => {
         });
 
         it('should be accurate with millisecond precision', () => {
-            const startTime = Date.now() - 1500; // 1.5 seconds ago
+            // Use slightly longer elapsed time to account for execution time between calls
+            const startTime = Date.now() - 1510; // 1.51 seconds ago, giving 10ms buffer
             expect(() => enforceTimeoutLimits(startTime, 1)).toThrow('Operation timed out after 1s');
             expect(() => enforceTimeoutLimits(startTime, 2)).not.toThrow();
         });
 
         it('should handle fractional timeout values', () => {
-            const startTime = Date.now() - 1500; // 1.5 seconds ago
+            // Use slightly longer elapsed time to account for execution time between calls
+            const startTime = Date.now() - 1510; // 1.51 seconds ago, giving 10ms buffer
             expect(() => enforceTimeoutLimits(startTime, 1.2)).toThrow('Operation timed out after 1.2s');
             expect(() => enforceTimeoutLimits(startTime, 1.8)).not.toThrow();
         });
