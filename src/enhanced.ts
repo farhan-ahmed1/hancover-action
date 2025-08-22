@@ -7,10 +7,31 @@ import { renderComment, upsertStickyComment } from './comment.js';
 import { getCoverageData, saveCoverageData } from './coverage-data.js';
 import { loadConfig } from './config.js';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+
+/**
+ * Calculate total size of all provided files
+ */
+function getTotalFileSize(filePaths: string[]): number {
+    let totalSize = 0;
+    for (const filePath of filePaths) {
+        try {
+            const stats = fs.statSync(filePath);
+            totalSize += stats.size;
+        } catch (error) {
+            // File might not exist or be accessible, continue
+            core.debug(`Could not get size for file ${filePath}: ${error}`);
+        }
+    }
+    return totalSize;
+}
 
 export async function runEnhancedCoverage() {
+    const startTime = Date.now();
+    let inputs: ReturnType<typeof readInputs> | undefined;
+    
     try {
-        const inputs = readInputs();
+        inputs = readInputs();
         
         // Step 1: Parse PR coverage with performance enhancements
         core.info('🚀 Starting enhanced coverage analysis with performance optimizations...');
@@ -157,7 +178,17 @@ export async function runEnhancedCoverage() {
         }
         
     } catch (error) {
-        core.setFailed(`Enhanced coverage analysis failed: ${error}`);
+        // Enhanced error context with detailed diagnostic information
+        const context = {
+            files: inputs?.files || [],
+            totalSize: inputs?.files ? getTotalFileSize(inputs.files) : 0,
+            timeElapsed: Date.now() - startTime
+        };
+        
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const contextString = JSON.stringify(context, null, 2);
+        
+        core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
         throw error;
     }
 }

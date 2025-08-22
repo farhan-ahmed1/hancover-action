@@ -30,6 +30,23 @@ export function enforceTotalSizeLimits(totalSize: number, maxTotalBytes: number 
 }
 
 /**
+ * Enforce timeout limits based on elapsed time
+ */
+export function enforceTimeoutLimits(startTime: number, timeoutSeconds: number): void {
+    if (timeoutSeconds < 0) {
+        throw new Error('Timeout seconds must be non-negative');
+    }
+    if (startTime < 0) {
+        throw new Error('Start time must be non-negative');
+    }
+    
+    const elapsed = (Date.now() - startTime) / 1000;
+    if (elapsed > timeoutSeconds) {
+        throw new Error(`Operation timed out after ${timeoutSeconds}s`);
+    }
+}
+
+/**
  * Validate XML content for security issues before parsing
  */
 export function validateXmlSecurity(xmlContent: string): void {
