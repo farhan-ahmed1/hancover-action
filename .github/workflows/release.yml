@@ -97,8 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh attestation download hancover-action-dist.tgz \
-            --owner "${GITHUB_REPOSITORY%/*}" \
-            --repo  "${GITHUB_REPOSITORY#*/}" \
+            --repo "$GITHUB_REPOSITORY" \
             --digest-alg sha256 > hancover-action-dist.intoto.jsonl
           test -s hancover-action-dist.intoto.jsonl
 
