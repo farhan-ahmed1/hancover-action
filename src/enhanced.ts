@@ -177,6 +177,20 @@ export async function runEnhancedCoverage() {
             }
         }
         
+        // Ensure clean exit by explicitly terminating any lingering processes
+        // This prevents hanging when there are uncleared timeouts or event listeners
+        // Only exit forcefully in production GitHub Actions environment
+        const isTestEnvironment = process.env.NODE_ENV === 'test' || 
+                                 process.env.VITEST === 'true' || 
+                                 process.env.JEST_WORKER_ID !== undefined ||
+                                 typeof (globalThis as any).it === 'function';
+        
+        if (!isTestEnvironment) {
+            process.nextTick(() => {
+                process.exit(0);
+            });
+        }
+        
     } catch (error) {
         // Enhanced error context with detailed diagnostic information
         const context = {
@@ -189,6 +203,20 @@ export async function runEnhancedCoverage() {
         const contextString = JSON.stringify(context, null, 2);
         
         core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
+        
+        // Ensure process exits even on failure to prevent hanging
+        // Only exit forcefully in production GitHub Actions environment
+        const isTestEnvironment = process.env.NODE_ENV === 'test' || 
+                                 process.env.VITEST === 'true' || 
+                                 process.env.JEST_WORKER_ID !== undefined ||
+                                 typeof (globalThis as any).it === 'function';
+        
+        if (!isTestEnvironment) {
+            process.nextTick(() => {
+                process.exit(1);
+            });
+        }
+        
         throw error;
     }
 }

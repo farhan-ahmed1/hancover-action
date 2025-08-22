@@ -50992,6 +50992,18 @@ async function runEnhancedCoverage() {
                 lib_core.warning(`Failed to save coverage data: ${error}`);
             }
         }
+        // Ensure clean exit by explicitly terminating any lingering processes
+        // This prevents hanging when there are uncleared timeouts or event listeners
+        // Only exit forcefully in production GitHub Actions environment
+        const isTestEnvironment = process.env.NODE_ENV === 'test' ||
+            process.env.VITEST === 'true' ||
+            process.env.JEST_WORKER_ID !== undefined ||
+            typeof globalThis.it === 'function';
+        if (!isTestEnvironment) {
+            process.nextTick(() => {
+                process.exit(0);
+            });
+        }
     }
     catch (error) {
         // Enhanced error context with detailed diagnostic information
@@ -51003,6 +51015,17 @@ async function runEnhancedCoverage() {
         const errorMessage = error instanceof Error ? error.message : String(error);
         const contextString = JSON.stringify(context, null, 2);
         lib_core.setFailed(`Coverage processing failed: ${errorMessage}\nContext: ${contextString}`);
+        // Ensure process exits even on failure to prevent hanging
+        // Only exit forcefully in production GitHub Actions environment
+        const isTestEnvironment = process.env.NODE_ENV === 'test' ||
+            process.env.VITEST === 'true' ||
+            process.env.JEST_WORKER_ID !== undefined ||
+            typeof globalThis.it === 'function';
+        if (!isTestEnvironment) {
+            process.nextTick(() => {
+                process.exit(1);
+            });
+        }
         throw error;
     }
 }
