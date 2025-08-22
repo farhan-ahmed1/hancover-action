@@ -14,7 +14,6 @@ vi.mock('@actions/core', () => ({
 }));
 
 const mockExecSync = vi.mocked(execSync);
-const mockWarning = vi.mocked(core.warning);
 
 describe('computeDiff', () => {
     it('should return an empty object for no changes', async () => {
