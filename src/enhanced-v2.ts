@@ -3,6 +3,7 @@ import { readInputs } from './inputs.js';
 import { groupPackages } from './group.js';
 import { computeDeltaCoverage } from './changes.js';
 import { renderComment, upsertStickyComment } from './comment.js';
+import { withResourceTracking } from './resource-management.js';
 import {
     parseWithRecovery,
     loadConfigWithRecovery,

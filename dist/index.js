@@ -46937,6 +46937,12 @@ class TimeoutController {
         }
         this.isActive = false;
     }
+    /**
+     * Dispose of the timeout controller (alias for clear() to implement Disposable)
+     */
+    dispose() {
+        this.clear();
+    }
     isRunning() {
         return this.isActive;
     }
