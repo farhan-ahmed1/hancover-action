@@ -46054,8 +46054,8 @@ function groupPackages(files, config) {
     const basePackages = applyBaseGrouping(files, resolvedConfig);
     // Step 2: Apply overlay rules from config
     const overlayPackages = applyOverlayRules(basePackages, files, resolvedConfig);
-    // Step 3: Use overlay packages as top-level summary (they represent the actual logical grouping)
-    const topLevelPackages = [...overlayPackages];
+    // Step 3: Compute top-level summary (always based on first path segment)
+    const topLevelPackages = computeTopLevelSummary(files);
     // Sort both results
     overlayPackages.sort((a, b) => a.name.localeCompare(b.name));
     topLevelPackages.sort((a, b) => a.name.localeCompare(b.name));
@@ -46167,6 +46167,36 @@ function applyOverlayRules(basePackages, allFiles, config) {
         overlayPackages.push(...remainingBase);
     }
     return overlayPackages;
+}
+/**
+ * Compute top-level summary based on first path segment only
+ */
+function computeTopLevelSummary(files) {
+    const topLevelGroups = new Map();
+    const rootFiles = [];
+    for (const file of files) {
+        const normalizedPath = external_path_.posix.normalize(file.path);
+        const segments = normalizedPath.split('/').filter(s => s.length > 0);
+        if (segments.length === 0) {
+            rootFiles.push(file);
+            continue;
+        }
+        const topLevel = segments[0];
+        if (!topLevelGroups.has(topLevel)) {
+            topLevelGroups.set(topLevel, []);
+        }
+        topLevelGroups.get(topLevel).push(file);
+    }
+    // Add root files if any
+    if (rootFiles.length > 0) {
+        topLevelGroups.set('root', rootFiles);
+    }
+    // Convert to packages
+    const packages = [];
+    for (const [groupName, groupFiles] of topLevelGroups) {
+        packages.push(createPackage(groupName, groupFiles));
+    }
+    return packages;
 }
 function shouldPromoteDeeper(files) {
     // Check if there are meaningful subdirectories to promote
@@ -46594,19 +46624,12 @@ function renderProjectTable(packages, minThreshold, config) {
  * Determine if a package should have an expandable file table
  */
 function shouldExpandPackage(pkg, config) {
-    // Debug logging
-    console.log('::debug::shouldExpandPackage called for pkg:', pkg.name);
-    console.log('::debug::expandFilesFor config:', config?.ui?.expandFilesFor);
     // If expandFilesFor is explicitly configured, only expand listed packages
     if (config?.ui?.expandFilesFor && config.ui.expandFilesFor.length > 0) {
-        const result = config.ui.expandFilesFor.includes(pkg.name);
-        console.log(`::debug::pkg ${pkg.name} expandable: ${result} (explicit config)`);
-        return result;
+        return config.ui.expandFilesFor.includes(pkg.name);
     }
     // Default fallback when no explicit config: expand packages with >= 2 files but not too many (to avoid spam)
-    const result = pkg.files.length >= 2 && pkg.files.length <= 20;
-    console.log(`::debug::pkg ${pkg.name} expandable: ${result} (fallback, file count: ${pkg.files.length})`);
-    return result;
+    return pkg.files.length >= 2 && pkg.files.length <= 20;
 }
 /**
  * Render an expandable <details> block with file-level coverage
