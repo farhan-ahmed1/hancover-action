@@ -7,7 +7,7 @@ import {
     createShieldsBadge, 
     getColorForPercentage, 
     getHealthIcon 
-} from '../src/badges.js';
+} from '../src/output/badges.js';
 
 describe('badges', () => {
     describe('generateBadgeUrl', () => {

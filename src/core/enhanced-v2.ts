@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
-import { readInputs } from './inputs.js';
-import { groupPackages } from './group.js';
-import { computeDeltaCoverage } from './changes.js';
-import { renderComment, upsertStickyComment } from './comment.js';
+import { readInputs } from '../io/inputs.js';
+import { groupPackages } from '../processing/group.js';
+import { computeDeltaCoverage } from '../processing/changes.js';
+import { renderComment, upsertStickyComment } from '../output/comment.js';
 import {
     parseWithRecovery,
     loadConfigWithRecovery,
@@ -12,11 +12,11 @@ import {
     parseBaselineFilesWithRecovery,
     saveGistDataWithRecovery,
     getTotalFileSize
-} from './enhanced-error-handling.js';
+} from '../infrastructure/enhanced-error-handling.js';
 import {
     ErrorAggregator,
     ErrorCategory
-} from './error-handling.js';
+} from '../infrastructure/error-handling.js';
 
 /**
  * Enhanced coverage analysis with comprehensive error handling and graceful degradation

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { computeDiff } from '../src/diff.js';
+import { computeDiff } from '../src/io/diff.js';
 import { execSync } from 'child_process';
 import * as core from '@actions/core';
 

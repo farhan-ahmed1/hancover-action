@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { collectCoverage } from '../src/normalize.js';
+import { collectCoverage } from '../src/processing/normalize.js';
 import { globby } from 'globby';
 import { statSync, readFileSync } from 'fs';
 import * as core from '@actions/core';
@@ -11,7 +11,7 @@ vi.mock('@actions/core');
 vi.mock('../src/parsers/index.js', () => ({
     parseAnyCoverageContent: vi.fn()
 }));
-vi.mock('../src/fs-limits.js', () => ({
+vi.mock('../src/infrastructure/fs-limits.js', () => ({
     enforceFileSizeLimits: vi.fn(),
     enforceTotalSizeLimits: vi.fn()
 }));
@@ -117,7 +117,7 @@ end_of_record
             mockGlobby.mockResolvedValue(['large-file.xml']);
             mockStatSync.mockReturnValue(mockStats as any);
 
-            const { enforceFileSizeLimits } = await import('../src/fs-limits.js');
+            const { enforceFileSizeLimits } = await import('../src/infrastructure/fs-limits.js');
             vi.mocked(enforceFileSizeLimits).mockImplementation((size, limit) => {
                 if (limit && size > limit) {
                     throw new Error('File too large');
@@ -143,7 +143,7 @@ end_of_record
             
             mockReadFileSync.mockReturnValue('<coverage></coverage>');
 
-            const { enforceFileSizeLimits, enforceTotalSizeLimits } = await import('../src/fs-limits.js');
+            const { enforceFileSizeLimits, enforceTotalSizeLimits } = await import('../src/infrastructure/fs-limits.js');
             vi.mocked(enforceFileSizeLimits).mockImplementation(() => {}); // Allow individual files
             vi.mocked(enforceTotalSizeLimits)
                 .mockImplementationOnce(() => {}) // First file OK
@@ -174,7 +174,7 @@ end_of_record
             mockGlobby.mockResolvedValue(['large-file.xml']);
             mockStatSync.mockReturnValue(mockStats as any);
 
-            const { enforceFileSizeLimits } = await import('../src/fs-limits.js');
+            const { enforceFileSizeLimits } = await import('../src/infrastructure/fs-limits.js');
             vi.mocked(enforceFileSizeLimits).mockImplementation(() => {
                 throw new Error('File too large');
             });

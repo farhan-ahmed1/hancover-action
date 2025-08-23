@@ -1,9 +1,9 @@
 import { XMLParser } from 'fast-xml-parser';
-import { FileCov, ProjectCov } from '../schema.js';
-import { validateXmlSecurity } from '../fs-limits.js';
-import { parseXMLWithStreaming, StreamingParseOptions } from '../streaming-parser.js';
-import { withFileTimeout, globalTimeoutManager } from '../timeout-utils.js';
-import { globalProgressReporter } from '../progress-reporter.js';
+import { FileCov, ProjectCov } from '../processing/schema.js';
+import { validateXmlSecurity } from '../infrastructure/fs-limits.js';
+import { parseXMLWithStreaming, StreamingParseOptions } from '../infrastructure/streaming-parser.js';
+import { withFileTimeout, globalTimeoutManager } from '../infrastructure/timeout-utils.js';
+import { globalProgressReporter } from '../infrastructure/progress-reporter.js';
 import * as core from '@actions/core';
 
 /**

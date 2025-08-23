@@ -1,31 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
-import { runEnhancedCoverage } from '../src/enhanced-v2.js';
+import { runEnhancedCoverage } from '../src/core/enhanced-v2.js';
 
 // Mock all dependencies
 vi.mock('@actions/core');
 vi.mock('child_process');
 vi.mock('fs');
-vi.mock('../src/inputs.js');
+vi.mock('../src/io/inputs.js');
 vi.mock('../src/parsers/index.js');
-vi.mock('../src/group.js');
-vi.mock('../src/changes.js');
-vi.mock('../src/comment.js');
-vi.mock('../src/coverage-data.js');
-vi.mock('../src/config.js');
+vi.mock('../src/processing/group.js');
+vi.mock('../src/processing/changes.js');
+vi.mock('../src/output/comment.js');
+vi.mock('../src/io/coverage-data.js');
+vi.mock('../src/infrastructure/config.js');
 
 const mockInfo = vi.mocked(core.info);
 const mockWarning = vi.mocked(core.warning);
 
 // Import mocked modules
 import * as childProcess from 'child_process';
-import * as configModule from '../src/config.js';
-import * as inputsModule from '../src/inputs.js';
+import * as configModule from '../src/infrastructure/config.js';
+import * as inputsModule from '../src/io/inputs.js';
 import * as parsersModule from '../src/parsers/index.js';
-import * as commentModule from '../src/comment.js';
-import * as coverageDataModule from '../src/coverage-data.js';
-import * as changesModule from '../src/changes.js';
-import { groupPackages } from '../src/group.js';
+import * as commentModule from '../src/output/comment.js';
+import * as coverageDataModule from '../src/io/coverage-data.js';
+import * as changesModule from '../src/processing/changes.js';
+import { groupPackages } from '../src/processing/group.js';
 
 const mockExecSync = vi.mocked(childProcess.execSync);
 const mockLoadConfig = vi.mocked(configModule.loadConfig);

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { loadConfig, detectEcosystem } from '../src/config.js';
+import { loadConfig, detectEcosystem } from '../src/infrastructure/config.js';
 import * as fs from 'fs';
 import * as core from '@actions/core';
 

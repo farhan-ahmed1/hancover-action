@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { readInputs } from '../src/inputs.js';
+import { readInputs } from '../src/io/inputs.js';
 
 describe('inputs', () => {
     const originalEnv = process.env;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderComment, upsertStickyComment } from '../src/comment.js';
-import { ProjectCov, PkgCov, FileCov } from '../src/schema.js';
+import { renderComment, upsertStickyComment } from '../src/output/comment.js';
+import { ProjectCov, PkgCov, FileCov } from '../src/processing/schema.js';
 
 describe('Comment Rendering', () => {
     it('should render a markdown comment correctly', async () => {

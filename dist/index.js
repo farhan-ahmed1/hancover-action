@@ -45784,7 +45784,7 @@ function coerce_date(params) {
 
 // EXTERNAL MODULE: ./node_modules/yaml/dist/index.js
 var dist = __nccwpck_require__(8815);
-;// CONCATENATED MODULE: ./src/inputs.ts
+;// CONCATENATED MODULE: ./src/io/inputs.ts
 
 
 const InputsSchema = object({
@@ -45868,7 +45868,7 @@ function readInputs() {
 var external_fs_ = __nccwpck_require__(9896);
 // EXTERNAL MODULE: external "path"
 var external_path_ = __nccwpck_require__(6928);
-;// CONCATENATED MODULE: ./src/config.ts
+;// CONCATENATED MODULE: ./src/infrastructure/config.ts
 
 
 
@@ -46034,7 +46034,7 @@ function getSuggestedGroups(type) {
     return groupingPatterns[type];
 }
 
-;// CONCATENATED MODULE: ./src/group.ts
+;// CONCATENATED MODULE: ./src/processing/group.ts
 
 
 
@@ -46267,7 +46267,7 @@ function groupPackagesLegacy(files) {
     return groupPackages(files).pkgRows;
 }
 
-;// CONCATENATED MODULE: ./src/changes.ts
+;// CONCATENATED MODULE: ./src/processing/changes.ts
 
 /**
  * Compute code-changes coverage: "Of the lines I touched in this PR, what % is covered?"
@@ -46420,7 +46420,7 @@ function computeDeltaCoverage(prPackages, mainPackages) {
 
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(3228);
-;// CONCATENATED MODULE: ./src/badges.ts
+;// CONCATENATED MODULE: ./src/output/badges.ts
 function generateBadgeUrl(label, message, color = 'blue') {
     return `https://img.shields.io/badge/${encodeURIComponent(label)}-${encodeURIComponent(message)}-${color}`;
 }
@@ -46461,7 +46461,7 @@ function getHealthIcon(percentage, threshold = 50) {
     return percentage >= threshold ? '✅' : '❌';
 }
 
-;// CONCATENATED MODULE: ./src/comment.ts
+;// CONCATENATED MODULE: ./src/output/comment.ts
 
 
 
@@ -46789,7 +46789,7 @@ async function upsertStickyComment(md, mode = 'update') {
     }
 }
 
-;// CONCATENATED MODULE: ./src/fs-limits.ts
+;// CONCATENATED MODULE: ./src/infrastructure/fs-limits.ts
 /**
  * Security and file size enforcement utilities
  */
@@ -46864,7 +46864,7 @@ function formatBytes(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-;// CONCATENATED MODULE: ./src/timeout-utils.ts
+;// CONCATENATED MODULE: ./src/infrastructure/timeout-utils.ts
 /**
  * Timeout utilities for enforcing time limits on operations
  */
@@ -47027,7 +47027,7 @@ async function withBatchTimeout(operations, totalTimeoutMs, batchName) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/progress-reporter.ts
+;// CONCATENATED MODULE: ./src/infrastructure/progress-reporter.ts
 /**
  * Progress reporting utilities for long-running operations
  */
@@ -49443,7 +49443,7 @@ class XMLParser{
 
 // EXTERNAL MODULE: external "stream"
 var external_stream_ = __nccwpck_require__(2203);
-;// CONCATENATED MODULE: ./src/streaming-parser.ts
+;// CONCATENATED MODULE: ./src/infrastructure/streaming-parser.ts
 /**
  * Streaming XML parser utilities for handling large coverage files
  * without loading them entirely into memory
@@ -50789,7 +50789,7 @@ function parsers_formatBytes(bytes) {
 
 
 
-;// CONCATENATED MODULE: ./src/coverage-data.ts
+;// CONCATENATED MODULE: ./src/io/coverage-data.ts
 
 
 /**
@@ -50940,7 +50940,7 @@ function coverage_data_getColorForPercentage(percentage) {
 
 // EXTERNAL MODULE: external "child_process"
 var external_child_process_ = __nccwpck_require__(5317);
-;// CONCATENATED MODULE: ./src/error-handling.ts
+;// CONCATENATED MODULE: ./src/infrastructure/error-handling.ts
 /**
  * Comprehensive error handling system with structured result patterns
  * and graceful degradation capabilities
@@ -51363,7 +51363,7 @@ class ErrorHandlingUtils {
     }
 }
 
-;// CONCATENATED MODULE: ./src/enhanced-error-handling.ts
+;// CONCATENATED MODULE: ./src/infrastructure/enhanced-error-handling.ts
 /**
  * Enhanced error handling wrapper functions for coverage processing operations
  * Provides comprehensive error recovery and circuit breaker patterns for the enhanced coverage system
@@ -51553,7 +51553,7 @@ function getTotalFileSize(filePaths) {
 }
 
 
-;// CONCATENATED MODULE: ./src/enhanced-v2.ts
+;// CONCATENATED MODULE: ./src/core/enhanced-v2.ts
 
 
 
@@ -51809,7 +51809,7 @@ async function runEnhancedCoverage() {
     }
 }
 
-;// CONCATENATED MODULE: ./src/index.ts
+;// CONCATENATED MODULE: ./src/core/index.ts
 
 
 async function run() {

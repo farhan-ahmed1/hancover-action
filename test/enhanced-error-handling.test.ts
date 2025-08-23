@@ -8,16 +8,16 @@ import {
     getBaselineCoverageWithRecovery,
     parseBaselineFilesWithRecovery,
     saveGistDataWithRecovery
-} from '../src/enhanced-error-handling.js';
-import { ErrorAggregator, ErrorCategory } from '../src/error-handling.js';
+} from '../src/infrastructure/enhanced-error-handling.js';
+import { ErrorAggregator, ErrorCategory } from '../src/infrastructure/error-handling.js';
 
 // Mock all dependencies
 vi.mock('@actions/core');
 vi.mock('../src/parsers/index.js');
-vi.mock('../src/group.js');
-vi.mock('../src/changes.js');
-vi.mock('../src/coverage-data.js');
-vi.mock('../src/config.js');
+vi.mock('../src/processing/group.js');
+vi.mock('../src/processing/changes.js');
+vi.mock('../src/io/coverage-data.js');
+vi.mock('../src/infrastructure/config.js');
 vi.mock('child_process');
 
 const mockInfo = vi.mocked(core.info);
@@ -29,10 +29,10 @@ void mockWarning;
 
 // Import mocked modules
 import { parseAnyCoverage } from '../src/parsers/index.js';
-import { groupPackages } from '../src/group.js';
-import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff } from '../src/changes.js';
-import { getCoverageData, saveCoverageData } from '../src/coverage-data.js';
-import { loadConfig } from '../src/config.js';
+import { groupPackages } from '../src/processing/group.js';
+import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff } from '../src/processing/changes.js';
+import { getCoverageData, saveCoverageData } from '../src/io/coverage-data.js';
+import { loadConfig } from '../src/infrastructure/config.js';
 import { execSync } from 'child_process';
 
 const mockParseAnyCoverage = vi.mocked(parseAnyCoverage);
@@ -120,9 +120,9 @@ describe('Enhanced Error Handling Wrappers', () => {
             // Trigger circuit breaker by adding failures
             for (let i = 0; i < 3; i++) {
                 aggregator.addError(
-                    new (await import('../src/error-handling.js')).ProcessingError(
+                    new (await import('../src/infrastructure/error-handling.js')).ProcessingError(
                         'Test error',
-                        (await import('../src/error-handling.js')).ErrorSeverity.RECOVERABLE,
+                        (await import('../src/infrastructure/error-handling.js')).ErrorSeverity.RECOVERABLE,
                         ErrorCategory.PARSING,
                         { operation: 'parseAnyCoverage' }
                     )
@@ -169,9 +169,9 @@ describe('Enhanced Error Handling Wrappers', () => {
             // Trigger circuit breaker
             for (let i = 0; i < 3; i++) {
                 aggregator.addError(
-                    new (await import('../src/error-handling.js')).ProcessingError(
+                    new (await import('../src/infrastructure/error-handling.js')).ProcessingError(
                         'Test error',
-                        (await import('../src/error-handling.js')).ErrorSeverity.RECOVERABLE,
+                        (await import('../src/infrastructure/error-handling.js')).ErrorSeverity.RECOVERABLE,
                         ErrorCategory.CONFIG,
                         { operation: 'loadConfig' }
                     )
@@ -379,9 +379,9 @@ describe('Enhanced Error Handling Wrappers', () => {
             // Trigger circuit breaker
             for (let i = 0; i < 3; i++) {
                 aggregator.addError(
-                    new (await import('../src/error-handling.js')).ProcessingError(
+                    new (await import('../src/infrastructure/error-handling.js')).ProcessingError(
                         'Test error',
-                        (await import('../src/error-handling.js')).ErrorSeverity.RECOVERABLE,
+                        (await import('../src/infrastructure/error-handling.js')).ErrorSeverity.RECOVERABLE,
                         ErrorCategory.GIST_OPERATIONS,
                         { operation: 'saveCoverageData' }
                     )
@@ -429,9 +429,9 @@ describe('Enhanced Error Handling Wrappers', () => {
             // Manually add enough failures to trigger circuit breaker
             for (let i = 0; i < 3; i++) {
                 aggregator.addError(
-                    new (await import('../src/error-handling.js')).ProcessingError(
+                    new (await import('../src/infrastructure/error-handling.js')).ProcessingError(
                         'Test error',
-                        (await import('../src/error-handling.js')).ErrorSeverity.RECOVERABLE,
+                        (await import('../src/infrastructure/error-handling.js')).ErrorSeverity.RECOVERABLE,
                         ErrorCategory.PARSING,
                         { operation: 'parseAnyCoverage' }
                     )

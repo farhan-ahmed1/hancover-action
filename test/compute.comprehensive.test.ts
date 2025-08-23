@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeTotals, parseThresholds } from '../src/compute.js';
-import { ProjectCov } from '../src/schema.js';
+import { computeTotals, parseThresholds } from '../src/core/compute.js';
+import { ProjectCov } from '../src/processing/schema.js';
 
 describe('Compute Coverage', () => {
     const sampleProject: ProjectCov = {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import YAML from 'yaml';
-import { GroupsConfig } from './schema.js';
+import { GroupsConfig } from '../processing/schema.js';
 
 const InputsSchema = z.object({
     files: z.string().min(1),

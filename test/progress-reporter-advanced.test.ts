@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CoreProgressReporter, createFileTracker } from '../src/progress-reporter.js';
+import { CoreProgressReporter, createFileTracker } from '../src/infrastructure/progress-reporter.js';
 import * as core from '@actions/core';
 
 // Mock @actions/core

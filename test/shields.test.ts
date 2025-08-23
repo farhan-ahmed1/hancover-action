@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateChangesBadge, generateBadgeUrl } from '../src/shields.js';
+import { generateChangesBadge, generateBadgeUrl } from '../src/output/shields.js';
 
 describe('shields', () => {
     describe('generateChangesBadge', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
-import { detectEcosystem } from '../src/config.js';
+import { detectEcosystem } from '../src/infrastructure/config.js';
 
 // Mock fs module
 vi.mock('fs');

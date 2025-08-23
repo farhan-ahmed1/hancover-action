@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { groupCoverage, groupPackages } from '../src/group.js';
-import { FileCov } from '../src/schema.js';
+import { groupCoverage, groupPackages } from '../src/processing/group.js';
+import { FileCov } from '../src/processing/schema.js';
 
 describe('Group Coverage', () => {
     const sampleFiles: FileCov[] = [
