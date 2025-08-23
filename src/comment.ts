@@ -197,12 +197,12 @@ function renderProjectTable(packages: PkgCov[], minThreshold: number, config?: a
  * Determine if a package should have an expandable file table
  */
 function shouldExpandPackage(pkg: PkgCov, config: any): boolean {
-    // Check explicit config first
-    if (config?.ui?.expandFilesFor?.includes(pkg.name)) {
-        return true;
+    // If expandFilesFor is explicitly configured, only expand listed packages
+    if (config?.ui?.expandFilesFor && config.ui.expandFilesFor.length > 0) {
+        return config.ui.expandFilesFor.includes(pkg.name);
     }
     
-    // Default: expand packages with >= 2 files but not too many (to avoid spam)
+    // Default fallback when no explicit config: expand packages with >= 2 files but not too many (to avoid spam)
     return pkg.files.length >= 2 && pkg.files.length <= 20;
 }
 
