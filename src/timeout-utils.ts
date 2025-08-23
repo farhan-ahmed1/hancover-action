@@ -3,6 +3,7 @@
  */
 
 import * as core from '@actions/core';
+import { Disposable } from './resource-management.js';
 
 export interface TimeoutOptions {
     timeoutMs: number;
@@ -50,7 +51,7 @@ export async function withTimeout<T>(
 /**
  * Create a timeout controller for manual timeout management
  */
-export class TimeoutController {
+export class TimeoutController implements Disposable {
     private timeoutId?: NodeJS.Timeout;
     private readonly timeoutMs: number;
     private readonly operation: string;
@@ -90,6 +91,13 @@ export class TimeoutController {
             this.timeoutId = undefined;
         }
         this.isActive = false;
+    }
+
+    /**
+     * Dispose of the timeout controller (alias for clear() to implement Disposable)
+     */
+    dispose(): void {
+        this.clear();
     }
 
     isRunning(): boolean {

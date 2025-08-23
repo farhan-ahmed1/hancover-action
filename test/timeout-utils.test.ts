@@ -211,6 +211,30 @@ describe('Timeout Utils', () => {
                 'Operation \'warning test\' exceeded timeout of 100ms'
             );
         });
+
+        it('should implement Disposable interface', () => {
+            const controller = new TimeoutController(1000, 'disposable test');
+            
+            controller.start();
+            expect(controller.isRunning()).toBe(true);
+
+            // dispose() should be an alias for clear()
+            controller.dispose();
+            expect(controller.isRunning()).toBe(false);
+
+            vi.advanceTimersByTime(1001);
+            expect(controller.isRunning()).toBe(false);
+        });
+
+        it('should handle multiple dispose calls safely', () => {
+            const controller = new TimeoutController(1000, 'multiple dispose test');
+            
+            controller.start();
+            controller.dispose();
+            controller.dispose(); // Second disposal should be safe
+            
+            expect(controller.isRunning()).toBe(false);
+        });
     });
 
     describe('FileOperationTimeout', () => {
