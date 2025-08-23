@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { runEnhancedCoverage } from './enhanced.js';
+import { runEnhancedCoverage } from './enhanced-v2.js';
 
 async function run() {
     try {

@@ -15,7 +15,7 @@
         "promoteThreshold": 0.8
     },
     "ui": {
-        "expandFilesFor": ["src/parsers"],
+        "expandFilesFor": ["src/parsers", "src"],
         "maxDeltaRows": 10,
         "minPassThreshold": 50
     }
