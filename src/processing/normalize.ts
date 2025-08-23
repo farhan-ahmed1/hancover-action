@@ -2,8 +2,8 @@ import { globby } from 'globby';
 import { statSync, readFileSync } from 'fs';
 import * as core from '@actions/core';
 import { FileCov, ProjectCov } from './schema.js';
-import { parseAnyCoverageContent } from './parsers/index.js';
-import { enforceFileSizeLimits, enforceTotalSizeLimits } from './fs-limits.js';
+import { parseAnyCoverageContent } from '../parsers/index.js';
+import { enforceFileSizeLimits, enforceTotalSizeLimits } from '../infrastructure/fs-limits.js';
 
 export async function collectCoverage(
     patterns: string[], 

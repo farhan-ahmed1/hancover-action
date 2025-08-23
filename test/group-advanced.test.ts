@@ -5,9 +5,9 @@ import {
     rollup,
     groupCoverage,
     groupPackagesLegacy
-} from '../src/group.js';
-import { FileCov } from '../src/schema.js';
-import { Config } from '../src/config.js';
+} from '../src/processing/group.js';
+import { FileCov } from '../src/processing/schema.js';
+import { Config } from '../src/infrastructure/config.js';
 import * as core from '@actions/core';
 
 // Mock @actions/core
@@ -17,8 +17,8 @@ vi.mock('@actions/core', () => ({
 }));
 
 // Mock config loading
-vi.mock('../src/config.js', async () => {
-    const actual = await vi.importActual('../src/config.js');
+vi.mock('../src/infrastructure/config.js', async () => {
+    const actual = await vi.importActual('../src/infrastructure/config.js');
     return {
         ...actual,
         loadConfig: vi.fn(() => ({

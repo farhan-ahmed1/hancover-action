@@ -4,7 +4,7 @@ import {
     enforceTotalSizeLimits,
     enforceTimeoutLimits,
     validateXmlSecurity
-} from '../src/fs-limits.js';
+} from '../src/infrastructure/fs-limits.js';
 
 describe('FS Limits and Security', () => {
     describe('enforceFileSizeLimits', () => {

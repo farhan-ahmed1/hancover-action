@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { getCoverageData, saveCoverageData } from '../src/coverage-data.js';
+import { getCoverageData, saveCoverageData } from '../src/io/coverage-data.js';
 
 // Mock dependencies
 vi.mock('@actions/core');

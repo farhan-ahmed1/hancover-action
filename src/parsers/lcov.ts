@@ -1,7 +1,7 @@
-import { FileCov, ProjectCov } from '../schema.js';
-import { enforceFileSizeLimits } from '../fs-limits.js';
-import { withFileTimeout, globalTimeoutManager } from '../timeout-utils.js';
-import { globalProgressReporter } from '../progress-reporter.js';
+import { FileCov, ProjectCov } from '../processing/schema.js';
+import { enforceFileSizeLimits } from '../infrastructure/fs-limits.js';
+import { withFileTimeout, globalTimeoutManager } from '../infrastructure/timeout-utils.js';
+import { globalProgressReporter } from '../infrastructure/progress-reporter.js';
 import * as core from '@actions/core';
 
 /**

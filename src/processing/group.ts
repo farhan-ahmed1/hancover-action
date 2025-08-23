@@ -1,5 +1,5 @@
 import { FileCov, PkgCov } from './schema.js';
-import { Config, loadConfig, matchesPatterns } from './config.js';
+import { Config, loadConfig, matchesPatterns } from '../infrastructure/config.js';
 import * as path from 'path';
 import * as core from '@actions/core';
 

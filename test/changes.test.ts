@@ -4,8 +4,8 @@ import {
     parseGitDiff, 
     computeDeltaCoverage,
     ChangedLinesByFile
-} from '../src/changes.js';
-import { ProjectCov, PkgCov, FileCov } from '../src/schema.js';
+} from '../src/processing/changes.js';
+import { ProjectCov, PkgCov, FileCov } from '../src/processing/schema.js';
 
 describe('changes', () => {
     describe('computeChangesCoverage', () => {

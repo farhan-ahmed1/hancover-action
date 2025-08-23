@@ -1,10 +1,10 @@
 import { readFileSync } from 'fs';
-import { ProjectCov } from '../schema.js';
+import { ProjectCov } from '../processing/schema.js';
 import { parseLCOV, parseLcovFile } from './lcov.js';
 import { parseCobertura, parseCoberturaFile } from './cobertura.js';
 import { parseClover, parseCloverFile } from './clover.js';
 import { parseJaCoCo, parseJaCoCoFile } from './jacoco.js';
-import { StreamingParseOptions } from '../streaming-parser.js';
+import { StreamingParseOptions } from '../infrastructure/streaming-parser.js';
 import * as core from '@actions/core';
 
 /**

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { validateXmlSecurity, enforceFileSizeLimits, enforceTotalSizeLimits } from '../src/fs-limits.js';
+import { validateXmlSecurity, enforceFileSizeLimits, enforceTotalSizeLimits } from '../src/infrastructure/fs-limits.js';
 import { parseCobertura } from '../src/parsers/cobertura.js';
 
 describe('Security Tests', () => {

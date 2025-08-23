@@ -5,8 +5,8 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "ncc build src/index.ts -o dist --source-map --license licenses.txt",
-    "build:watch": "ncc build src/index.ts -o dist --source-map --watch",
+    "build": "ncc build src/core/index.ts -o dist --source-map --license licenses.txt",
+    "build:watch": "ncc build src/core/index.ts -o dist --source-map --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",

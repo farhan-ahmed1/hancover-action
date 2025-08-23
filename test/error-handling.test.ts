@@ -8,7 +8,7 @@ import {
     ErrorAggregator,
     CircuitBreaker,
     ErrorHandlingUtils
-} from '../src/error-handling.js';
+} from '../src/infrastructure/error-handling.js';
 
 describe('Error Handling System', () => {
     beforeEach(() => {

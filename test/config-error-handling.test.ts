@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as core from '@actions/core';
-import { loadConfig } from '../src/config.js';
+import { loadConfig } from '../src/infrastructure/config.js';
 
 // Mock modules
 vi.mock('fs');

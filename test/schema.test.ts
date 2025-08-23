@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FileCov, ProjectCov, PkgCov, CoverageBundle, ExpandablePackage } from '../src/schema.js';
+import { FileCov, ProjectCov, PkgCov, CoverageBundle, ExpandablePackage } from '../src/processing/schema.js';
 
 describe('Schema Type Validation', () => {
     describe('FileCov', () => {

@@ -8,7 +8,7 @@ import {
     withFileTimeout,
     withBatchTimeout,
     type TimeoutOptions
-} from '../src/timeout-utils.js';
+} from '../src/infrastructure/timeout-utils.js';
 import * as core from '@actions/core';
 
 // Mock @actions/core

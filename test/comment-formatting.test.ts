@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderComment } from '../src/comment.js';
-import { FileCov, ProjectCov, PkgCov } from '../src/schema.js';
+import { renderComment } from '../src/output/comment.js';
+import { FileCov, ProjectCov, PkgCov } from '../src/processing/schema.js';
 
 describe('Comment Formatting', () => {
     it('should render clean expandable file tables', async () => {

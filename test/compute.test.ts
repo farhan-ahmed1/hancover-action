@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ProjectCov } from '../src/schema.js';
-import { computeTotals } from '../src/compute.js';
+import { ProjectCov } from '../src/processing/schema.js';
+import { computeTotals } from '../src/core/compute.js';
 
 describe('computeTotals', () => {
     it('should compute totals correctly for a single file', () => {

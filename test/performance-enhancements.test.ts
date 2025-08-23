@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { shouldUseStreaming } from '../src/streaming-parser.js';
-import { withTimeout, TimeoutController, FileOperationTimeout } from '../src/timeout-utils.js';
-import { CoreProgressReporter, createFileTracker } from '../src/progress-reporter.js';
+import { shouldUseStreaming } from '../src/infrastructure/streaming-parser.js';
+import { withTimeout, TimeoutController, FileOperationTimeout } from '../src/infrastructure/timeout-utils.js';
+import { CoreProgressReporter, createFileTracker } from '../src/infrastructure/progress-reporter.js';
 
 // Mock fs module
 vi.mock('fs', () => ({

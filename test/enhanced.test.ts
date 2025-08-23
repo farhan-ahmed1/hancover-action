@@ -1,21 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
 import { parseLCOV } from '../src/parsers/lcov.js';
-import { groupPackages } from '../src/group.js';
-import { computeChangesCoverage, parseGitDiff } from '../src/changes.js';
-import { runEnhancedCoverage } from '../src/enhanced-v2.js';
+import { groupPackages } from '../src/processing/group.js';
+import { computeChangesCoverage, parseGitDiff } from '../src/processing/changes.js';
+import { runEnhancedCoverage } from '../src/core/enhanced-v2.js';
 
 // Mock all dependencies for runEnhancedCoverage tests
 vi.mock('@actions/core');
 vi.mock('child_process');
 vi.mock('fs');
-vi.mock('../src/inputs.js');
+vi.mock('../src/io/inputs.js');
 vi.mock('../src/parsers/index.js');
-vi.mock('../src/group.js');
-vi.mock('../src/changes.js');
-vi.mock('../src/comment.js');
-vi.mock('../src/coverage-data.js');
-vi.mock('../src/config.js');
+vi.mock('../src/processing/group.js');
+vi.mock('../src/processing/changes.js');
+vi.mock('../src/output/comment.js');
+vi.mock('../src/io/coverage-data.js');
+vi.mock('../src/infrastructure/config.js');
 
 const mockSetOutput = vi.mocked(core.setOutput);
 const mockSetFailed = vi.mocked(core.setFailed);
@@ -25,12 +25,12 @@ const mockWarning = vi.mocked(core.warning);
 // Import and mock at top level to ensure proper mocking
 import * as childProcess from 'child_process';
 import * as fs from 'fs';
-import * as configModule from '../src/config.js';
-import * as inputsModule from '../src/inputs.js';
+import * as configModule from '../src/infrastructure/config.js';
+import * as inputsModule from '../src/io/inputs.js';
 import * as parsersModule from '../src/parsers/index.js';
-import * as commentModule from '../src/comment.js';
-import * as coverageDataModule from '../src/coverage-data.js';
-import * as changesModule from '../src/changes.js';
+import * as commentModule from '../src/output/comment.js';
+import * as coverageDataModule from '../src/io/coverage-data.js';
+import * as changesModule from '../src/processing/changes.js';
 
 const mockExecSync = vi.mocked(childProcess.execSync);
 const mockLoadConfig = vi.mocked(configModule.loadConfig);
@@ -49,15 +49,15 @@ describe('Enhanced Coverage System', () => {
 
     test('can parse LCOV and create comment', async () => {
         // Don't mock these for the integration test
-        vi.doUnmock('../src/group.js');
-        vi.doUnmock('../src/changes.js');
-        vi.doUnmock('../src/comment.js');
-        vi.doUnmock('../src/config.js');
+        vi.doUnmock('../src/processing/group.js');
+        vi.doUnmock('../src/processing/changes.js');
+        vi.doUnmock('../src/output/comment.js');
+        vi.doUnmock('../src/infrastructure/config.js');
         
         // Re-import after unmocking
-        const { groupPackages: realGroupPackages } = await import('../src/group.js');
-        const { computeChangesCoverage: realComputeChangesCoverage } = await import('../src/changes.js');
-        const { renderComment: realRenderComment } = await import('../src/comment.js');
+        const { groupPackages: realGroupPackages } = await import('../src/processing/group.js');
+        const { computeChangesCoverage: realComputeChangesCoverage } = await import('../src/processing/changes.js');
+        const { renderComment: realRenderComment } = await import('../src/output/comment.js');
         const sampleLcov = `TN:
 SF:src/example.ts
 FN:1,exampleFunction
@@ -106,9 +106,9 @@ end_of_record
 
     test('can parse git diff', async () => {
         // Don't mock parseGitDiff for this test
-        vi.doUnmock('../src/changes.js');
+        vi.doUnmock('../src/processing/changes.js');
         
-        const { parseGitDiff: realParseGitDiff } = await import('../src/changes.js');
+        const { parseGitDiff: realParseGitDiff } = await import('../src/processing/changes.js');
         const gitDiff = `diff --git a/src/file1.ts b/src/file1.ts
 index abc123..def456 100644
 --- a/src/file1.ts

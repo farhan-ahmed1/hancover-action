@@ -4,10 +4,10 @@
  */
 
 import * as core from '@actions/core';
-import { parseAnyCoverage } from './parsers/index.js';
-import { groupPackages } from './group.js';
-import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from './changes.js';
-import { getCoverageData, saveCoverageData } from './coverage-data.js';
+import { parseAnyCoverage } from '../parsers/index.js';
+import { groupPackages } from '../processing/group.js';
+import { computeChangesCoverage, computeDeltaCoverage, parseGitDiff, ChangedLinesByFile } from '../processing/changes.js';
+import { getCoverageData, saveCoverageData } from '../io/coverage-data.js';
 import { loadConfig } from './config.js';
 import { execSync } from 'child_process';
 import * as fs from 'fs';

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { log, parseGlobPatterns, isValidFilePath } from '../src/utils.js';
+import { log, parseGlobPatterns, isValidFilePath } from '../src/infrastructure/utils.js';
 
 describe('utils', () => {
     describe('log', () => {

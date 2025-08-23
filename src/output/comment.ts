@@ -1,10 +1,10 @@
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { ProjectCov, PkgCov } from './schema.js';
-import { DeltaCoverage } from './changes.js';
-import { pct } from './group.js';
+import { ProjectCov, PkgCov } from '../processing/schema.js';
+import { DeltaCoverage } from '../processing/changes.js';
+import { pct } from '../processing/group.js';
 import { getHealthIcon } from './badges.js';
-import { loadConfig } from './config.js';
+import { loadConfig } from '../infrastructure/config.js';
 
 const COVERAGE_COMMENT_MARKER = '<!-- coverage-comment:anchor -->';
 

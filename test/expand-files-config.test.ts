@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderComment } from '../src/comment.js';
-import type { CommentData } from '../src/comment.js';
-import type { PkgCov, ProjectCov, FileCov } from '../src/schema.js';
+import { renderComment } from '../src/output/comment.js';
+import type { CommentData } from '../src/output/comment.js';
+import type { PkgCov, ProjectCov, FileCov } from '../src/processing/schema.js';
 
 // Mock the config loading to avoid interfering with the real config file
-vi.mock('../src/config.js', () => ({
+vi.mock('../src/infrastructure/config.js', () => ({
     loadConfig: vi.fn()
 }));
 
@@ -15,7 +15,7 @@ describe('expandFilesFor Configuration', () => {
         vi.clearAllMocks();
         
         // Import and setup the mock after clearing
-        const configModule = await import('../src/config.js');
+        const configModule = await import('../src/infrastructure/config.js');
         vi.mocked(configModule.loadConfig).mockImplementation(mockLoadConfig);
     });
 

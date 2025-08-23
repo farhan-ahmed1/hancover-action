@@ -5,7 +5,7 @@ import {
     parseXMLWithStreaming, 
     streamXMLContent,
     type StreamingParseOptions 
-} from '../src/streaming-parser.js';
+} from '../src/infrastructure/streaming-parser.js';
 import * as core from '@actions/core';
 
 // Mock dependencies
@@ -22,7 +22,7 @@ vi.mock('@actions/core', () => ({
     warning: vi.fn()
 }));
 
-vi.mock('../src/fs-limits.js', () => ({
+vi.mock('../src/infrastructure/fs-limits.js', () => ({
     validateXmlSecurity: vi.fn()
 }));
 
@@ -209,12 +209,12 @@ describe('Streaming Parser', () => {
     describe('parseXMLWithStreaming', () => {
         beforeEach(async () => {
             // Mock the validateXmlSecurity function
-            const { validateXmlSecurity } = vi.mocked(await import('../src/fs-limits.js'));
+            const { validateXmlSecurity } = vi.mocked(await import('../src/infrastructure/fs-limits.js'));
             validateXmlSecurity.mockImplementation(() => {}); // No-op by default
         });
 
         it.skip('should use streaming for large files', async () => {
-            const { validateXmlSecurity } = vi.mocked(await import('../src/fs-limits.js'));
+            const { validateXmlSecurity } = vi.mocked(await import('../src/infrastructure/fs-limits.js'));
             
             const mockReadStream = {
                 pipe: vi.fn().mockReturnThis(),
@@ -248,7 +248,7 @@ describe('Streaming Parser', () => {
         });
 
         it('should use standard reading for small files', async () => {
-            const { validateXmlSecurity } = vi.mocked(await import('../src/fs-limits.js'));
+            const { validateXmlSecurity } = vi.mocked(await import('../src/infrastructure/fs-limits.js'));
             const { readFile } = vi.mocked(await import('fs/promises'));
             
             readFile.mockResolvedValue('<xml>small content</xml>');
@@ -276,7 +276,7 @@ describe('Streaming Parser', () => {
         });
 
         it('should handle security validation failures', async () => {
-            const { validateXmlSecurity } = vi.mocked(await import('../src/fs-limits.js'));
+            const { validateXmlSecurity } = vi.mocked(await import('../src/infrastructure/fs-limits.js'));
             const { readFile } = vi.mocked(await import('fs/promises'));
             
             readFile.mockResolvedValue('<xml>content</xml>');

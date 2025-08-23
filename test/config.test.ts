@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { groupPackages } from '../src/group.js';
-import { loadConfig, matchesPatterns } from '../src/config.js';
-import { FileCov } from '../src/schema.js';
+import { groupPackages } from '../src/processing/group.js';
+import { loadConfig, matchesPatterns } from '../src/infrastructure/config.js';
+import { FileCov } from '../src/processing/schema.js';
 
 describe('Config System', () => {
     const testFiles: FileCov[] = [

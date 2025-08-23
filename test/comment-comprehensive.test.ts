@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
-import { renderComment, upsertStickyComment } from '../src/comment.js';
-import { ProjectCov, PkgCov, FileCov } from '../src/schema.js';
-import { DeltaCoverage } from '../src/changes.js';
+import { renderComment, upsertStickyComment } from '../src/output/comment.js';
+import { ProjectCov, PkgCov, FileCov } from '../src/processing/schema.js';
+import { DeltaCoverage } from '../src/processing/changes.js';
 
 // Mock dependencies
 vi.mock('@actions/core');
 vi.mock('@actions/github');
-vi.mock('../src/config.js', () => ({
+vi.mock('../src/infrastructure/config.js', () => ({
     loadConfig: vi.fn(() => ({}))
 }));
 
@@ -334,7 +334,7 @@ describe('comment - comprehensive coverage', () => {
 
         it('should handle custom config for expandable files', async () => {
             // Mock config to return expandFilesFor configuration
-            const { loadConfig } = await import('../src/config.js');
+            const { loadConfig } = await import('../src/infrastructure/config.js');
             vi.mocked(loadConfig).mockReturnValue({
                 groups: [],
                 fallback: { smartDepth: 'auto', promoteThreshold: 0.8 },

@@ -1,4 +1,4 @@
-import { ProjectCov } from './schema.js';
+import { ProjectCov } from '../processing/schema.js';
 
 export type Totals = {
     totalPct: number;
