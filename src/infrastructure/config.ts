@@ -100,7 +100,16 @@ export function matchesPatterns(filePath: string, patterns: string[]): boolean {
             .replace(/\?/g, '[^/]');            // ? matches any single character except /
 
         const regex = new RegExp(`^${regexPattern}$`);
-        const matches = regex.test(normalizedPath);
+        let matches = regex.test(normalizedPath);
+        
+        // Handle edge case where path has parent directory traversal but eventually
+        // resolves to something that should match the pattern
+        if (!matches && normalizedPath.startsWith('../')) {
+            // For paths like '../src/file.ts' that should match 'src/**'
+            // we need to check if removing the leading '../' segments would create a match
+            const pathWithoutParentRefs = normalizedPath.replace(/^(\.\.\/)+/, '');
+            matches = regex.test(pathWithoutParentRefs);
+        }
         
         return matches;
     });
