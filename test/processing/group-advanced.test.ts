@@ -7,7 +7,7 @@ import {
     groupPackagesLegacy
 } from '../../src/processing/group.js';
 import { FileCov } from '../../src/processing/schema.js';
-import { Config } from '../../src/processing/infrastructure/config.js';
+import { Config } from '../../src/infrastructure/config.js';
 import * as core from '@actions/core';
 
 // Mock @actions/core
