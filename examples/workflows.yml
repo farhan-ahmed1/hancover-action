@@ -1,0 +1,281 @@
+# HanCover Action - Complete Workflow Examples
+# Copy the relevant sections to your .github/workflows/ directory
+
+# =============================================================================
+# BASIC PR COVERAGE
+# Simple coverage reports without change detection or badges
+# File: .github/workflows/coverage.yml
+# =============================================================================
+
+name: Basic PR Coverage
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - name: Coverage Report
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          min-threshold: 80
+
+---
+
+# =============================================================================
+# ENHANCED WITH BADGES AND CHANGE DETECTION
+# Full-featured setup with dynamic badges and change tracking
+# Requires GitHub Gist setup (see README.md for instructions)
+# =============================================================================
+
+# File: .github/workflows/coverage-pr.yml
+name: PR Coverage with Change Detection
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for change detection
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - name: Coverage Report with Change Detection
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+          github-token: ${{ secrets.GIST_TOKEN }}
+          min-threshold: 80
+
+---
+
+# File: .github/workflows/coverage-main.yml
+name: Update Coverage Baseline
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  update-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - name: Update Coverage Baseline
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+          gist-id: ${{ secrets.COVERAGE_GIST_ID }}
+          github-token: ${{ secrets.GIST_TOKEN }}
+
+---
+
+# =============================================================================
+# LANGUAGE-SPECIFIC EXAMPLES
+# Examples for different programming languages and coverage formats
+# =============================================================================
+
+# JavaScript/TypeScript (LCOV) - Jest, Vitest, c8, nyc
+jobs:
+  javascript-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm test -- --coverage
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/lcov.info
+
+---
+
+# .NET Projects (Cobertura)
+jobs:
+  dotnet-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0'
+      
+      - run: dotnet restore
+      - run: dotnet test --collect:"XPlat Code Coverage" --results-directory coverage
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage/**/coverage.cobertura.xml
+
+---
+
+# Java Projects (JaCoCo) - Maven
+jobs:
+  java-maven-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - run: mvn test jacoco:report
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: target/site/jacoco/jacoco.xml
+
+---
+
+# Java Projects (JaCoCo) - Gradle
+jobs:
+  java-gradle-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      
+      - run: ./gradlew test jacocoTestReport
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: build/reports/jacoco/test/jacocoTestReport.xml
+
+---
+
+# Python Projects (Cobertura)
+jobs:
+  python-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - run: |
+          pip install coverage pytest
+          coverage run -m pytest
+          coverage xml
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage.xml
+
+---
+
+# PHP Projects (Clover)
+jobs:
+  php-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: xdebug
+      
+      - run: composer install
+      - run: ./vendor/bin/phpunit --coverage-clover=coverage.xml
+      
+      - uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: coverage.xml
+
+---
+
+# =============================================================================
+# MONOREPO EXAMPLE
+# Complex projects with multiple packages and custom grouping
+# =============================================================================
+
+jobs:
+  monorepo-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run test:all  # Run tests for all packages
+      
+      - name: Monorepo Coverage Report
+        uses: farhan-ahmed1/hancover-action@v1
+        with:
+          files: |
+            packages/*/coverage/lcov.info
+            apps/*/coverage/cobertura.xml
+          min-threshold: 75
+
+# For monorepos, create .coverage-report.json in your repository root:
+# {
+#   "groups": [
+#     {
+#       "name": "Frontend Apps",
+#       "patterns": ["apps/web/**", "apps/mobile/**"]
+#     },
+#     {
+#       "name": "Backend Services",
+#       "patterns": ["apps/api/**", "apps/worker/**"]
+#     },
+#     {
+#       "name": "Shared Libraries",
+#       "patterns": ["packages/**"]
+#     }
+#   ],
+#   "ui": {
+#     "expandFilesFor": ["Shared Libraries"]
+#   }
+# }

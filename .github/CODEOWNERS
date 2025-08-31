@@ -6,7 +6,6 @@ SECURITY.md @farhan-ahmed1
 .github/workflows/ @farhan-ahmed1
 src/fs-limits.ts @farhan-ahmed1
 src/parsers/ @farhan-ahmed1
-scripts/security-audit.sh @farhan-ahmed1
 
 # Action configuration
 action.yml @farhan-ahmed1
@@ -15,4 +14,3 @@ package-lock.json @farhan-ahmed1
 
 # Dependency management files
 .github/dependabot.yml @farhan-ahmed1
-renovate.json @farhan-ahmed1
