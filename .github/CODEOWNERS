@@ -14,4 +14,3 @@ package-lock.json @farhan-ahmed1
 
 # Dependency management files
 .github/dependabot.yml @farhan-ahmed1
-renovate.json @farhan-ahmed1
