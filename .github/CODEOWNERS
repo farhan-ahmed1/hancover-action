@@ -6,7 +6,6 @@ SECURITY.md @farhan-ahmed1
 .github/workflows/ @farhan-ahmed1
 src/fs-limits.ts @farhan-ahmed1
 src/parsers/ @farhan-ahmed1
-scripts/security-audit.sh @farhan-ahmed1
 
 # Action configuration
 action.yml @farhan-ahmed1
