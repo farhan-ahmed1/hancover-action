@@ -32,7 +32,7 @@ jobs:
         run: npm ci
 
       - name: Check for vulnerable dependencies
-        run: npm audit --audit-level high
+        run: npm run audit
         continue-on-error: true
 
   dependency-review:
