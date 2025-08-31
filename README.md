@@ -177,22 +177,11 @@ The action automatically detects the format based on file content and structure.
 
 ## Documentation
 
-### Setup & Configuration
-
-- **[Setup Guide](./docs/SETUP-GUIDE.md)** - Complete setup instructions including file-based alternatives
-- **[Configuration Guide](./docs/CONFIGURATION.md)** - Advanced package grouping and report customization
 - **[API Reference](./docs/API-REFERENCE.md)** - Complete input/output reference and configuration options
-- **[Error Handling Guide](./docs/ERROR-HANDLING.md)** - Comprehensive error handling and recovery system
-
-### Examples
-
-- **[Basic PR Coverage](./examples/basic-pr-coverage.yml)** - Simple coverage comments
-- **[Enhanced with Badges](./examples/enhanced-with-badges.yml)** - Full setup with change detection
-- **[Multi-format Support](./examples/multi-format.yml)** - Different coverage formats
-- **[Monorepo Setup](./examples/monorepo-setup.yml)** - Complex project configuration
-
-### Reference
-
+- **[Configuration Guide](./docs/CONFIGURATION.md)** - Advanced package grouping and report customization  
+- **[Compatibility Reference](./docs/COMPATIBILITY.md)** - Supported languages and coverage formats
+- **[Troubleshooting Guide](./docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Workflow Examples](./examples/workflows.yml)** - Complete workflow examples for all setups
 - **[Security Policy](./SECURITY.md)** - Security best practices and reporting
 - **[Contributing Guide](./CONTRIBUTING.md)** - Contributing to the project
 
@@ -237,7 +226,7 @@ The action automatically detects the format based on file content and structure.
     files: coverage.xml
 ```
 
-See [examples/](./examples/) for complete workflow files and advanced configurations.
+See [examples/workflows.yml](./examples/workflows.yml) for complete workflow examples and advanced configurations.
 
 ## Security
 
