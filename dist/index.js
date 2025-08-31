@@ -42125,7 +42125,7 @@ const safeDecodeAsync = /* @__PURE__*/ _safeDecodeAsync($ZodRealError);
 const version = {
     major: 4,
     minor: 1,
-    patch: 1,
+    patch: 5,
 };
 
 ;// CONCATENATED MODULE: ./node_modules/zod/v4/core/schemas.js
