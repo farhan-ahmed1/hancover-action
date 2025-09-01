@@ -4,6 +4,7 @@
 ![CodeQL](https://github.com/farhan-ahmed1/hancover-action/actions/workflows/codeql.yml/badge.svg)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/farhan-ahmed1/96e4dc85e2b5c6a2e7f7cdcdc576eb6c/raw/coverage-badge.json)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/farhan-ahmed1/hancover-action/badge)](https://scorecard.dev/viewer/?uri=github.com/farhan-ahmed1/hancover-action)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11116/badge)](https://www.bestpractices.dev/projects/11116)
 
 A GitHub Action that generates comprehensive coverage reports for Pull Requests with change detection, dynamic badges, and support for multiple coverage formats.
 
