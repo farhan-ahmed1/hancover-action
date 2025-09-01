@@ -10,10 +10,13 @@ import * as core from '@actions/core';
  */
 export enum ErrorSeverity {
     /** Non-critical errors that can be recovered from */
+    // eslint-disable-next-line no-unused-vars
     WARNING = 'warning',
     /** Errors that affect functionality but allow partial operation */
+    // eslint-disable-next-line no-unused-vars
     RECOVERABLE = 'recoverable',
     /** Critical errors that require immediate attention */
+    // eslint-disable-next-line no-unused-vars
     FATAL = 'fatal'
 }
 
@@ -21,16 +24,16 @@ export enum ErrorSeverity {
  * Error categories for better organization and handling
  */
 export enum ErrorCategory {
+    // eslint-disable-next-line no-unused-vars
     PARSING = 'parsing',
+    // eslint-disable-next-line no-unused-vars
     CONFIG = 'config',
+    // eslint-disable-next-line no-unused-vars
     GIT_DIFF = 'git_diff',
+    // eslint-disable-next-line no-unused-vars
     CHANGES_COVERAGE = 'changes_coverage',
-    BASELINE = 'baseline',
-    GIST_OPERATIONS = 'gist_operations',
-    FILE_SYSTEM = 'file_system',
-    NETWORK = 'network',
-    VALIDATION = 'validation',
-    TIMEOUT = 'timeout'
+    // eslint-disable-next-line no-unused-vars
+    GIST_OPERATIONS = 'gist_operations'
 }
 
 /**

@@ -51391,10 +51391,13 @@ var external_child_process_ = __nccwpck_require__(5317);
 var ErrorSeverity;
 (function (ErrorSeverity) {
     /** Non-critical errors that can be recovered from */
+    // eslint-disable-next-line no-unused-vars
     ErrorSeverity["WARNING"] = "warning";
     /** Errors that affect functionality but allow partial operation */
+    // eslint-disable-next-line no-unused-vars
     ErrorSeverity["RECOVERABLE"] = "recoverable";
     /** Critical errors that require immediate attention */
+    // eslint-disable-next-line no-unused-vars
     ErrorSeverity["FATAL"] = "fatal";
 })(ErrorSeverity || (ErrorSeverity = {}));
 /**
@@ -51402,16 +51405,16 @@ var ErrorSeverity;
  */
 var ErrorCategory;
 (function (ErrorCategory) {
+    // eslint-disable-next-line no-unused-vars
     ErrorCategory["PARSING"] = "parsing";
+    // eslint-disable-next-line no-unused-vars
     ErrorCategory["CONFIG"] = "config";
+    // eslint-disable-next-line no-unused-vars
     ErrorCategory["GIT_DIFF"] = "git_diff";
+    // eslint-disable-next-line no-unused-vars
     ErrorCategory["CHANGES_COVERAGE"] = "changes_coverage";
-    ErrorCategory["BASELINE"] = "baseline";
+    // eslint-disable-next-line no-unused-vars
     ErrorCategory["GIST_OPERATIONS"] = "gist_operations";
-    ErrorCategory["FILE_SYSTEM"] = "file_system";
-    ErrorCategory["NETWORK"] = "network";
-    ErrorCategory["VALIDATION"] = "validation";
-    ErrorCategory["TIMEOUT"] = "timeout";
 })(ErrorCategory || (ErrorCategory = {}));
 /**
  * Structured error with enhanced context and recovery information
