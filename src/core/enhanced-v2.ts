@@ -17,6 +17,9 @@ import {
     ErrorAggregator,
     ErrorCategory
 } from '../infrastructure/error-handling.js';
+import { logger } from '../infrastructure/logger.js';
+import { performanceMonitor } from '../infrastructure/performance-monitor.js';
+import { validateInputs } from '../infrastructure/input-validator.js';
 
 /**
  * Enhanced coverage analysis with comprehensive error handling and graceful degradation
@@ -27,12 +30,47 @@ export async function runEnhancedCoverage() {
     
     // Initialize error aggregator for centralized error tracking
     const errorAggregator = new ErrorAggregator();
+    const executionContext = logger.createContext('enhanced-coverage-analysis', { 
+        startTime 
+    });
     
     try {
         inputs = readInputs();
         
+        // Enhanced input validation with detailed error messages
+        logger.info('Validating input configuration...', executionContext);
+        const validationResult = validateInputs({
+            files: inputs.files,
+            thresholds: inputs.thresholds,
+            groups: inputs.groups ? JSON.stringify(inputs.groups) : undefined,
+            timeoutSeconds: inputs.timeoutSeconds,
+            maxBytesPerFile: inputs.maxBytesPerFile,
+            maxTotalBytes: inputs.maxTotalBytes,
+            gistId: inputs.gistId,
+            gistToken: inputs.gistToken
+        });
+
+        if (!validationResult.success) {
+            const errorMessage = `Input validation failed:\n${validationResult.errors.map(e => 
+                `- ${e.field}: ${e.message}${e.suggestion ? ` (Suggestion: ${e.suggestion})` : ''}`
+            ).join('\n')}`;
+            
+            if (inputs.strict) {
+                throw new Error(errorMessage);
+            } else {
+                core.warning(errorMessage);
+            }
+        }
+
+        if (validationResult.warnings.length > 0) {
+            const warningMessage = `Input validation warnings:\n${validationResult.warnings.map(w => 
+                `- ${w.field}: ${w.message}${w.suggestion ? ` (Suggestion: ${w.suggestion})` : ''}`
+            ).join('\n')}`;
+            core.warning(warningMessage);
+        }
+        
         // Step 1: Parse PR coverage with enhanced error recovery
-        core.info('🚀 Starting enhanced coverage analysis with comprehensive error handling...');
+        logger.info('Starting enhanced coverage analysis with comprehensive error handling...', executionContext);
         const prFiles = inputs.files;
         
         if (!prFiles || prFiles.length === 0) {
@@ -46,29 +84,32 @@ export async function runEnhancedCoverage() {
             chunkSize: 64 * 1024 // 64KB chunks
         };
 
-        core.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`);
+        logger.info(`Processing ${prFiles.length} coverage file(s) with timeout: ${inputs.timeoutSeconds}s`, executionContext);
         
         // Enhanced parsing with circuit breaker and retry logic
         let prProject: any = null;
         
-        for (const file of prFiles) {
-            const parseResult = await parseWithRecovery(file, streamingOptions, errorAggregator);
-            
-            if (parseResult.success && parseResult.data) {
-                prProject = parseResult.data;
-                errorAggregator.recordSuccess(ErrorCategory.PARSING, 'parseAnyCoverage');
-                core.info(`✅ Successfully parsed ${file} with ${prProject.files.length} files`);
-                break; // Use first successfully parsed file
-            } else {
-                // Collect errors and warnings
-                parseResult.errors.forEach(e => errorAggregator.addError(e));
-                parseResult.warnings.forEach(w => errorAggregator.addWarning(w));
+        // Use performance monitor to track parsing operations
+        prProject = await performanceMonitor.measure('parse-coverage-files', async () => {
+            for (const file of prFiles) {
+                const parseResult = await parseWithRecovery(file, streamingOptions, errorAggregator);
                 
-                if (inputs.strict && parseResult.hasFatalErrors()) {
-                    throw new Error(`Strict mode: Failed to parse coverage file ${file}: ${parseResult.getErrorMessages().join(', ')}`);
+                if (parseResult.success && parseResult.data) {
+                    errorAggregator.recordSuccess(ErrorCategory.PARSING, 'parseAnyCoverage');
+                    logger.info(`Successfully parsed ${file} with ${parseResult.data.files.length} files`, executionContext);
+                    return parseResult.data; // Return first successfully parsed file
+                } else {
+                    // Collect errors and warnings
+                    parseResult.errors.forEach(e => errorAggregator.addError(e));
+                    parseResult.warnings.forEach(w => errorAggregator.addWarning(w));
+                    
+                    if (inputs?.strict && parseResult.hasFatalErrors()) {
+                        throw new Error(`Strict mode: Failed to parse coverage file ${file}: ${parseResult.getErrorMessages().join(', ')}`);
+                    }
                 }
             }
-        }
+            return null;
+        }, { fileCount: prFiles.length });
 
         // If no files were successfully parsed, fail appropriately
         if (!prProject) {
@@ -266,8 +307,9 @@ export async function runEnhancedCoverage() {
             }
         }
         
-        // Log comprehensive summary
-        core.info('Enhanced coverage analysis completed successfully');
+        // Log comprehensive summary including performance metrics
+        logger.info('Enhanced coverage analysis completed successfully', executionContext);
+        performanceMonitor.logSummary();
         errorAggregator.logSummary();
         
         // Ensure clean exit by explicitly terminating any lingering processes
