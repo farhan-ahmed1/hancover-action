@@ -23,7 +23,7 @@
     "globby": "^14.0.2",
     "sanitize-filename": "1.6.3",
     "yaml": "^2.5.0",
-    "zod": "^4.1.5"
+    "zod": "^4.1.8"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
