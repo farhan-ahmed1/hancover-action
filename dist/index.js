@@ -55409,8 +55409,8 @@ class OrderedObjParser{
       "copyright" : { regex: /&(copy|#169);/g, val: "©" },
       "reg" : { regex: /&(reg|#174);/g, val: "®" },
       "inr" : { regex: /&(inr|#8377);/g, val: "₹" },
-      "num_dec": { regex: /&#([0-9]{1,7});/g, val : (_, str) => String.fromCodePoint(Number.parseInt(str, 10)) },
-      "num_hex": { regex: /&#x([0-9a-fA-F]{1,6});/g, val : (_, str) => String.fromCodePoint(Number.parseInt(str, 16)) },
+      "num_dec": { regex: /&#([0-9]{1,7});/g, val : (_, str) => fromCodePoint(str, 10, "&#") },
+      "num_hex": { regex: /&#x([0-9a-fA-F]{1,6});/g, val : (_, str) => fromCodePoint(str, 16, "&#x") },
     };
     this.addExternalEntities = addExternalEntities;
     this.parseXml = parseXml;
@@ -55508,7 +55508,7 @@ function resolveNameSpace(tagname) {
 //const attrsRegx = new RegExp("([\\w\\-\\.\\:]+)\\s*=\\s*(['\"])((.|\n)*?)\\2","gm");
 const attrsRegx = new RegExp('([^\\s=]+)\\s*(=\\s*([\'"])([\\s\\S]*?)\\3)?', 'gm');
 
-function buildAttributesMap(attrStr, jPath, tagName) {
+function buildAttributesMap(attrStr, jPath) {
   if (this.options.ignoreAttributes !== true && typeof attrStr === 'string') {
     // attrStr = attrStr.replace(/\r?\n/g, ' ');
     //attrStr = attrStr || attrStr.trim();
@@ -55620,14 +55620,14 @@ const parseXml = function(xmlData) {
 
         textData = this.saveTextToParentTag(textData, currentNode, jPath);
         if( (this.options.ignoreDeclaration && tagData.tagName === "?xml") || this.options.ignorePiTags){
-
+          //do nothing
         }else{
   
           const childNode = new XmlNode(tagData.tagName);
           childNode.add(this.options.textNodeName, "");
           
           if(tagData.tagName !== tagData.tagExp && tagData.attrExpPresent){
-            childNode[":@"] = this.buildAttributesMap(tagData.tagExp, jPath, tagData.tagName);
+            childNode[":@"] = this.buildAttributesMap(tagData.tagExp, jPath);
           }
           this.addChild(currentNode, childNode, jPath, i);
         }
@@ -55674,7 +55674,12 @@ const parseXml = function(xmlData) {
         let closeIndex = result.closeIndex;
 
         if (this.options.transformTagName) {
-          tagName = this.options.transformTagName(tagName);
+          //console.log(tagExp, tagName)
+          const newTagName = this.options.transformTagName(tagName);
+          if(tagExp === tagName) {
+            tagExp = newTagName
+          }
+          tagName = newTagName;
         }
         
         //save text as child node
@@ -55725,7 +55730,8 @@ const parseXml = function(xmlData) {
           const childNode = new XmlNode(tagName);
 
           if(tagName !== tagExp && attrExpPresent){
-            childNode[":@"] = this.buildAttributesMap(tagExp, jPath, tagName);
+            childNode[":@"] = this.buildAttributesMap(tagExp, jPath
+            );
           }
           if(tagContent) {
             tagContent = this.parseTextData(tagContent, tagName, jPath, true, attrExpPresent, true, true);
@@ -55747,12 +55753,16 @@ const parseXml = function(xmlData) {
             }
             
             if(this.options.transformTagName) {
-              tagName = this.options.transformTagName(tagName);
+              const newTagName = this.options.transformTagName(tagName);
+              if(tagExp === tagName) {
+                tagExp = newTagName
+              }
+              tagName = newTagName;
             }
 
             const childNode = new XmlNode(tagName);
             if(tagName !== tagExp && attrExpPresent){
-              childNode[":@"] = this.buildAttributesMap(tagExp, jPath, tagName);
+              childNode[":@"] = this.buildAttributesMap(tagExp, jPath);
             }
             this.addChild(currentNode, childNode, jPath, startIndex);
             jPath = jPath.substr(0, jPath.lastIndexOf("."));
@@ -55763,7 +55773,7 @@ const parseXml = function(xmlData) {
             this.tagsNodeStack.push(currentNode);
             
             if(tagName !== tagExp && attrExpPresent){
-              childNode[":@"] = this.buildAttributesMap(tagExp, jPath, tagName);
+              childNode[":@"] = this.buildAttributesMap(tagExp, jPath);
             }
             this.addChild(currentNode, childNode, jPath, startIndex);
             currentNode = childNode;
@@ -55784,6 +55794,7 @@ function addChild(currentNode, childNode, jPath, startIndex){
   if (!this.options.captureMetaData) startIndex = undefined;
   const result = this.options.updateTag(childNode.tagname, jPath, childNode[":@"])
   if(result === false){
+    //do nothing
   } else if(typeof result === "string"){
     childNode.tagname = result
     currentNode.addChild(childNode, startIndex);
@@ -55985,6 +55996,15 @@ function parseValue(val, shouldParse, options) {
   }
 }
 
+function fromCodePoint(str, base, prefix){
+  const codePoint = Number.parseInt(str, base);
+
+  if (codePoint >= 0 && codePoint <= 0x10FFFF) {
+      return String.fromCodePoint(codePoint);
+  } else {
+      return prefix +str + ";";
+  }
+}
 ;// CONCATENATED MODULE: ./node_modules/fast-xml-parser/src/xmlparser/node2json.js
 
 
