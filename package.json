@@ -17,21 +17,21 @@
     "prepare": "npm run build"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0",
-    "fast-xml-parser": "^5.3.1",
-    "globby": "^15.0.0",
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0",
+    "fast-xml-parser": "^5.3.4",
+    "globby": "^16.1.0",
     "sanitize-filename": "1.6.3",
-    "yaml": "^2.5.0",
-    "zod": "^4.1.12"
+    "yaml": "^2.8.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^24.6.1",
-        "@typescript-eslint/eslint-plugin": "8.45.0",
-        "@typescript-eslint/parser": "8.45.0",
+    "@types/node": "^25.2.1",
+        "@typescript-eslint/eslint-plugin": "8.54.0",
+        "@typescript-eslint/parser": "8.54.0",
         "@vercel/ncc": "0.38.4",
-        "@vitest/coverage-v8": "4.0.8",
-        "eslint": "9.36.0",
+        "@vitest/coverage-v8": "4.0.18",
+        "eslint": "9.39.2",
         "typescript": "^5.9.3",
         "vitest": "^4.0.8"
   }
