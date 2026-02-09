@@ -60564,11 +60564,13 @@ class DocTypeReader{
                         i += 7; 
                         let entityName, val;
                         [entityName, val,i] = this.readEntityExp(xmlData,i+1,this.suppressValidationErr);
-                        if(val.indexOf("&") === -1) //Parameter entities are not supported
+                        if(val.indexOf("&") === -1){ //Parameter entities are not supported
+                            const escaped = entityName.replace(/[.\-+*:]/g, '\\.');
                             entities[ entityName ] = {
-                                regx : RegExp( `&${entityName};`,"g"),
+                                regx : RegExp( `&${escaped};`,"g"),
                                 val: val
                             };
+                        }
                     }
                     else if( hasBody && hasSeq(xmlData, "!ELEMENT",i))  {
                         i += 8;//Not supported
@@ -60945,7 +60947,7 @@ function toNumber(str, options = {}){
         return parse_int(trimmedStr, 16);
     // }else if (options.oct && octRegex.test(str)) {
     //     return Number.parseInt(val, 8);
-    }else if (trimmedStr.search(/.+[eE].+/)!== -1) { //eNotation
+    }else if (trimmedStr.includes('e') || trimmedStr.includes('E')) { //eNotation
         return resolveEnotation(str,trimmedStr,options);
     // }else if (options.parseBin && binRegex.test(str)) {
     //     return Number.parseInt(val, 2);
@@ -61146,8 +61148,9 @@ function addExternalEntities(externalEntities){
   const entKeys = Object.keys(externalEntities);
   for (let i = 0; i < entKeys.length; i++) {
     const ent = entKeys[i];
+    const escaped = ent.replace(/[.\-+*:]/g, '\\.');
     this.lastEntities[ent] = {
-       regex: new RegExp("&"+ent+";","g"),
+       regex: new RegExp("&"+escaped+";","g"),
        val : externalEntities[ent]
     }
   }
