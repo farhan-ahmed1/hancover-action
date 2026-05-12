@@ -22,7 +22,7 @@
     "fast-xml-parser": "^5.3.5",
     "globby": "^16.1.0",
     "sanitize-filename": "1.6.3",
-    "yaml": "^2.8.2",
+    "yaml": "^2.9.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
